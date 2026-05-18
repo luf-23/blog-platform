@@ -1,94 +1,73 @@
 <script setup>
+import { ref, computed } from "vue";
+import { useRouter } from "vue-router";
+import PageHeader from "../../components/common/PageHeader.vue";
+import EmptyState from "../../components/common/EmptyState.vue";
+import ArticleCard from "../../components/article/ArticleCard.vue";
 import {
   getPendingArticleListService,
   getPublishedArticleListService
-} from "../../api/admin";
-import { getAuthorNameService } from "../../api/community";
-import { ref } from "vue";
-import ArticleCard from "../../components/ArticleCard.vue";
-import { check } from "../../utils/admin/check";
-import { useRouter } from "vue-router";
-check();
-const router = useRouter();
-const articleList = ref([
-  {
-    articleId: "",
-    categoryId: "",
-    author: "",
-    title: "",
-    content: "",
-    status: "", //pending or published
-    createTime: "",
-    updateTime: "",
-    coverImage: ""
-  }
-]);
-const getAuthorName = async (categoryId) => {
-  try {
-    const result = await getAuthorNameService(categoryId);
-    return result.data;
-  } catch (error) {
-    console.error("获取作者名称失败:", error);
-    return "error";
-  }
-};
-const loading = ref(false);
-const getArticleList = async () => {
-  loading.value = true;
-  const publishedList = ref();
-  const pendingList = ref();
-  const result1 = await getPendingArticleListService();
-  pendingList.value = result1.data.map((item) => {
-    return {
-      articleId: item.articleId,
-      categoryId: item.categoryId,
-      author: "",
-      title: item.title,
-      content: item.content,
-      status: item.status,
-      createTime: item.createTime,
-      updateTime: item.updateTime,
-      coverImage: item.coverImage
-    };
-  });
-  for (const item of pendingList.value) {
-    const authorName = await getAuthorName({
-      categoryId: item.categoryId
-    });
-    item.author = authorName;
-  }
-  const result2 = await getPublishedArticleListService();
-  publishedList.value = result2.data.map((item) => {
-    return {
-      articleId: item.articleId,
-      categoryId: item.categoryId,
-      author: "",
-      title: item.title,
-      content: item.content,
-      status: item.status,
-      createTime: item.createTime,
-      updateTime: item.updateTime,
-      coverImage: item.coverImage
-    };
-  });
-  for (const item of publishedList.value) {
-    const authorName = await getAuthorName({
-      categoryId: item.categoryId
-    });
-    item.author = authorName;
-  }
-  articleList.value = [
-    ...JSON.parse(JSON.stringify(publishedList.value)),
-    ...JSON.parse(JSON.stringify(pendingList.value))
-  ];
-  articleList.value.sort((a, b) => {
-    return new Date(b.updateTime) - new Date(a.updateTime);
-  });
-  loading.value = false;
-};
-getArticleList();
+} from "../../api/admin.js";
+import { getAuthorNameService } from "../../api/community.js";
 
-const handleRowClick = (item) => {
+const router = useRouter();
+
+const allList = ref([]);
+const filter = ref("all");
+const loading = ref(false);
+
+function normalize(item) {
+  return {
+    articleId: item.articleId,
+    categoryId: item.categoryId,
+    author: "",
+    title: item.title,
+    content: item.content,
+    status: item.status,
+    createTime: item.createTime,
+    updateTime: item.updateTime,
+    coverImage: item.coverImage
+  };
+}
+
+async function attachAuthors(list) {
+  for (const item of list) {
+    try {
+      const res = await getAuthorNameService({ categoryId: item.categoryId });
+      item.author = res.data;
+    } catch {
+      item.author = "未知";
+    }
+  }
+}
+
+async function fetchAll() {
+  loading.value = true;
+  try {
+    const [pending, published] = await Promise.all([
+      getPendingArticleListService(),
+      getPublishedArticleListService()
+    ]);
+    const merged = [
+      ...(pending.data || []).map(normalize),
+      ...(published.data || []).map(normalize)
+    ];
+    await attachAuthors(merged);
+    merged.sort((a, b) => new Date(b.updateTime) - new Date(a.updateTime));
+    allList.value = merged;
+  } finally {
+    loading.value = false;
+  }
+}
+
+fetchAll();
+
+const filteredList = computed(() => {
+  if (filter.value === "all") return allList.value;
+  return allList.value.filter((item) => item.status === filter.value);
+});
+
+function open(item) {
   router.push({
     name: "ArticleDetailManager",
     query: {
@@ -97,26 +76,43 @@ const handleRowClick = (item) => {
       author: item.author
     }
   });
-};
+}
 </script>
 
 <template>
-  <div class="article-list-container">
-    <ArticleCard
-      v-for="item in articleList"
-      :article="item"
-      :key="item.articleId"
-      :onClick="() => handleRowClick(item)"
-    />
+  <div class="bp-page">
+    <PageHeader title="文章审核" subtitle="审核社区中待发布与已发布的文章">
+      <template #actions>
+        <el-radio-group v-model="filter" size="small">
+          <el-radio-button value="all">全部</el-radio-button>
+          <el-radio-button value="pending">待审核</el-radio-button>
+          <el-radio-button value="published">已发布</el-radio-button>
+        </el-radio-group>
+      </template>
+    </PageHeader>
+
+    <div v-loading="loading">
+      <div v-if="filteredList.length" class="grid">
+        <ArticleCard
+          v-for="item in filteredList"
+          :key="item.articleId"
+          :article="item"
+          @click="open"
+        />
+      </div>
+      <EmptyState
+        v-else-if="!loading"
+        title="暂无文章"
+        description="当前筛选下没有匹配的内容"
+      />
+    </div>
   </div>
 </template>
 
 <style scoped>
-.article-list {
+.grid {
   display: grid;
-  gap: 20px;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  padding: 20px;
-  max-width: 100%;
+  gap: 16px;
 }
 </style>

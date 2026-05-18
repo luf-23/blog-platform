@@ -1,0 +1,105 @@
+/**
+ * 主题变量
+ * 同时定义浅色与深色主题，通过 html[data-theme] 切换
+ */
+
+:root,
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --bp-color-bg: #f5f7fb;
+  --bp-color-bg-elevated: #ffffff;
+  --bp-color-bg-soft: #f1f4f9;
+  --bp-color-bg-hover: rgba(99, 102, 241, 0.08);
+
+  --bp-color-text-primary: #0f172a;
+  --bp-color-text-secondary: #475569;
+  --bp-color-text-tertiary: #94a3b8;
+  --bp-color-text-inverse: #ffffff;
+
+  --bp-color-border: rgba(15, 23, 42, 0.08);
+  --bp-color-border-strong: rgba(15, 23, 42, 0.16);
+  --bp-color-divider: rgba(15, 23, 42, 0.06);
+
+  --bp-color-primary: #6366f1;
+  --bp-color-primary-hover: #4f46e5;
+  --bp-color-primary-soft: rgba(99, 102, 241, 0.12);
+  --bp-color-primary-soft-strong: rgba(99, 102, 241, 0.2);
+
+  --bp-color-success: #10b981;
+  --bp-color-warning: #f59e0b;
+  --bp-color-danger: #ef4444;
+  --bp-color-info: #0ea5e9;
+
+  --bp-shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --bp-shadow-sm: 0 2px 6px rgba(15, 23, 42, 0.06);
+  --bp-shadow-md: 0 8px 24px rgba(15, 23, 42, 0.08);
+  --bp-shadow-lg: 0 16px 48px rgba(15, 23, 42, 0.12);
+
+  --bp-gradient-hero: linear-gradient(
+    135deg,
+    #6366f1 0%,
+    #8b5cf6 45%,
+    #ec4899 100%
+  );
+  --bp-gradient-soft: linear-gradient(
+    135deg,
+    rgba(99, 102, 241, 0.15),
+    rgba(236, 72, 153, 0.1)
+  );
+
+  --bp-radius-xs: 6px;
+  --bp-radius-sm: 10px;
+  --bp-radius-md: 14px;
+  --bp-radius-lg: 20px;
+  --bp-radius-xl: 28px;
+
+  --bp-sidebar-width: 248px;
+  --bp-sidebar-width-collapsed: 76px;
+  --bp-topbar-height: 64px;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bp-color-bg: #0b1020;
+  --bp-color-bg-elevated: #131a31;
+  --bp-color-bg-soft: #1a2240;
+  --bp-color-bg-hover: rgba(129, 140, 248, 0.12);
+
+  --bp-color-text-primary: #f8fafc;
+  --bp-color-text-secondary: #cbd5e1;
+  --bp-color-text-tertiary: #64748b;
+  --bp-color-text-inverse: #0f172a;
+
+  --bp-color-border: rgba(148, 163, 184, 0.16);
+  --bp-color-border-strong: rgba(148, 163, 184, 0.32);
+  --bp-color-divider: rgba(148, 163, 184, 0.12);
+
+  --bp-color-primary: #818cf8;
+  --bp-color-primary-hover: #a5b4fc;
+  --bp-color-primary-soft: rgba(129, 140, 248, 0.18);
+  --bp-color-primary-soft-strong: rgba(129, 140, 248, 0.28);
+
+  --bp-color-success: #34d399;
+  --bp-color-warning: #fbbf24;
+  --bp-color-danger: #f87171;
+  --bp-color-info: #38bdf8;
+
+  --bp-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --bp-shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.4);
+  --bp-shadow-md: 0 8px 24px rgba(0, 0, 0, 0.45);
+  --bp-shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.5);
+
+  --bp-gradient-hero: linear-gradient(
+    135deg,
+    #4338ca 0%,
+    #7c3aed 45%,
+    #db2777 100%
+  );
+  --bp-gradient-soft: linear-gradient(
+    135deg,
+    rgba(129, 140, 248, 0.18),
+    rgba(236, 72, 153, 0.14)
+  );
+}

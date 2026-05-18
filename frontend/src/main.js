@@ -1,15 +1,17 @@
 import { createApp } from "vue";
 import { createPinia } from "pinia";
+import piniaPluginPersistedstate from "pinia-plugin-persistedstate";
 import ElementPlus from "element-plus";
 import "element-plus/dist/index.css";
+
 import App from "./App.vue";
 import router from "./router";
-import { createPersistedState } from "pinia-persistedstate-plugin";
+import "./styles/index.css";
 
 const app = createApp(App);
 const pinia = createPinia();
-const persist = createPersistedState();
-pinia.use(persist);
+pinia.use(piniaPluginPersistedstate);
+
 app.use(pinia);
 app.use(ElementPlus);
 app.use(router);

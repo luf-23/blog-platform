@@ -1,15 +1,25 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
+
 export const useUserInfoStore = defineStore(
   "userInfo",
   () => {
-    const userInfo = ref(null);
+    const userInfo = ref({
+      username: "",
+      nickname: "",
+      signature: "",
+      avatarImage: "",
+      backgroundImage: ""
+    });
+
     const setUserInfo = (newUserInfo) => {
-      userInfo.value = newUserInfo;
+      userInfo.value = newUserInfo || {};
     };
+
     const removeUserInfo = () => {
-      userInfo.value = null;
+      userInfo.value = {};
     };
+
     return {
       userInfo,
       setUserInfo,
@@ -17,6 +27,6 @@ export const useUserInfoStore = defineStore(
     };
   },
   {
-    persist: true
+    persist: { key: "bp-user-info" }
   }
 );

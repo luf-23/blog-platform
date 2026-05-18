@@ -1,309 +1,238 @@
 <script setup>
-import { ref, reactive, onMounted, onUnmounted } from "vue";
+import { reactive, ref, computed } from "vue";
+import { useRoute, useRouter } from "vue-router";
+import { ElMessage, ElMessageBox } from "element-plus";
+import { Plus, Search, RefreshLeft } from "@element-plus/icons-vue";
+
+import PageHeader from "../../components/common/PageHeader.vue";
+import EmptyState from "../../components/common/EmptyState.vue";
+import ArticleCard from "../../components/article/ArticleCard.vue";
+import UploadImageDialog from "../../components/common/UploadImageDialog.vue";
 import {
   deleteArticleService,
   getArticleListService,
   getSelectedArticleListService,
   updateCoverImageService
 } from "../../api/article.js";
-import { useRoute } from "vue-router";
-import { ElMessage, ElMessageBox } from "element-plus";
-import { Plus, ArrowLeft, ArrowDown, ArrowUp } from "@element-plus/icons-vue";
-import { useRouter } from "vue-router";
-import ArticleCard from "../../components/ArticleCard.vue";
-import UploadImageDialog from "../../components/UploadImageDialog.vue";
 import { ossClient } from "../../utils/oss/index.js";
 
-const router = useRouter();
 const route = useRoute();
+const router = useRouter();
 const categoryId = route.query.categoryId;
-const tableData = ref([]);
+
+const articles = ref([]);
 const loading = ref(false);
-const isSearchExpanded = ref(window.innerWidth > 768);
 
-// 上传封面图片相关
-const uploadDialogVisible = ref(false);
-const currentUploadArticle = ref(null);
-const uploadLoading = ref(false);
-
-// 监听窗口大小变化
-const handleResize = () => {
-  if (window.innerWidth <= 768) {
-    isSearchExpanded.value = false;
-  }
-};
-
-const toggleSearch = () => {
-  isSearchExpanded.value = !isSearchExpanded.value;
-};
-
-onMounted(() => {
-  window.addEventListener("resize", handleResize);
-});
-
-onUnmounted(() => {
-  window.removeEventListener("resize", handleResize);
-});
-
-// 获取文章列表
-const getArticleList = async () => {
-  loading.value = true;
-  try {
-    const result = await getArticleListService({ categoryId: categoryId });
-    tableData.value = result.data.map((item) => {
-      return {
-        articleId: item.articleId,
-        title: item.title,
-        content: item.content,
-        status: item.status,
-        createTime: item.createTime,
-        updateTime: item.updateTime,
-        coverImage: item.coverImage
-      };
-    });
-  } catch (error) {
-    console.error("获取文章列表失败:", error);
-    ElMessage.error("获取文章列表失败");
-  } finally {
-    loading.value = false;
-  }
-};
-getArticleList();
-
-// 删除文章
-const handleDelete = async (row) => {
-  ElMessageBox.confirm(`确定要删除文章"${row.title}"吗？`, "警告", {
-    confirmButtonText: "确定",
-    cancelButtonText: "取消",
-    type: "warning"
-  })
-    .then(async () => {
-      try {
-        await deleteArticleService({
-          articleId: row.articleId
-        });
-        ElMessage.success("删除成功");
-        const index = tableData.value.findIndex(
-          (item) => item.articleId === row.articleId
-        );
-        if (index > -1) {
-          tableData.value.splice(index, 1);
-        }
-      } catch (error) {
-        console.error("删除失败:", error);
-        ElMessage.error("删除失败，请重试");
-      }
-    })
-    .catch(() => {
-      ElMessage.info("已取消删除");
-    });
-};
-
-// 搜索功能
-const searchForm = reactive({
+const filters = reactive({
   title: "",
   status: ""
 });
 
 const statusOptions = [
+  { label: "全部", value: "" },
   { label: "已发布", value: "published" },
-  { label: "草稿", value: "draft" },
-  { label: "待审核", value: "pending" }
+  { label: "待审核", value: "pending" },
+  { label: "草稿", value: "draft" }
 ];
 
-const handleSearch = async () => {
+function normalize(item) {
+  return {
+    articleId: item.articleId,
+    title: item.title,
+    content: item.content,
+    status: item.status,
+    createTime: item.createTime,
+    updateTime: item.updateTime,
+    coverImage: item.coverImage,
+    categoryId
+  };
+}
+
+async function fetchList() {
+  loading.value = true;
+  try {
+    const result = await getArticleListService({ categoryId });
+    articles.value = (result.data || []).map(normalize);
+  } catch {
+    ElMessage.error("获取文章列表失败");
+  } finally {
+    loading.value = false;
+  }
+}
+
+fetchList();
+
+async function search() {
   loading.value = true;
   try {
     const result = await getSelectedArticleListService({
-      title: searchForm.title,
-      status: searchForm.status,
-      categoryId: categoryId
+      title: filters.title,
+      status: filters.status,
+      categoryId
     });
-    tableData.value = result.data.map((item) => {
-      return {
-        articleId: item.articleId,
-        title: item.title,
-        content: item.content,
-        status: item.status,
-        createTime: item.createTime,
-        updateTime: item.updateTime,
-        coverImage: item.coverImage
-      };
-    });
-  } catch (error) {
-    console.error("搜索失败:", error);
+    articles.value = (result.data || []).map(normalize);
+  } catch {
     ElMessage.error("搜索失败");
   } finally {
     loading.value = false;
   }
-};
+}
 
-// 查看文章详情
-const handleRowClick = (rowData) => {
+function reset() {
+  filters.title = "";
+  filters.status = "";
+  fetchList();
+}
+
+function goDetail(article) {
   router.push({
     name: "ArticleDetail",
-    query: {
-      articleId: rowData.articleId,
-      categoryId: categoryId
-    }
+    query: { articleId: article.articleId, categoryId }
   });
-};
+}
 
-// 添加新文章
-const handleAdd = () => {
-  const currentPath = router.currentRoute.value.fullPath;
+function goAdd() {
   router.push({
     name: "ArticleAdd",
     query: {
-      categoryId: categoryId,
-      redirect: currentPath,
+      categoryId,
+      redirect: route.fullPath,
       type: "add"
     }
   });
-};
+}
 
-// 处理上传对话框
-const handleChangeCoverImage = (row) => {
-  currentUploadArticle.value = row;
+function remove(article) {
+  ElMessageBox.confirm(`确定要删除「${article.title}」吗？`, "删除文章", {
+    confirmButtonText: "删除",
+    cancelButtonText: "取消",
+    type: "warning"
+  })
+    .then(async () => {
+      await deleteArticleService({ articleId: article.articleId });
+      ElMessage.success("删除成功");
+      articles.value = articles.value.filter(
+        (a) => a.articleId !== article.articleId
+      );
+    })
+    .catch(() => {});
+}
+
+const uploadDialogVisible = ref(false);
+const uploadingArticle = ref(null);
+const uploadLoading = ref(false);
+
+function changeCover(article) {
+  uploadingArticle.value = article;
   uploadDialogVisible.value = true;
-};
+}
 
-// 处理文件上传
-const handleUpload = async (file) => {
-  if (!file) {
-    ElMessage.warning("请先选择图片");
-    return;
-  }
-
+async function handleUpload(file) {
+  if (!uploadingArticle.value) return;
   uploadLoading.value = true;
   try {
     await ossClient.init();
     const extension = file.name.split(".").pop();
     const fileName = ossClient.generateFileName(
-      currentUploadArticle.value.articleId,
+      uploadingArticle.value.articleId,
       ossClient.constructor.IMAGE_TYPE.ARTICLE_BACKGROUND,
       extension
     );
     const fileUrl = ossClient.generateFileUrl(fileName);
     await ossClient.uploadFile(fileName, file);
     await updateCoverImageService({
-      articleId: currentUploadArticle.value.articleId,
-      categoryId: categoryId,
+      articleId: uploadingArticle.value.articleId,
+      categoryId,
       coverImageUrl: fileUrl
     });
-    ElMessage.success("上传成功");
-    //找到currentUploadArticle在tableData中的索引
-    const index = tableData.value.findIndex(
-      (item) => item.articleId === currentUploadArticle.value.articleId
+    const target = articles.value.find(
+      (a) => a.articleId === uploadingArticle.value.articleId
     );
-    if (index > -1) {
-      tableData.value[index].coverImage = fileUrl; // 更新封面图片
-    }
+    if (target) target.coverImage = fileUrl;
+    ElMessage.success("封面已更新");
     uploadDialogVisible.value = false;
   } catch (error) {
-    console.error("上传失败:", error);
-    ElMessage.error("上传失败，请重试");
+    console.error(error);
+    ElMessage.error("上传失败");
   } finally {
     uploadLoading.value = false;
   }
-};
+}
+
+const hasFilter = computed(() => Boolean(filters.title || filters.status));
 </script>
 
 <template>
-  <div class="article-container">
-    <!-- 头部区域 -->
-    <div class="fixed-header">
-      <div class="header-content">
-        <el-button
-          @click="$router.push('/article/category')"
-          class="back-button"
-          size="small"
-          :icon="ArrowLeft"
-          circle
-        />
-        <h2 class="header-title">文章管理</h2>
-        <el-button
-          type="primary"
-          :icon="Plus"
-          @click="handleAdd"
-          size="small"
-          circle
-          class="add-button"
-        />
-      </div>
+  <div class="bp-page">
+    <PageHeader
+      title="文章列表"
+      subtitle="当前分类下的全部文章"
+      :show-back="true"
+    >
+      <template #actions>
+        <el-button type="primary" :icon="Plus" @click="goAdd">
+          新建文章
+        </el-button>
+      </template>
+    </PageHeader>
 
-      <!-- 搜索区域 -->
-      <div class="search-toggle" @click="toggleSearch">
-        <span>{{ isSearchExpanded ? "收起搜索" : "展开搜索" }}</span>
-        <el-icon>
-          <component :is="isSearchExpanded ? ArrowUp : ArrowDown" />
-        </el-icon>
-      </div>
-      <div
-        class="search-section"
-        :class="{ 'search-collapsed': !isSearchExpanded }"
+    <div class="filter-bar bp-card">
+      <el-input
+        v-model="filters.title"
+        :prefix-icon="Search"
+        placeholder="搜索文章标题..."
+        clearable
+        class="filter-bar__input"
+        @keyup.enter="search"
+      />
+      <el-select
+        v-model="filters.status"
+        placeholder="筛选状态"
+        class="filter-bar__select"
       >
-        <el-form :inline="true" :model="searchForm" class="search-form">
-          <el-form-item label="文章标题">
-            <el-input
-              v-model="searchForm.title"
-              placeholder="请输入文章标题关键字"
-              clearable
-            />
-          </el-form-item>
-          <el-form-item label="状态">
-            <el-select
-              style="width: 120px"
-              v-model="searchForm.status"
-              placeholder="请选择状态"
-              clearable
-            >
-              <el-option
-                v-for="item in statusOptions"
-                :key="item.value"
-                :label="item.label"
-                :value="item.value"
-              />
-            </el-select>
-          </el-form-item>
-          <el-form-item>
-            <el-button type="primary" @click="handleSearch">搜索</el-button>
-            <el-button
-              @click="
-                searchForm.title = '';
-                searchForm.status = '';
-              "
-            >
-              重置
-            </el-button>
-          </el-form-item>
-        </el-form>
+        <el-option
+          v-for="opt in statusOptions"
+          :key="opt.value || 'all'"
+          :label="opt.label"
+          :value="opt.value"
+        />
+      </el-select>
+      <div class="filter-bar__actions">
+        <el-button type="primary" :icon="Search" @click="search">搜索</el-button>
+        <el-button v-if="hasFilter" :icon="RefreshLeft" @click="reset">
+          重置
+        </el-button>
       </div>
     </div>
 
-    <!-- 文章列表 -->
-    <template v-if="!loading && tableData.length > 0">
-      <div class="article-list">
+    <div v-loading="loading">
+      <div v-if="articles.length" class="grid">
         <ArticleCard
-          v-for="item in tableData"
-          :key="item.articleId"
-          :article="item"
-          :showDelete="true"
-          :showCategoryId="false"
-          :showChangeCoverImage="true"
-          :showAuthor="false"
-          @click="() => handleRowClick(item)"
-          @delete="() => handleDelete(item)"
-          @changeCoverImage="() => handleChangeCoverImage(item)"
+          v-for="article in articles"
+          :key="article.articleId"
+          :article="article"
+          :show-author="false"
+          :show-delete="true"
+          :show-change-cover-image="true"
+          @click="goDetail"
+          @delete="remove"
+          @change-cover-image="changeCover"
         />
       </div>
-    </template>
-    <el-empty v-else description="暂无文章数据" :image-size="200" />
+      <EmptyState
+        v-else-if="!loading"
+        title="该分类下还没有文章"
+        description="开始写下你的第一篇内容吧"
+      >
+        <el-button type="primary" :icon="Plus" @click="goAdd">
+          新建文章
+        </el-button>
+      </EmptyState>
+    </div>
 
-    <!-- 上传封面图片对话框 -->
     <UploadImageDialog
       v-model:visible="uploadDialogVisible"
-      title="更改文章封面"
+      title="更换文章封面"
       :loading="uploadLoading"
       @confirm="handleUpload"
     />
@@ -311,205 +240,45 @@ const handleUpload = async (file) => {
 </template>
 
 <style scoped>
-.article-container {
-  padding: 12px;
-  max-width: 1400px;
-  margin: 0 auto;
-  min-height: 100vh;
-  padding-top: 140px; /* 为固定头部留出空间 */
-}
-
-/* 头部样式 */
-.fixed-header {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  background: white;
-  z-index: 500;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-  backdrop-filter: blur(8px);
-  background-color: rgba(255, 255, 255, 0.95);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-  padding: 8px 0;
-}
-
-.header-content {
+.filter-bar {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
   gap: 12px;
-  padding: 0 12px;
-  min-height: 40px;
-}
-
-.back-button {
-  flex-shrink: 0;
-}
-
-.header-title {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 600;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  flex-grow: 1;
-  text-align: center;
-}
-
-.add-button {
-  flex-shrink: 0;
-}
-
-/* 搜索区域 */
-.search-toggle {
-  display: none;
+  padding: 14px;
   align-items: center;
-  justify-content: center;
-  padding: 8px;
-  background: #f8f9fa;
-  border-radius: 8px;
-  margin-top: 12px;
-  cursor: pointer;
-  gap: 8px;
-  border: 1px solid #eee;
-  transition: all 0.3s ease;
-}
-
-.search-toggle:hover {
-  background: #f0f0f0;
-}
-
-.search-section {
-  background: #f8f9fa;
-  padding: 12px;
-  border-radius: 8px;
-  margin-top: 12px;
-  border: 1px solid #eee;
-  display: flex;
-  justify-content: center;
-  transition: all 0.3s ease;
-  max-height: 500px;
-  overflow: hidden;
-}
-
-.search-section.search-collapsed {
-  max-height: 0;
-  padding: 0;
-  margin: 0;
-  border: none;
-  opacity: 0;
-}
-
-.search-form {
-  display: flex;
   flex-wrap: wrap;
-  gap: 12px;
-  align-items: center;
 }
 
-.search-form .el-form-item {
-  margin-bottom: 0;
+.filter-bar__input {
+  flex: 1;
+  min-width: 200px;
 }
 
-/* 文章列表 */
-.article-list {
+.filter-bar__select {
+  width: 160px;
+}
+
+.filter-bar__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 16px;
-  padding-top: 12px;
 }
 
-/* 响应式调整 */
-@media (min-width: 769px) {
-  .fixed-header {
-    top: 0; /* 桌面端时固定在最顶部 */
-    left: var(--sidebar-width, 220px); /* 考虑侧边栏宽度 */
-  }
-
-  .article-container {
-    padding-top: 140px; /* 桌面端的间距 */
-  }
-}
-
-@media (max-width: 992px) {
-  .article-list {
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  }
-}
-
-@media (max-width: 768px) {
-  .article-container {
-    padding: 8px;
-    padding-top: 200px; /* 在移动端为TopBar和固定头部留出更多空间 */
-  }
-
-  .fixed-header {
-    padding: 6px 0;
-    top: 60px; /* 在移动端紧贴TopBar下方 */
-  }
-
-  .header-content {
-    padding: 0 8px;
-    min-height: 36px;
-  }
-
-  .header-title {
-    font-size: 15px;
-  }
-
-  .search-toggle {
-    display: flex;
-  }
-
-  .search-section {
-    padding: 8px;
-    margin-top: 8px;
-  }
-
-  .search-section.search-collapsed {
-    margin-top: 0;
-  }
-
-  .search-form {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 8px;
-  }
-
-  .search-form .el-form-item {
+@media (max-width: 640px) {
+  .filter-bar__input,
+  .filter-bar__select,
+  .filter-bar__actions {
     width: 100%;
-    margin-right: 0;
   }
-
-  .search-form .el-input,
-  .search-form .el-select {
-    width: 100% !important;
+  .filter-bar__select {
+    flex: none;
   }
-
-  .article-list {
-    grid-template-columns: 1fr;
-    gap: 12px;
-  }
-}
-
-@media (max-width: 480px) {
-  .header-title {
-    font-size: 14px;
-  }
-
-  .search-section {
-    padding: 6px;
-  }
-
-  .search-form .el-button {
-    width: 100%;
-    margin: 2px 0 !important;
-  }
-
-  .article-list {
-    gap: 10px;
+  .filter-bar__actions {
+    justify-content: flex-end;
   }
 }
 </style>

@@ -1,0 +1,99 @@
+/**
+ * Element Plus 主题/样式微调，跟随 CSS 变量切换
+ */
+
+:root,
+:root[data-theme="light"] {
+  --el-color-primary: var(--bp-color-primary);
+  --el-color-primary-light-3: #818cf8;
+  --el-color-primary-light-5: #a5b4fc;
+  --el-color-primary-light-7: #c7d2fe;
+  --el-color-primary-light-8: #ddd6fe;
+  --el-color-primary-light-9: #eef2ff;
+  --el-color-primary-dark-2: #4338ca;
+
+  --el-border-radius-base: 10px;
+  --el-border-radius-small: 8px;
+  --el-bg-color: var(--bp-color-bg-elevated);
+  --el-bg-color-page: var(--bp-color-bg);
+  --el-bg-color-overlay: var(--bp-color-bg-elevated);
+  --el-text-color-primary: var(--bp-color-text-primary);
+  --el-text-color-regular: var(--bp-color-text-secondary);
+  --el-text-color-secondary: var(--bp-color-text-tertiary);
+  --el-border-color: var(--bp-color-border);
+  --el-border-color-light: var(--bp-color-border);
+  --el-border-color-lighter: var(--bp-color-divider);
+  --el-fill-color-blank: var(--bp-color-bg-elevated);
+  --el-fill-color-light: var(--bp-color-bg-soft);
+  --el-fill-color: var(--bp-color-bg-soft);
+  --el-mask-color: rgba(15, 23, 42, 0.4);
+}
+
+:root[data-theme="dark"] {
+  --el-color-primary: var(--bp-color-primary);
+  --el-color-primary-light-3: #6366f1;
+  --el-color-primary-light-5: #4f46e5;
+  --el-color-primary-light-7: #3730a3;
+  --el-color-primary-light-8: #312e81;
+  --el-color-primary-light-9: #1e1b4b;
+  --el-color-primary-dark-2: #a5b4fc;
+
+  --el-bg-color: var(--bp-color-bg-elevated);
+  --el-bg-color-page: var(--bp-color-bg);
+  --el-bg-color-overlay: var(--bp-color-bg-elevated);
+  --el-text-color-primary: var(--bp-color-text-primary);
+  --el-text-color-regular: var(--bp-color-text-secondary);
+  --el-text-color-secondary: var(--bp-color-text-tertiary);
+  --el-border-color: var(--bp-color-border);
+  --el-border-color-light: var(--bp-color-border);
+  --el-border-color-lighter: var(--bp-color-divider);
+  --el-fill-color-blank: var(--bp-color-bg-elevated);
+  --el-fill-color-light: var(--bp-color-bg-soft);
+  --el-fill-color: var(--bp-color-bg-soft);
+  --el-mask-color: rgba(0, 0, 0, 0.55);
+}
+
+.el-card {
+  border-radius: var(--bp-radius-md) !important;
+  border: 1px solid var(--bp-color-border) !important;
+  background: var(--bp-color-bg-elevated) !important;
+  box-shadow: var(--bp-shadow-xs) !important;
+}
+
+.el-button {
+  border-radius: 10px !important;
+  font-weight: 500 !important;
+}
+
+.el-input__wrapper,
+.el-textarea__inner {
+  border-radius: 10px !important;
+  background: var(--bp-color-bg-elevated) !important;
+}
+
+.el-dialog {
+  border-radius: var(--bp-radius-lg) !important;
+}
+
+.el-dropdown-menu {
+  border-radius: var(--bp-radius-sm) !important;
+  border: 1px solid var(--bp-color-border) !important;
+  box-shadow: var(--bp-shadow-md) !important;
+}
+
+.el-message {
+  border-radius: 12px !important;
+}
+
+.el-tag {
+  border-radius: 999px !important;
+  font-weight: 500 !important;
+}
+
+.el-empty {
+  padding: 32px 0 !important;
+}
+
+.el-pagination {
+  --el-pagination-bg-color: transparent !important;
+}

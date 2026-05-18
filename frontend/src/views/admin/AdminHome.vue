@@ -1,437 +1,313 @@
 <script setup>
-import { check } from "../../utils/admin/check";
+import { ref, markRaw, computed } from "vue";
 import { useRouter } from "vue-router";
-import { markRaw } from "vue";
 import {
   User,
   Document,
   Bell,
-  Setting,
   TrendCharts,
-  CaretTop,
-  CaretBottom,
-  Operation
+  Setting,
+  Operation,
+  ArrowRight
 } from "@element-plus/icons-vue";
+import PageHeader from "../../components/common/PageHeader.vue";
 
 const router = useRouter();
-check();
 
-// 定义快捷操作卡片数据
-const quickActions = [
-  {
-    title: "用户管理",
-    description: "查看和管理用户信息",
-    icon: markRaw(User),
-    color: "#409EFF",
-    path: { name: "UserManager" }
-  },
-  {
-    title: "文章管理",
-    description: "管理文章内容和分类",
-    icon: markRaw(Document),
-    color: "#67C23A",
-    path: { name: "ArticleListManager" }
-  },
-  {
-    title: "发布公告",
-    description: "发布系统公告",
-    icon: markRaw(Bell),
-    color: "#E6A23C",
-    path: { name: "Announcement" }
-  },
-  {
-    title: "系统设置",
-    description: "管理系统配置",
-    icon: markRaw(Setting),
-    color: "#909399",
-    path: "/admin/settings"
-  }
-];
+const now = ref(new Date());
 
-// 系统概览数据（示例数据）
-const systemOverview = [
+const stats = [
   {
     title: "总用户数",
     value: "1,234",
-    increase: "+12%",
-    color: "#409EFF",
-    icon: User
+    delta: "+12%",
+    icon: markRaw(User),
+    accent: "var(--bp-color-primary)"
   },
   {
     title: "文章总数",
     value: "856",
-    increase: "+8%",
-    color: "#67C23A",
-    icon: Document
+    delta: "+8%",
+    icon: markRaw(Document),
+    accent: "var(--bp-color-success)"
   },
   {
     title: "系统公告",
     value: "12",
-    increase: "+2",
-    color: "#E6A23C",
-    icon: Bell
+    delta: "+2",
+    icon: markRaw(Bell),
+    accent: "var(--bp-color-warning)"
   },
   {
-    title: "活跃度",
+    title: "用户活跃度",
     value: "89%",
-    increase: "+5%",
-    color: "#909399",
-    icon: TrendCharts
+    delta: "+5%",
+    icon: markRaw(TrendCharts),
+    accent: "var(--bp-color-info)"
   }
 ];
+
+const tools = [
+  {
+    title: "用户管理",
+    desc: "查看与管理平台用户",
+    icon: markRaw(User),
+    accent: "var(--bp-color-primary)",
+    path: { name: "UserManager" }
+  },
+  {
+    title: "文章审核",
+    desc: "审核与下架社区文章",
+    icon: markRaw(Document),
+    accent: "var(--bp-color-success)",
+    path: { name: "ArticleListManager" }
+  },
+  {
+    title: "发布公告",
+    desc: "向所有用户发布系统通知",
+    icon: markRaw(Bell),
+    accent: "var(--bp-color-warning)",
+    path: "/announcement"
+  },
+  {
+    title: "系统设置",
+    desc: "调整平台运行参数",
+    icon: markRaw(Setting),
+    accent: "var(--bp-color-text-secondary)",
+    path: "/admin/home"
+  }
+];
+
+const timeText = computed(() =>
+  now.value.toLocaleTimeString("zh-CN", { hour12: false })
+);
+const dateText = computed(() =>
+  now.value.toLocaleDateString("zh-CN", { dateStyle: "full" })
+);
+
+function go(path) {
+  router.push(path);
+}
 </script>
 
 <template>
-  <div class="admin-container">
-    <!-- 欢迎区域 -->
-    <div class="welcome-section">
-      <div class="welcome-content">
-        <div class="welcome-text">
-          <h1>管理员控制台</h1>
-          <p>欢迎回来，管理员</p>
+  <div class="bp-page">
+    <PageHeader title="管理后台" subtitle="平台数据与运营操作总览" />
+
+    <section class="hero bp-card">
+      <div class="hero__bg" />
+      <div class="hero__content">
+        <div>
+          <p class="hero__date">{{ dateText }}</p>
+          <h2>欢迎回来，管理员</h2>
+          <p class="hero__desc">
+            这里是平台的核心控制中心。请谨慎使用每一项操作。
+          </p>
         </div>
-        <div class="welcome-time">{{ new Date().toLocaleTimeString() }}</div>
+        <div class="hero__time">{{ timeText }}</div>
       </div>
-      <div class="welcome-decoration"></div>
-    </div>
+    </section>
 
-    <!-- 系统概览 -->
-    <div class="overview-section">
-      <h2 class="section-title">
-        <el-icon><TrendCharts /></el-icon>
-        系统概览
-      </h2>
-      <div class="overview-grid">
-        <el-card
-          v-for="item in systemOverview"
-          :key="item.title"
-          class="overview-card"
-          :class="{ 'positive-trend': item.increase.includes('+') }"
-        >
-          <div class="overview-content">
-            <div class="overview-info">
-              <h3>{{ item.title }}</h3>
-              <div class="overview-value">{{ item.value }}</div>
-              <div class="overview-increase" :style="{ color: item.color }">
-                <el-icon v-if="item.increase.includes('+')" color="#67C23A"
-                  ><CaretTop
-                /></el-icon>
-                <el-icon v-else color="#F56C6C"><CaretBottom /></el-icon>
-                {{ item.increase }}
-              </div>
-            </div>
-            <div
-              class="overview-icon"
-              :style="{ backgroundColor: item.color + '15' }"
-            >
-              <el-icon :size="32" :color="item.color">
-                <component :is="item.icon" />
-              </el-icon>
-            </div>
+    <section>
+      <h3 class="section-title">
+        <el-icon><TrendCharts /></el-icon> 数据概览
+      </h3>
+      <div class="stat-grid">
+        <div v-for="stat in stats" :key="stat.title" class="stat-card bp-card">
+          <div
+            class="stat-card__icon"
+            :style="{
+              background: `color-mix(in srgb, ${stat.accent} 14%, transparent)`,
+              color: stat.accent
+            }"
+          >
+            <el-icon size="20"><component :is="stat.icon" /></el-icon>
           </div>
-        </el-card>
+          <div class="stat-card__body">
+            <span class="stat-card__title">{{ stat.title }}</span>
+            <strong class="stat-card__value">{{ stat.value }}</strong>
+            <span
+              class="stat-card__delta"
+              :style="{ color: stat.accent }"
+            >{{ stat.delta }}</span>
+          </div>
+        </div>
       </div>
-    </div>
+    </section>
 
-    <!-- 快捷操作区域 -->
-    <div class="quick-actions">
-      <h2 class="section-title">
-        <el-icon><Operation /></el-icon>
-        快捷操作
-      </h2>
-      <div class="actions-grid">
-        <el-card
-          v-for="action in quickActions"
-          :key="action.title"
-          class="action-card"
-          shadow="hover"
-          :body-style="{ padding: '24px' }"
-          @click="router.push(action.path)"
+    <section>
+      <h3 class="section-title">
+        <el-icon><Operation /></el-icon> 快捷操作
+      </h3>
+      <div class="tool-grid">
+        <button
+          v-for="tool in tools"
+          :key="tool.title"
+          class="tool-card bp-card bp-card-hover"
+          @click="go(tool.path)"
         >
-          <div class="action-content">
-            <div
-              class="action-icon"
-              :style="{ backgroundColor: action.color + '15' }"
-            >
-              <el-icon :size="32" :color="action.color">
-                <component :is="action.icon" />
-              </el-icon>
-            </div>
-            <h3>{{ action.title }}</h3>
-            <p>{{ action.description }}</p>
+          <span
+            class="tool-card__icon"
+            :style="{
+              background: `color-mix(in srgb, ${tool.accent} 14%, transparent)`,
+              color: tool.accent
+            }"
+          >
+            <el-icon size="20"><component :is="tool.icon" /></el-icon>
+          </span>
+          <div class="tool-card__body">
+            <strong>{{ tool.title }}</strong>
+            <p>{{ tool.desc }}</p>
           </div>
-        </el-card>
+          <el-icon class="tool-card__arrow"><ArrowRight /></el-icon>
+        </button>
       </div>
-    </div>
+    </section>
   </div>
 </template>
 
 <style scoped>
-.admin-container {
-  padding: 24px;
-  background-color: #f8fafc;
-  min-height: calc(100vh - 48px);
-}
-
-.welcome-section {
-  background: linear-gradient(135deg, #4158d0 0%, #c850c0 46%, #ffcc70 100%);
-  border-radius: 16px;
-  padding: 32px;
-  color: white;
-  margin-bottom: 32px;
+.hero {
   position: relative;
+  padding: 28px;
   overflow: hidden;
-  box-shadow: 0 10px 30px rgba(200, 80, 192, 0.2);
+  isolation: isolate;
 }
 
-.welcome-content {
-  position: relative;
-  z-index: 1;
+.hero__bg {
+  position: absolute;
+  inset: 0;
+  background: var(--bp-gradient-hero);
+  opacity: 0.12;
+  z-index: -1;
+}
+
+.hero__content {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
 }
 
-.welcome-text h1 {
-  margin: 0 0 12px 0;
-  font-size: 32px;
+.hero__date {
+  font-size: 12px;
+  color: var(--bp-color-text-tertiary);
+}
+
+.hero h2 {
+  font-size: clamp(20px, 2.4vw, 26px);
+  margin: 4px 0;
+}
+
+.hero__desc {
+  color: var(--bp-color-text-secondary);
+  font-size: 13px;
+  max-width: 540px;
+}
+
+.hero__time {
+  font-size: clamp(24px, 3vw, 32px);
   font-weight: 600;
-  letter-spacing: -0.5px;
-}
-
-.welcome-text p {
-  margin: 0;
-  font-size: 16px;
-  opacity: 0.9;
-  font-weight: 300;
-}
-
-.welcome-time {
-  font-size: 24px;
-  font-weight: 300;
-  opacity: 0.9;
-}
-
-.welcome-decoration {
-  position: absolute;
-  right: -100px;
-  top: -100px;
-  width: 300px;
-  height: 300px;
-  background: radial-gradient(
-    circle at center,
-    rgba(255, 255, 255, 0.2) 0%,
-    rgba(255, 255, 255, 0) 70%
-  );
-  border-radius: 50%;
-  animation: rotate 20s linear infinite;
-}
-
-@keyframes rotate {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+  color: var(--bp-color-text-primary);
+  font-variant-numeric: tabular-nums;
 }
 
 .section-title {
-  margin: 0 0 24px 0;
-  font-size: 22px;
-  color: #1f2937;
-  font-weight: 600;
-  display: flex;
+  font-size: 16px;
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  margin-bottom: 14px;
 }
 
-.overview-grid {
+.stat-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 24px;
-  margin-bottom: 32px;
-}
-
-.overview-card {
-  border-radius: 12px;
-  transition: all 0.3s ease;
-  border: none;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
-}
-
-.overview-card.positive-trend {
-  background: linear-gradient(to right bottom, #ffffff, #f0fdf4);
-}
-
-.overview-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
-}
-
-.overview-content {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 20px;
-}
-
-.overview-info {
-  flex: 1;
-}
-
-.overview-info h3 {
-  margin: 0 0 12px 0;
-  font-size: 15px;
-  color: #64748b;
-  font-weight: 500;
-}
-
-.overview-value {
-  font-size: 32px;
-  font-weight: 600;
-  color: #0f172a;
-  margin-bottom: 8px;
-  letter-spacing: -0.5px;
-}
-
-.overview-increase {
-  font-size: 14px;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.overview-icon {
-  width: 56px;
-  height: 56px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.3s ease;
-}
-
-.actions-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 24px;
-}
-
-.action-card {
-  border-radius: 12px;
-  transition: all 0.3s ease;
-  border: none;
-  background: #ffffff;
-  cursor: pointer;
-}
-
-.action-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
-}
-
-.action-content {
-  text-align: left;
-  display: flex;
-  flex-direction: column;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 16px;
 }
 
-.action-icon {
-  width: 56px;
-  height: 56px;
-  border-radius: 12px;
+.stat-card {
+  padding: 18px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.stat-card__icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.3s ease;
+  flex-shrink: 0;
 }
 
-.action-content h3 {
-  margin: 0;
-  font-size: 18px;
-  color: #0f172a;
+.stat-card__title {
+  font-size: 12px;
+  color: var(--bp-color-text-tertiary);
+}
+
+.stat-card__value {
+  display: block;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 2px 0;
+}
+
+.stat-card__delta {
+  font-size: 12px;
   font-weight: 600;
 }
 
-.action-content p {
-  margin: 0;
+.tool-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.tool-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px;
+  background: var(--bp-color-bg-elevated);
+  border: 1px solid var(--bp-color-border);
+  border-radius: var(--bp-radius-md);
+  cursor: pointer;
+  text-align: left;
+  color: inherit;
+}
+
+.tool-card__icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.tool-card__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.tool-card__body strong {
+  display: block;
   font-size: 14px;
-  color: #64748b;
-  line-height: 1.5;
 }
 
-/* 响应式适配 */
-@media (max-width: 768px) {
-  .admin-container {
-    padding: 16px;
-  }
-
-  .welcome-section {
-    padding: 24px;
-    margin-bottom: 24px;
-  }
-
-  .welcome-text h1 {
-    font-size: 24px;
-  }
-
-  .welcome-time {
-    font-size: 18px;
-  }
-
-  .section-title {
-    font-size: 20px;
-    margin-bottom: 20px;
-  }
-
-  .overview-grid {
-    gap: 16px;
-    margin-bottom: 24px;
-  }
-
-  .actions-grid {
-    gap: 16px;
-  }
-
-  .overview-value {
-    font-size: 28px;
-  }
+.tool-card__body p {
+  margin-top: 4px;
+  font-size: 12.5px;
+  color: var(--bp-color-text-tertiary);
 }
 
-@media (max-width: 480px) {
-  .admin-container {
-    padding: 12px;
-  }
-
-  .welcome-section {
-    padding: 20px;
-    margin-bottom: 20px;
-  }
-
-  .welcome-content {
-    flex-direction: column;
-    gap: 16px;
-  }
-
-  .welcome-text h1 {
-    font-size: 22px;
-  }
-
-  .welcome-time {
-    font-size: 16px;
-  }
-
-  .overview-grid,
-  .actions-grid {
-    grid-template-columns: 1fr;
-    gap: 12px;
-  }
-
-  .overview-value {
-    font-size: 24px;
-  }
+.tool-card__arrow {
+  color: var(--bp-color-text-tertiary);
 }
 </style>

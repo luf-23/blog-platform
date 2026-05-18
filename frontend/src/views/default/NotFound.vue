@@ -1,101 +1,76 @@
-<template>
-  <div class="not-found-container">
-    <div class="error-content">
-      <h1 class="error-code">404</h1>
-      <div class="error-message">
-        <h2>抱歉，页面未找到</h2>
-        <p>您访问的页面可能已被移除、更名或暂时不可用</p>
-      </div>
-      <button class="home-button" @click="goHome">返回首页</button>
-    </div>
-  </div>
-</template>
-
 <script setup>
 import { useRouter } from "vue-router";
 
 const router = useRouter();
 
-const goHome = () => {
+function goHome() {
   router.push("/home");
-};
+}
+
+function goBack() {
+  if (window.history.length > 1) router.back();
+  else router.push("/home");
+}
 </script>
 
+<template>
+  <div class="not-found">
+    <div class="not-found__content">
+      <span class="not-found__badge">404</span>
+      <h1 class="not-found__title">页面走丢了</h1>
+      <p class="not-found__desc">
+        我们没找到你想访问的页面。
+        也许它已经被移除、改名，或者从来没存在过。
+      </p>
+      <div class="not-found__actions">
+        <el-button type="primary" @click="goHome">返回首页</el-button>
+        <el-button @click="goBack">返回上一页</el-button>
+      </div>
+    </div>
+  </div>
+</template>
+
 <style scoped>
-.not-found-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
+.not-found {
   min-height: 100vh;
-  background-color: #f8f9fa;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  background: var(--bp-color-bg);
 }
 
-.error-content {
+.not-found__content {
+  max-width: 460px;
   text-align: center;
-  padding: 2rem;
-  animation: fadeIn 0.5s ease-in;
 }
 
-.error-code {
-  font-size: 8rem;
-  font-weight: bold;
-  color: #dc3545;
-  margin: 0;
-  line-height: 1;
-  animation: shake 0.5s ease-in-out;
+.not-found__badge {
+  display: inline-block;
+  font-size: 88px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  background: var(--bp-gradient-hero);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
-.error-message {
-  margin: 2rem 0;
+.not-found__title {
+  margin-top: 8px;
+  font-size: 26px;
 }
 
-.error-message h2 {
-  color: #343a40;
-  font-size: 2rem;
-  margin-bottom: 1rem;
+.not-found__desc {
+  margin-top: 12px;
+  color: var(--bp-color-text-secondary);
+  line-height: 1.7;
 }
 
-.error-message p {
-  color: #6c757d;
-  font-size: 1.1rem;
-}
-
-.home-button {
-  padding: 0.8rem 2rem;
-  font-size: 1.1rem;
-  background-color: #007bff;
-  color: white;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  transition: background-color 0.3s;
-}
-
-.home-button:hover {
-  background-color: #0056b3;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(-20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes shake {
-  0%,
-  100% {
-    transform: translateX(0);
-  }
-  25% {
-    transform: translateX(-10px);
-  }
-  75% {
-    transform: translateX(10px);
-  }
+.not-found__actions {
+  margin-top: 24px;
+  display: flex;
+  gap: 12px;
+  justify-content: center;
 }
 </style>

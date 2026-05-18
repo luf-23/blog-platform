@@ -1,4 +1,3 @@
-import { ca } from "element-plus/es/locales.mjs";
 import request from "../utils/request";
 export function getPublishedArticleListService(params) {
   return request({

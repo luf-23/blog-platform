@@ -1,266 +1,273 @@
 <script setup>
-import { ref } from "vue";
-import {
-  getAnnouncementListService,
-  deleteAnnouncementService,
-  addAnnouncementService
-} from "../api/admin";
-import { useUserInfoStore } from "../store/userInfo.js";
+import { computed, ref } from "vue";
 import { storeToRefs } from "pinia";
-import { ElMessageBox, ElMessage } from "element-plus";
+import { ElMessage, ElMessageBox } from "element-plus";
 import {
+  Plus,
+  Delete,
   InfoFilled,
   CircleCheckFilled,
   WarningFilled,
   CircleCloseFilled
 } from "@element-plus/icons-vue";
-import { onMounted, onUnmounted } from "vue";
+
+import PageHeader from "../components/common/PageHeader.vue";
+import EmptyState from "../components/common/EmptyState.vue";
+import {
+  getAnnouncementListService,
+  addAnnouncementService,
+  deleteAnnouncementService
+} from "../api/admin.js";
+import { useUserInfoStore } from "../store/userInfo.js";
 
 const userInfoStore = useUserInfoStore();
 const { userInfo } = storeToRefs(userInfoStore);
-const isadmin = userInfo.value.username === "admin";
+const isAdmin = computed(() => userInfo.value?.username === "admin");
+
 const announcements = ref([]);
-const getAnnouncementList = async () => {
+const loading = ref(false);
+
+async function fetchList() {
+  loading.value = true;
   try {
     const result = await getAnnouncementListService();
-    announcements.value = result.data.map((item) => ({
+    announcements.value = (result.data || []).map((item) => ({
       id: item.id,
       title: item.title,
       content: item.content,
       date: item.date,
-      type: item.type // 'success', 'info', 'warning', 'danger'
+      type: item.type || "info"
     }));
-    // 按日期降序排序
     announcements.value.sort((a, b) => new Date(b.date) - new Date(a.date));
-  } catch (error) {
-    console.error("获取公告列表失败:", error);
+  } finally {
+    loading.value = false;
   }
-};
-getAnnouncementList();
+}
 
-const handleDelete = async (id) => {
-  try {
-    await ElMessageBox.confirm("确定要删除该公告吗？", "提示", {
-      confirmButtonText: "确定",
-      cancelButtonText: "取消",
-      type: "warning"
-    });
-    await deleteAnnouncementService({
-      id: id
-    });
-    ElMessage.success("删除成功");
-    getAnnouncementList();
-  } catch (error) {
-    if (error !== "cancel") {
-      console.error("删除公告失败:", error);
-      ElMessage.error("删除失败");
-    }
-  }
+fetchList();
+
+const TYPE_MAP = {
+  info: { label: "通知", icon: InfoFilled, color: "var(--bp-color-info)" },
+  success: { label: "公告", icon: CircleCheckFilled, color: "var(--bp-color-success)" },
+  warning: { label: "提醒", icon: WarningFilled, color: "var(--bp-color-warning)" },
+  danger: { label: "重要", icon: CircleCloseFilled, color: "var(--bp-color-danger)" }
 };
+
+function typeInfo(type) {
+  return TYPE_MAP[type] || TYPE_MAP.info;
+}
+
+function formatDate(value) {
+  if (!value) return "";
+  return new Date(value).toLocaleString("zh-CN", { hour12: false });
+}
+
+function remove(id) {
+  ElMessageBox.confirm("确定删除该公告吗？", "删除公告", {
+    confirmButtonText: "删除",
+    cancelButtonText: "取消",
+    type: "warning"
+  })
+    .then(async () => {
+      await deleteAnnouncementService({ id });
+      ElMessage.success("删除成功");
+      fetchList();
+    })
+    .catch(() => {});
+}
+
 const dialogVisible = ref(false);
-const dialogWidth = ref(window.innerWidth < 768 ? "90%" : "40%");
-// 添加窗口大小变化监听函数
-const updateDialogWidth = () => {
-  dialogWidth.value = window.innerWidth > 768 ? "40%" : "90%";
+const formRef = ref(null);
+const formData = ref({ title: "", content: "", type: "info" });
+const rules = {
+  title: [{ required: true, message: "请填写标题", trigger: "blur" }],
+  content: [{ required: true, message: "请填写内容", trigger: "blur" }]
 };
 
-// 在组件挂载时添加监听器
-onMounted(() => {
-  window.addEventListener("resize", updateDialogWidth);
-});
-
-// 在组件卸载时移除监听器
-onUnmounted(() => {
-  window.removeEventListener("resize", updateDialogWidth);
-});
-const handleCreate = () => {
+function openCreate() {
+  formData.value = { title: "", content: "", type: "info" };
   dialogVisible.value = true;
-};
+}
 
-const formData = ref({
-  title: "",
-  content: "",
-  type: "info"
-});
-
-const handleSubmit = async () => {
+async function submit() {
   try {
-    await addAnnouncementService({
-      title: formData.value.title,
-      content: formData.value.content,
-      type: formData.value.type
-    });
-    ElMessage.success("创建成功");
-    dialogVisible.value = false;
-    formData.value = { title: "", content: "", type: "info" };
-    getAnnouncementList();
-  } catch (error) {
-    console.error("创建公告失败:", error);
-    ElMessage.error("创建失败");
+    await formRef.value.validate();
+  } catch {
+    return;
   }
-};
+  await addAnnouncementService(formData.value);
+  ElMessage.success("公告已发布");
+  dialogVisible.value = false;
+  fetchList();
+}
 </script>
 
 <template>
-  <div class="announcement-container">
-    <div class="header-container">
-      <h2 class="page-title">系统公告</h2>
-      <el-button v-if="isadmin" type="primary" @click="handleCreate"
-        >新建公告</el-button
+  <div class="bp-page">
+    <PageHeader title="系统公告" subtitle="保持关注，了解平台最新动态">
+      <template #actions>
+        <el-button v-if="isAdmin" type="primary" :icon="Plus" @click="openCreate">
+          发布公告
+        </el-button>
+      </template>
+    </PageHeader>
+
+    <div v-loading="loading" class="announcement-list">
+      <article
+        v-for="item in announcements"
+        :key="item.id"
+        class="announcement bp-card"
       >
-    </div>
-    <template v-if="announcements.length > 0">
-      <el-timeline style="padding-left: 5px">
-        <el-timeline-item
-          v-for="item in announcements"
-          :key="item.id"
-          :type="item.type"
-          :timestamp="item.date"
-          size="large"
+        <div
+          class="announcement__icon"
+          :style="{
+            background: `color-mix(in srgb, ${typeInfo(item.type).color} 18%, transparent)`,
+            color: typeInfo(item.type).color
+          }"
         >
-          <el-card class="announcement-card">
-            <template #header>
-              <div class="card-header">
-                <h3>{{ item.title }}</h3>
-                <el-button
-                  v-if="isadmin"
-                  type="danger"
-                  size="small"
-                  @click="handleDelete(item.id)"
-                >
-                  删除
-                </el-button>
-              </div>
-            </template>
-            <p class="announcement-content">{{ item.content }}</p>
-          </el-card>
-        </el-timeline-item>
-      </el-timeline>
-    </template>
-    <el-empty v-else description="暂无系统公告" :image-size="200" />
-    <!-- 新建公告对话框 -->
+          <el-icon size="18">
+            <component :is="typeInfo(item.type).icon" />
+          </el-icon>
+        </div>
+        <div class="announcement__body">
+          <header class="announcement__head">
+            <div>
+              <span
+                class="announcement__tag"
+                :style="{
+                  color: typeInfo(item.type).color,
+                  background: `color-mix(in srgb, ${typeInfo(item.type).color} 12%, transparent)`
+                }"
+              >
+                {{ typeInfo(item.type).label }}
+              </span>
+              <h3>{{ item.title }}</h3>
+            </div>
+            <el-button
+              v-if="isAdmin"
+              size="small"
+              type="danger"
+              plain
+              :icon="Delete"
+              @click="remove(item.id)"
+            >
+              删除
+            </el-button>
+          </header>
+          <p class="announcement__content">{{ item.content }}</p>
+          <span class="announcement__date">{{ formatDate(item.date) }}</span>
+        </div>
+      </article>
+
+      <EmptyState
+        v-if="!loading && !announcements.length"
+        title="暂无公告"
+        description="目前没有需要关注的系统消息"
+      />
+    </div>
+
     <el-dialog
       v-model="dialogVisible"
-      title="新建公告"
-      :width="dialogWidth"
+      title="发布公告"
+      width="520px"
+      align-center
       :close-on-click-modal="false"
     >
-      <el-form :model="formData" label-width="80px">
-        <el-form-item label="标题">
-          <el-input v-model="formData.title" placeholder="请输入公告标题" />
+      <el-form
+        ref="formRef"
+        :model="formData"
+        :rules="rules"
+        label-position="top"
+      >
+        <el-form-item label="标题" prop="title">
+          <el-input v-model="formData.title" placeholder="公告标题" />
         </el-form-item>
-        <el-form-item label="内容">
+        <el-form-item label="内容" prop="content">
           <el-input
             v-model="formData.content"
             type="textarea"
-            :rows="4"
-            placeholder="请输入公告内容"
+            :rows="5"
+            placeholder="公告内容"
           />
         </el-form-item>
         <el-form-item label="类型">
-          <el-select v-model="formData.type" placeholder="请选择公告类型">
-            <el-option label="普通" value="info">
-              <template #default>
-                <el-icon class="info-icon"><InfoFilled /></el-icon>
-                <span>普通</span>
-              </template>
-            </el-option>
-            <el-option label="成功" value="success">
-              <template #default>
-                <el-icon class="success-icon"><CircleCheckFilled /></el-icon>
-                <span>成功</span>
-              </template>
-            </el-option>
-            <el-option label="警告" value="warning">
-              <template #default>
-                <el-icon class="warning-icon"><WarningFilled /></el-icon>
-                <span>警告</span>
-              </template>
-            </el-option>
-            <el-option label="危险" value="danger">
-              <template #default>
-                <el-icon class="danger-icon"><CircleCloseFilled /></el-icon>
-                <span>危险</span>
-              </template>
-            </el-option>
+          <el-select v-model="formData.type" style="width: 100%">
+            <el-option label="通知" value="info" />
+            <el-option label="公告" value="success" />
+            <el-option label="提醒" value="warning" />
+            <el-option label="重要" value="danger" />
           </el-select>
         </el-form-item>
       </el-form>
       <template #footer>
-        <span class="dialog-footer">
-          <el-button @click="dialogVisible = false">取消</el-button>
-          <el-button type="primary" @click="handleSubmit">确定</el-button>
-        </span>
+        <el-button @click="dialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="submit">发布</el-button>
       </template>
     </el-dialog>
   </div>
 </template>
 
 <style scoped>
-.announcement-container {
-  padding: 20px;
-  max-width: 800px;
-  margin: 0 auto;
+.announcement-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
 
-.header-container {
+.announcement {
+  display: flex;
+  gap: 16px;
+  padding: 18px 20px;
+}
+
+.announcement__icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.announcement__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.announcement__head {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 30px;
+  align-items: flex-start;
+  gap: 12px;
 }
 
-.page-title {
-  margin-bottom: 0;
-  color: #303133;
-  text-align: center;
-}
-
-.announcement-card {
-  margin-bottom: 10px;
-}
-
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.card-header h3 {
-  margin: 0;
-  color: #303133;
+.announcement__head h3 {
+  margin-top: 6px;
   font-size: 16px;
 }
 
-.announcement-content {
-  color: #606266;
-  line-height: 1.6;
-  margin: 0;
+.announcement__tag {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
-.dialog-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
+.announcement__content {
+  margin-top: 10px;
+  color: var(--bp-color-text-secondary);
+  line-height: 1.7;
+  white-space: pre-wrap;
 }
 
-.info-icon {
-  color: #909399;
-  margin-right: 8px;
-}
-
-.success-icon {
-  color: #67c23a;
-  margin-right: 8px;
-}
-
-.warning-icon {
-  color: #e6a23c;
-  margin-right: 8px;
-}
-
-.danger-icon {
-  color: #f56c6c;
-  margin-right: 8px;
+.announcement__date {
+  display: inline-block;
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--bp-color-text-tertiary);
 }
 </style>
