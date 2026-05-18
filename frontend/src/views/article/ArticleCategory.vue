@@ -145,7 +145,7 @@ function goToList(category) {
 
 <template>
   <div class="bp-page">
-    <PageHeader title="我的分类" subtitle="点击分类卡片可查看分类下的文章列表">
+    <PageHeader title="我的博客" subtitle="管理分类，在分类下撰写与发布文章">
       <template #actions>
         <el-button type="primary" :icon="Plus" @click="openAdd">
           新建分类

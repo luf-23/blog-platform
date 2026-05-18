@@ -33,7 +33,7 @@ const routes = [
         path: "home",
         name: "Home",
         component: () => import("../views/Home.vue"),
-        meta: { title: "首页" }
+        meta: { title: "发现" }
       },
       {
         path: "profile",
@@ -43,9 +43,7 @@ const routes = [
       },
       {
         path: "community",
-        name: "Community",
-        component: () => import("../views/Community.vue"),
-        meta: { title: "社区" }
+        redirect: "/home"
       },
       {
         path: "announcement",
@@ -61,7 +59,7 @@ const routes = [
       },
       {
         path: "article",
-        meta: { title: "我的文章" },
+        meta: { title: "我的博客" },
         children: [
           {
             path: "",
@@ -71,7 +69,7 @@ const routes = [
             path: "category",
             name: "ArticleCategory",
             component: () => import("../views/article/ArticleCategory.vue"),
-            meta: { title: "我的分类" }
+            meta: { title: "我的博客" }
           },
           {
             path: "list",

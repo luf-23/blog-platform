@@ -682,7 +682,7 @@ const SUGGESTIONS = [
   }
   .chat-sessions {
     position: fixed;
-    top: var(--bp-topbar-height);
+    top: var(--bp-header-height);
     left: 0;
     bottom: 0;
     width: 280px;
