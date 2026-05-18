@@ -1,0 +1,17 @@
+{
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "oss:PutObject",
+        "oss:GetObject"
+      ],
+      "Resource": [
+        "acs:oss:*:*:luf-23/avatar/*",
+        "acs:oss:*:*:luf-23/background/*",
+        "acs:oss:*:*:luf-23/article/*"
+      ]
+    }
+  ],
+  "Version": "1"
+}
