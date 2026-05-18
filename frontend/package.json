@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "ali-oss": "^6.23.0",
-    "axios": "^1.8.4",
+    "axios": "^1.16.1",
     "dompurify": "^3.3.3",
     "element-plus": "^2.14.0",
     "event-source-polyfill": "^1.0.31",
