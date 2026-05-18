@@ -42,7 +42,17 @@ jobs:
       - name: Build project
         run: npm run build
 
+      - name: Check for dependency changes
+        id: changes
+        run: |
+          if git diff --quiet package.json package-lock.json; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Create pull request
+        if: steps.changes.outputs.changed == 'true'
         uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -55,7 +65,6 @@ jobs:
 
             - Ran `npm update` in `frontend/`
             - Verified the project builds successfully
-          labels: dependencies, automation
           add-paths: |
             frontend/package-lock.json
             frontend/package.json
