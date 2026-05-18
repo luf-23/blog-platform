@@ -89,10 +89,10 @@ function goWrite() {
     <header class="app-header">
       <div class="app-header__inner">
         <div class="app-header__brand" @click="navigate('/home')">
-          <span class="app-header__logo" />
+          <span class="app-header__logo" aria-hidden="true" />
           <span class="app-header__brand-text">
-            <strong>Blog</strong>
-            <span>Platform</span>
+            <span class="app-header__brand-word app-header__brand-word--main">Blog</span>
+            <span class="app-header__brand-word app-header__brand-word--sub">Platform</span>
           </span>
         </div>
 
@@ -295,7 +295,7 @@ function goWrite() {
 .app-header__brand {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   cursor: pointer;
   flex-shrink: 0;
 }
@@ -310,21 +310,28 @@ function goWrite() {
 }
 
 .app-header__brand-text {
-  display: flex;
-  flex-direction: column;
-  line-height: 1.15;
+  display: inline-flex;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 10px;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
-.app-header__brand-text strong {
-  font-size: 15px;
-  letter-spacing: -0.02em;
+.app-header__brand-word--main {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: var(--bp-color-text-primary);
+  line-height: 1;
 }
 
-.app-header__brand-text span {
-  font-size: 10px;
-  color: var(--bp-color-text-tertiary);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+.app-header__brand-word--sub {
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--bp-color-text-secondary);
+  line-height: 1;
 }
 
 .app-header__nav {

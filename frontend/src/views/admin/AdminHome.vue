@@ -91,8 +91,8 @@ function go(path) {
 </script>
 
 <template>
-  <div class="bp-page">
-    <PageHeader title="管理后台" subtitle="平台数据与运营操作总览" />
+  <div class="bp-page bp-page--compact">
+    <PageHeader title="管理后台" compact />
 
     <section class="hero bp-card">
       <div class="hero__bg" />

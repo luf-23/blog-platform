@@ -60,8 +60,8 @@ function formatDate(value) {
 </script>
 
 <template>
-  <div class="bp-page">
-    <PageHeader title="用户管理" subtitle="查看、搜索平台用户">
+  <div class="bp-page bp-page--compact">
+    <PageHeader title="用户管理" compact>
       <template #actions>
         <el-input
           v-model="keyword"

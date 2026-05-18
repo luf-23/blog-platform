@@ -144,8 +144,8 @@ function goToList(category) {
 </script>
 
 <template>
-  <div class="bp-page">
-    <PageHeader title="我的博客" subtitle="管理分类，在分类下撰写与发布文章">
+  <div class="bp-page bp-page--compact">
+    <PageHeader title="我的博客" compact>
       <template #actions>
         <el-button type="primary" :icon="Plus" @click="openAdd">
           新建分类

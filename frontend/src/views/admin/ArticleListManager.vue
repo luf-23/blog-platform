@@ -80,8 +80,8 @@ function open(item) {
 </script>
 
 <template>
-  <div class="bp-page">
-    <PageHeader title="文章审核" subtitle="审核社区中待发布与已发布的文章">
+  <div class="bp-page bp-page--compact">
+    <PageHeader title="文章审核" compact>
       <template #actions>
         <el-radio-group v-model="filter" size="small">
           <el-radio-button value="all">全部</el-radio-button>

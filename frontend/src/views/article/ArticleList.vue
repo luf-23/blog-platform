@@ -5,6 +5,7 @@ import { ElMessage, ElMessageBox } from "element-plus";
 import { Plus, Search, RefreshLeft } from "@element-plus/icons-vue";
 
 import PageHeader from "../../components/common/PageHeader.vue";
+import FilterBar from "../../components/common/FilterBar.vue";
 import EmptyState from "../../components/common/EmptyState.vue";
 import ArticleCard from "../../components/article/ArticleCard.vue";
 import UploadImageDialog from "../../components/common/UploadImageDialog.vue";
@@ -163,46 +164,51 @@ const hasFilter = computed(() => Boolean(filters.title || filters.status));
 </script>
 
 <template>
-  <div class="bp-page">
-    <PageHeader
-      title="文章列表"
-      subtitle="当前分类下的全部文章"
-      :show-back="true"
-    >
-      <template #actions>
-        <el-button type="primary" :icon="Plus" @click="goAdd">
-          新建文章
-        </el-button>
-      </template>
-    </PageHeader>
-
-    <div class="filter-bar bp-card">
-      <el-input
-        v-model="filters.title"
-        :prefix-icon="Search"
-        placeholder="搜索文章标题..."
-        clearable
-        class="filter-bar__input"
-        @keyup.enter="search"
+  <div class="bp-page bp-page--compact">
+    <div class="article-list-toolbar">
+      <PageHeader
+        title="文章列表"
+        compact
+        :show-back="true"
+        class="article-list-toolbar__header"
       />
-      <el-select
-        v-model="filters.status"
-        placeholder="筛选状态"
-        class="filter-bar__select"
-      >
-        <el-option
-          v-for="opt in statusOptions"
-          :key="opt.value || 'all'"
-          :label="opt.label"
-          :value="opt.value"
+
+      <FilterBar class="article-list-toolbar__filter">
+        <el-input
+          v-model="filters.title"
+          :prefix-icon="Search"
+          placeholder="搜索标题"
+          clearable
+          @keyup.enter="search"
         />
-      </el-select>
-      <div class="filter-bar__actions">
-        <el-button type="primary" :icon="Search" @click="search">搜索</el-button>
-        <el-button v-if="hasFilter" :icon="RefreshLeft" @click="reset">
-          重置
-        </el-button>
-      </div>
+        <el-select
+          v-model="filters.status"
+          placeholder="状态"
+          class="article-list-toolbar__status"
+        >
+          <el-option
+            v-for="opt in statusOptions"
+            :key="opt.value || 'all'"
+            :label="opt.label"
+            :value="opt.value"
+          />
+        </el-select>
+        <template #actions>
+          <el-button type="primary" :icon="Search" @click="search">搜索</el-button>
+          <el-button v-if="hasFilter" :icon="RefreshLeft" @click="reset">
+            重置
+          </el-button>
+        </template>
+      </FilterBar>
+
+      <el-button
+        type="primary"
+        :icon="Plus"
+        class="article-list-toolbar__add"
+        @click="goAdd"
+      >
+        新建文章
+      </el-button>
     </div>
 
     <div v-loading="loading">
@@ -240,26 +246,40 @@ const hasFilter = computed(() => Boolean(filters.title || filters.status));
 </template>
 
 <style scoped>
-.filter-bar {
+.article-list-toolbar {
   display: flex;
-  gap: 12px;
-  padding: 14px;
   align-items: center;
-  flex-wrap: wrap;
+  gap: 12px;
+  padding: 8px 12px;
+  border-radius: var(--bp-radius-sm);
+  background: var(--bp-color-bg-elevated);
+  border: 1px solid var(--bp-color-border);
 }
 
-.filter-bar__input {
+.article-list-toolbar__header {
+  flex-shrink: 0;
+  flex-wrap: nowrap;
+}
+
+.article-list-toolbar__header :deep(.page-header__left) {
+  flex: none;
+}
+
+.article-list-toolbar__filter {
   flex: 1;
-  min-width: 200px;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  padding: 0;
 }
 
-.filter-bar__select {
-  width: 160px;
+.article-list-toolbar__status {
+  width: 108px;
+  flex: 0 0 108px;
 }
 
-.filter-bar__actions {
-  display: flex;
-  gap: 8px;
+.article-list-toolbar__add {
+  flex-shrink: 0;
 }
 
 .grid {
@@ -268,17 +288,26 @@ const hasFilter = computed(() => Boolean(filters.title || filters.status));
   gap: 16px;
 }
 
+@media (max-width: 900px) {
+  .article-list-toolbar {
+    flex-wrap: wrap;
+    align-items: stretch;
+  }
+
+  .article-list-toolbar__filter {
+    flex: 1 1 100%;
+    order: 2;
+  }
+
+  .article-list-toolbar__add {
+    margin-left: auto;
+    order: 1;
+  }
+}
+
 @media (max-width: 640px) {
-  .filter-bar__input,
-  .filter-bar__select,
-  .filter-bar__actions {
-    width: 100%;
-  }
-  .filter-bar__select {
-    flex: none;
-  }
-  .filter-bar__actions {
-    justify-content: flex-end;
+  .article-list-toolbar__add span {
+    display: none;
   }
 }
 </style>

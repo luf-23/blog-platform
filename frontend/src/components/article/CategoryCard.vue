@@ -57,7 +57,8 @@ function onDelete(e) {
 <style scoped>
 .category-card {
   position: relative;
-  padding: 20px;
+  padding: 18px 18px 18px 20px;
+  padding-right: 88px;
   cursor: pointer;
   display: flex;
   gap: 16px;
@@ -111,8 +112,22 @@ function onDelete(e) {
 }
 
 .category-card__actions {
+  position: absolute;
+  top: 14px;
+  right: 14px;
   display: flex;
-  flex-direction: column;
-  gap: 6px;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+
+.category-card__actions :deep(.el-button) {
+  margin: 0;
+  width: 32px;
+  height: 32px;
+}
+
+.category-card__actions :deep(.el-button + .el-button) {
+  margin-left: 0;
 }
 </style>

@@ -103,8 +103,8 @@ async function submit() {
 </script>
 
 <template>
-  <div class="bp-page">
-    <PageHeader title="系统公告" subtitle="保持关注，了解平台最新动态">
+  <div class="bp-page bp-page--compact">
+    <PageHeader title="系统公告" compact>
       <template #actions>
         <el-button v-if="isAdmin" type="primary" :icon="Plus" @click="openCreate">
           发布公告

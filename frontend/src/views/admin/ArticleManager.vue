@@ -94,11 +94,11 @@ const codeTheme = computed(() => (isDark.value ? "github-dark" : "github"));
 </script>
 
 <template>
-  <div class="bp-page article-manager-page">
+  <div class="bp-page bp-page--compact article-manager-page">
     <PageHeader
       :title="articleData.title || '文章详情'"
+      compact
       :show-back="true"
-      subtitle="管理员视角"
     >
       <template #actions>
         <template v-if="articleData.status === 'pending'">

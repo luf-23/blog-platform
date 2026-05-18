@@ -4,6 +4,7 @@ import { useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
 import { Search, RefreshLeft } from "@element-plus/icons-vue";
 
+import FilterBar from "../components/common/FilterBar.vue";
 import EmptyState from "../components/common/EmptyState.vue";
 import ArticleCard from "../components/article/ArticleCard.vue";
 import {
@@ -95,15 +96,8 @@ const hasFilter = computed(() => Boolean(filters.title || filters.content));
 </script>
 
 <template>
-  <div class="bp-page discover-page">
-    <header class="discover-hero">
-      <div class="discover-hero__text">
-        <h1>发现好文</h1>
-        <p>浏览社区中已发布的博客，点击卡片阅读全文</p>
-      </div>
-    </header>
-
-    <div class="filter-bar bp-card">
+  <div class="bp-page bp-page--compact discover-page">
+    <FilterBar>
       <el-input
         v-model="filters.title"
         :prefix-icon="Search"
@@ -113,19 +107,19 @@ const hasFilter = computed(() => Boolean(filters.title || filters.content));
       />
       <el-input
         v-model="filters.content"
-        placeholder="搜索正文关键词"
+        placeholder="搜索正文"
         clearable
         @keyup.enter="search"
       />
-      <div class="filter-bar__actions">
+      <template #actions>
         <el-button type="primary" :icon="Search" @click="search">搜索</el-button>
         <el-button v-if="hasFilter" :icon="RefreshLeft" @click="reset">
           重置
         </el-button>
-      </div>
-    </div>
+      </template>
+    </FilterBar>
 
-    <div v-loading="loading">
+    <div v-loading="loading" class="discover-page__body">
       <div v-if="articles.length" class="article-grid">
         <ArticleCard
           v-for="article in articles"
@@ -145,51 +139,13 @@ const hasFilter = computed(() => Boolean(filters.title || filters.content));
 </template>
 
 <style scoped>
-.discover-page {
-  gap: 20px;
-}
-
-.discover-hero {
-  padding: 8px 0 4px;
-}
-
-.discover-hero__text h1 {
-  font-size: clamp(24px, 3vw, 32px);
-  font-weight: 700;
-  letter-spacing: -0.02em;
-}
-
-.discover-hero__text p {
-  margin-top: 8px;
-  font-size: 14px;
-  color: var(--bp-color-text-secondary);
-}
-
-.filter-bar {
-  display: grid;
-  grid-template-columns: 1.4fr 1.4fr auto;
-  gap: 12px;
-  padding: 14px;
-  align-items: center;
-}
-
-.filter-bar__actions {
-  display: flex;
-  gap: 8px;
+.discover-page__body {
+  min-height: 120px;
 }
 
 .article-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 16px;
-}
-
-@media (max-width: 720px) {
-  .filter-bar {
-    grid-template-columns: 1fr;
-  }
-  .filter-bar__actions {
-    justify-content: flex-end;
-  }
 }
 </style>
