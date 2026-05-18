@@ -14,7 +14,7 @@
     "dompurify": "^3.3.3",
     "element-plus": "^2.9.8",
     "event-source-polyfill": "^1.0.31",
-    "eventsource-parser": "^3.0.6",
+    "eventsource-parser": "^3.0.8",
     "github-markdown-css": "^5.9.0",
     "highlight.js": "^11.11.1",
     "markdown-it": "^14.1.0",
