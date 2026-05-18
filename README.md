@@ -48,7 +48,7 @@ cd blog-platform
 
 ### 2. 数据库
 
-执行 `backend/src/main/resources/SQL/Table.sql` 初始化 MySQL（默认库名 `blog_platform`）。
+执行 `backend/src/main/resources/SQL/init.sql` 初始化 MySQL（建库、表结构、演示数据；演示账号密码均为 `123456`）。
 
 ### 3. 后端
 

@@ -64,6 +64,12 @@
             <artifactId>spring-boot-starter-validation</artifactId>
         </dependency>
 
+        <!-- BCrypt 密码哈希（仅 crypto，不启用 Security 过滤器链） -->
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-crypto</artifactId>
+        </dependency>
+
         <!-- 响应式编程支持 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

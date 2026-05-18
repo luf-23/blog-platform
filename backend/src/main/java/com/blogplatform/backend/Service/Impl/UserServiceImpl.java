@@ -30,6 +30,8 @@ public class UserServiceImpl implements UserService {
     private StringRedisTemplate redisTemplate;
     @Autowired
     private TokenUtil tokenUtil;
+    @Autowired
+    private PasswordUtil passwordUtil;
 
     @Override
     public Result login(String usernameOrEmail, String password, HttpServletRequest request, HttpServletResponse response) {
@@ -39,7 +41,7 @@ public class UserServiceImpl implements UserService {
         else if (usernameOrEmail.matches("^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,6}$")) user = userMapper.selectByEmail(usernameOrEmail);
         else return Result.error("用户名或邮箱格式错误");
         if (user == null) return Result.error("用户名不存在");
-        if (!Md5Util.getMD5String(password).equals(user.getPassword())) return Result.error("密码错误");
+        if (!passwordUtil.matches(password, user.getPassword())) return Result.error("密码错误");
 
         Map<String, Object> claims = new HashMap<>();
         claims.put("id", user.getUserId());
@@ -63,7 +65,7 @@ public class UserServiceImpl implements UserService {
         User user = userMapper.selectByUsername(username);
         if (user != null) return Result.error("用户名已存在");
         if (userMapper.selectAllEmails().contains( email)) return Result.error("邮箱已存在");
-        userMapper.add(username, Md5Util.getMD5String(password), email);
+        userMapper.add(username, passwordUtil.encode(password), email);
         redisTemplate.delete("email:captcha:"+email);
         return Result.success();
     }
@@ -112,7 +114,7 @@ public class UserServiceImpl implements UserService {
     @Override
     public Result resetPassword(String email,String newPassword) {
         if (userMapper.selectByEmail( email)== null) return Result.error("该邮箱未注册");
-        userMapper.resetPassword(email,Md5Util.getMD5String(newPassword));
+        userMapper.resetPassword(email, passwordUtil.encode(newPassword));
         redisTemplate.delete("email:captcha:"+email);
         return Result.success();
     }

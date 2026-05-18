@@ -34,6 +34,6 @@ public interface UserMapper {
     @Select("select email from user")
     List<String> selectAllEmails();
 
-    @Update("update user set password=#{md5String} where email=#{email}")
-    void resetPassword(String email, String md5String);
+    @Update("update user set password=#{password} where email=#{email}")
+    void resetPassword(String email, String password);
 }
