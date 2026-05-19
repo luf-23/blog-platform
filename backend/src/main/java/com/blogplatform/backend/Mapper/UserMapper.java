@@ -2,6 +2,7 @@ package com.blogplatform.backend.Mapper;
 
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 import com.blogplatform.backend.entity.User;
@@ -22,6 +23,11 @@ public interface UserMapper {
 
     @Select("select * from user where user_id=#{id}")
     User selectById(int id);
+
+    @Select("<script>SELECT * FROM user WHERE user_id IN " +
+            "<foreach collection='ids' item='id' open='(' separator=',' close=')'>#{id}</foreach>" +
+            "</script>")
+    List<User> selectByIds(@Param("ids") List<Integer> ids);
     @Update( "update user set nickname=#{nickname}, signature=#{signature},avatar_image=#{avatarImage},background_image=#{backgroundImage},update_time=now() where user_id=#{userId} and username=#{username}")
     void update(User user);
 

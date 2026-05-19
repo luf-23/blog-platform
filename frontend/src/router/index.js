@@ -81,7 +81,7 @@ const routes = [
             path: "detail",
             name: "ArticleDetail",
             component: () => import("../views/article/Article.vue"),
-            meta: { title: "文章详情" }
+            meta: { title: "文章详情", layout: "immersive" }
           },
           {
             path: "add",

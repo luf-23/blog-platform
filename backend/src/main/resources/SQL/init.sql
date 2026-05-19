@@ -58,11 +58,15 @@ CREATE TABLE comment (
     comment_id INT AUTO_INCREMENT PRIMARY KEY COMMENT '评论 ID',
     article_id INT NOT NULL COMMENT '文章 ID',
     user_id INT NULL COMMENT '评论者 ID',
+    parent_id INT NULL COMMENT '父评论 ID，NULL 为一级评论',
+    root_id INT NULL COMMENT '根评论 ID（一级评论的 comment_id）',
     content TEXT NOT NULL COMMENT '评论内容',
-    is_read TINYINT(1) DEFAULT 0 COMMENT '是否已读',
     create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     FOREIGN KEY (article_id) REFERENCES article (article_id) ON DELETE CASCADE,
-    FOREIGN KEY (user_id) REFERENCES user (user_id) ON DELETE SET NULL
+    FOREIGN KEY (user_id) REFERENCES user (user_id) ON DELETE SET NULL,
+    FOREIGN KEY (parent_id) REFERENCES comment (comment_id) ON DELETE CASCADE,
+    INDEX idx_article_parent (article_id, parent_id),
+    INDEX idx_article_root (article_id, root_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 AUTO_INCREMENT = 100001;
 
 CREATE TABLE announcement (
@@ -144,6 +148,37 @@ INSERT INTO article (article_id, category_id, title, content, status) VALUES
 (100023, 100010, '标题-23', @demo_content, 'published'),
 (100024, 100010, '标题-24', @demo_content, 'draft');
 
+-- 树形评论演示（文章 100005、100001）
+INSERT INTO comment (comment_id, article_id, user_id, parent_id, root_id, content) VALUES
+(100001, 100005, 100002, NULL, 100001, '写得很清晰，Vue 3 组合式 API 的例子很实用。'),
+(100002, 100005, 100003, 100001, 100001, '同感，尤其是响应式那一段。'),
+(100003, 100005, 100004, 100002, 100001, '响应式原理那章我也反复看了两遍。'),
+(100004, 100005, 100003, NULL, 100004, '有没有配套源码仓库？想跟着敲一遍。'),
+(100005, 100005, 100002, 100004, 100004, '作者在文末放了 GitHub 链接，可以自取。'),
+(100006, 100005, 100005, NULL, 100006, '排版舒服，代码块高亮也顺眼。'),
+(100007, 100005, 100004, 100006, 100006, '暗色模式下阅读体验也不错。'),
+(100008, 100005, 100003, NULL, 100008, '期待续篇，讲讲 Pinia 和路由守卫。'),
+(100009, 100005, 100002, NULL, 100009, '已收藏，周末慢慢啃。'),
+(100010, 100005, 100005, 100009, 100009, '同收藏，这篇信息量挺大。'),
+(100011, 100001, 100003, NULL, 100011, '平台动态这篇信息量刚好，适合新人入门。'),
+(100012, 100001, 100002, 100011, 100011, '同意，公告和分类流程讲得很清楚。'),
+(100013, 100001, 100004, NULL, 100013, '建议补充一下评论区的使用说明。');
+
+INSERT INTO comment_like_record (comment_id, user_id) VALUES
+(100001, 100003),
+(100001, 100004),
+(100002, 100002),
+(100006, 100003),
+(100011, 100002);
+
+INSERT INTO article_like_record (article_id, user_id) VALUES
+(100005, 100002),
+(100005, 100003),
+(100005, 100004),
+(100001, 100003),
+(100006, 100002);
+
 ALTER TABLE user AUTO_INCREMENT = 100006;
 ALTER TABLE category AUTO_INCREMENT = 100011;
 ALTER TABLE article AUTO_INCREMENT = 100025;
+ALTER TABLE comment AUTO_INCREMENT = 100014;

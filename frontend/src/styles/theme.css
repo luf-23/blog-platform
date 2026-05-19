@@ -54,8 +54,10 @@
   --bp-radius-lg: 20px;
   --bp-radius-xl: 28px;
 
-  --bp-header-height: 60px;
-  --bp-content-max-width: 1120px;
+  --bp-header-height: 56px;
+  --bp-content-max-width: 1280px;
+  --bp-article-panel-width: 400px;
+  --bp-article-content-max: 760px;
 }
 
 :root[data-theme="dark"] {

@@ -38,8 +38,8 @@ public class CommentController {
         Integer articleId = comment.getArticleId();
         String content = comment.getContent();
         if (articleId == null) return Result.error("文章id不能为空");
-        if (content == null) return Result.error("评论内容不能为空");
-        return commentService.add(articleId,content);
+        if (content == null || content.isBlank()) return Result.error("评论内容不能为空");
+        return commentService.add(articleId, content.trim(), comment.getParentId());
     }
     @PostMapping("/delete")
     public Result delete(@RequestParam Integer commentId){

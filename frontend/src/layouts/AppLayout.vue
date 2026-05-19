@@ -41,6 +41,9 @@ watch(
 
 const isAdmin = computed(() => userInfo.value?.username === "admin");
 const isAdminRoute = computed(() => route.path.startsWith("/admin"));
+const isImmersiveLayout = computed(() =>
+  route.matched.some((r) => r.meta.layout === "immersive")
+);
 
 const mainNav = [
   { path: "/home", label: "发现", icon: Compass },
@@ -87,7 +90,10 @@ function goWrite() {
 <template>
   <div class="app-shell">
     <header class="app-header">
-      <div class="app-header__inner">
+      <div
+        class="app-header__inner"
+        :class="{ 'app-header__inner--immersive': isImmersiveLayout }"
+      >
         <div class="app-header__brand" @click="navigate('/home')">
           <span class="app-header__logo" aria-hidden="true" />
           <span class="app-header__brand-text">
@@ -188,8 +194,11 @@ function goWrite() {
       </div>
     </header>
 
-    <main class="app-main">
-      <div class="app-main__container">
+    <main class="app-main" :class="{ 'app-main--immersive': isImmersiveLayout }">
+      <div
+        class="app-main__container"
+        :class="{ 'app-main__container--immersive': isImmersiveLayout }"
+      >
         <router-view v-slot="{ Component }">
           <transition name="route-fade" mode="out-in">
             <component :is="Component" />
@@ -290,6 +299,10 @@ function goWrite() {
   display: flex;
   align-items: center;
   gap: 20px;
+}
+
+.app-header__inner--immersive {
+  max-width: none;
 }
 
 .app-header__brand {
@@ -455,11 +468,23 @@ function goWrite() {
   min-height: 0;
 }
 
+.app-main--immersive {
+  overflow: hidden;
+}
+
 .app-main__container {
   max-width: var(--bp-content-max-width);
   margin: 0 auto;
   width: 100%;
   min-height: calc(100vh - var(--bp-header-height));
+}
+
+.app-main__container--immersive {
+  max-width: none;
+  margin: 0;
+  min-height: calc(100vh - var(--bp-header-height));
+  height: calc(100vh - var(--bp-header-height));
+  overflow: hidden;
 }
 
 .mobile-drawer__head {
