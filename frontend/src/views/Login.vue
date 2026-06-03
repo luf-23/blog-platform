@@ -1,573 +1,351 @@
-<script setup>
-import { reactive, ref, computed, onUnmounted } from "vue";
-import { useRouter } from "vue-router";
-import { ElMessage } from "element-plus";
-import {
-  User,
-  Lock,
-  Message,
-  Key,
-  ChatDotSquare,
-  MagicStick,
-  Document,
-  Promotion
-} from "@element-plus/icons-vue";
-
-import {
-  loginService,
-  registerService,
-  getUserInfoService,
-  sendEmailCaptchaService,
-  checkEmailCaptchaService,
-  resetPasswordService
-} from "../api/user.js";
-import { useTokenStore } from "../store/token.js";
-import { useUserInfoStore } from "../store/userInfo.js";
-
-const router = useRouter();
-const tokenStore = useTokenStore();
-const userInfoStore = useUserInfoStore();
-
-const mode = ref("login");
-const loading = ref(false);
-const captchaLoading = ref(false);
-const countdown = ref(0);
-let countdownTimer = null;
-
-const formRef = ref(null);
-const formData = reactive({
-  username: "",
-  password: "",
-  confirmPassword: "",
-  email: "",
-  captcha: "",
-  newPassword: ""
-});
-
-const rules = reactive({
-  username: [
-    { required: true, message: "请输入用户名/邮箱", trigger: "blur" },
-    {
-      validator: (_, value, callback) => {
-        const emailPattern = /^[\w.+-]+@[\w-]+\.[a-zA-Z]{2,}$/;
-        const usernamePattern = /^.{5,16}$/;
-        if (mode.value === "login") {
-          return emailPattern.test(value) || usernamePattern.test(value)
-            ? callback()
-            : callback(new Error("请输入合法的用户名(5-16位)或邮箱"));
-        }
-        if (value.includes("@")) return callback(new Error("用户名不能包含 @"));
-        return usernamePattern.test(value)
-          ? callback()
-          : callback(new Error("用户名长度需在 5-16 字符"));
-      },
-      trigger: "blur"
-    }
-  ],
-  email: [
-    { required: true, message: "请输入邮箱", trigger: "blur" },
-    {
-      pattern: /^[\w.+-]+@[\w-]+\.[a-zA-Z]{2,}$/,
-      message: "邮箱格式不正确",
-      trigger: "blur"
-    }
-  ],
-  password: [
-    { required: true, message: "请输入密码", trigger: "blur" },
-    { min: 5, max: 16, message: "长度为 5-16 个字符", trigger: "blur" }
-  ],
-  confirmPassword: [
-    { required: true, message: "请再次输入密码", trigger: "blur" },
-    {
-      validator: (_, value, callback) => {
-        if (value !== formData.password) {
-          callback(new Error("两次密码不一致"));
-        } else {
-          callback();
-        }
-      },
-      trigger: "blur"
-    }
-  ],
-  newPassword: [
-    { required: true, message: "请输入新密码", trigger: "blur" },
-    { min: 5, max: 16, message: "长度为 5-16 个字符", trigger: "blur" }
-  ],
-  captcha: [{ required: true, message: "请输入验证码", trigger: "blur" }]
-});
-
-const title = computed(() => {
-  if (mode.value === "login") return "登录到你的账号";
-  if (mode.value === "register") return "创建新账户";
-  return "重置账户密码";
-});
-
-const subtitle = computed(() => {
-  if (mode.value === "login") return "继续探索分享和创造的乐趣";
-  if (mode.value === "register") return "加入这片小小的写作社区";
-  return "通过邮箱验证码重新设置密码";
-});
-
-function switchMode(target) {
-  mode.value = target;
-  Object.assign(formData, {
-    username: "",
-    password: "",
-    confirmPassword: "",
-    email: "",
-    captcha: "",
-    newPassword: ""
-  });
-  formRef.value?.clearValidate?.();
-}
-
-function startCountdown() {
-  countdown.value = 60;
-  countdownTimer = setInterval(() => {
-    if (countdown.value > 0) {
-      countdown.value -= 1;
-    } else {
-      clearInterval(countdownTimer);
-    }
-  }, 1000);
-}
-
-onUnmounted(() => {
-  if (countdownTimer) clearInterval(countdownTimer);
-});
-
-async function sendCaptcha() {
-  try {
-    await formRef.value.validateField("email");
-  } catch {
-    ElMessage.error("请先填写正确的邮箱");
-    return;
-  }
-  if (countdown.value > 0) return;
-  captchaLoading.value = true;
-  try {
-    await sendEmailCaptchaService({ email: formData.email });
-    ElMessage.success("验证码已发送，请查收邮箱");
-    startCountdown();
-  } catch {
-    ElMessage.error("验证码发送失败");
-  } finally {
-    captchaLoading.value = false;
-  }
-}
-
-async function handleLogin() {
-  try {
-    await formRef.value.validate();
-  } catch {
-    return;
-  }
-  loading.value = true;
-  try {
-    const result = await loginService({
-      usernameOrEmail: formData.username,
-      password: formData.password
-    });
-    tokenStore.setToken(result.data);
-    const res = await getUserInfoService();
-    userInfoStore.setUserInfo(res.data);
-    ElMessage.success("登录成功");
-    const redirect = router.currentRoute.value.query.redirect || "/home";
-    router.push(redirect);
-  } finally {
-    loading.value = false;
-  }
-}
-
-async function handleRegister() {
-  try {
-    await formRef.value.validate();
-  } catch {
-    return;
-  }
-  loading.value = true;
-  try {
-    const verify = await checkEmailCaptchaService({
-      email: formData.email,
-      captcha: formData.captcha
-    });
-    if (!verify.data) {
-      ElMessage.error("验证码错误或已过期");
-      return;
-    }
-    const result = await registerService({
-      username: formData.username,
-      password: formData.password,
-      email: formData.email
-    });
-    if (result.code === 0) {
-      ElMessage.success("注册成功，请登录");
-      switchMode("login");
-    } else {
-      ElMessage.error(result.msg || "注册失败");
-    }
-  } finally {
-    loading.value = false;
-  }
-}
-
-async function handleResetPassword() {
-  try {
-    await formRef.value.validate();
-  } catch {
-    return;
-  }
-  loading.value = true;
-  try {
-    const verify = await checkEmailCaptchaService({
-      email: formData.email,
-      captcha: formData.captcha
-    });
-    if (!verify.data) {
-      ElMessage.error("验证码错误或已过期");
-      return;
-    }
-    await resetPasswordService({
-      email: formData.email,
-      newPassword: formData.newPassword
-    });
-    ElMessage.success("密码重置成功，请登录");
-    switchMode("login");
-  } finally {
-    loading.value = false;
-  }
-}
-
-function submit() {
-  if (mode.value === "login") return handleLogin();
-  if (mode.value === "register") return handleRegister();
-  return handleResetPassword();
-}
-
-const features = [
-  { icon: Document, title: "随心写作", desc: "Markdown 编辑、自动保存草稿" },
-  { icon: ChatDotSquare, title: "社区互动", desc: "评论、点赞、关注感兴趣的作者" },
-  { icon: MagicStick, title: "AI 助手", desc: "内置多模型对话，写作灵感不断" }
-];
-</script>
-
 <template>
-  <div class="login-wrap">
-    <section class="login-side login-side--hero">
-      <div class="hero-badge">
-        <el-icon><Promotion /></el-icon>
-        <span>欢迎来到 Blog Platform</span>
-      </div>
-      <h1 class="hero-title">
-        让灵感<span class="bp-gradient-text">流动</span>，<br />让思想被看见。
-      </h1>
-      <p class="hero-subtitle">
-        一个轻盈、现代、专注内容创作的全栈博客平台。
-        支持 Markdown、社区评论、AI 助手与管理后台。
-      </p>
-      <ul class="hero-features">
-        <li v-for="f in features" :key="f.title">
-          <span class="hero-features__icon">
-            <el-icon><component :is="f.icon" /></el-icon>
-          </span>
-          <div>
-            <strong>{{ f.title }}</strong>
-            <p>{{ f.desc }}</p>
+  <div class="auth-view">
+    <!-- Tabs -->
+    <div class="auth-tabs">
+      <button class="auth-tab" :class="{ active: mode === 'login' }" @click="mode = 'login'">登录</button>
+      <button class="auth-tab" :class="{ active: mode === 'register' }" @click="mode = 'register'">注册</button>
+    </div>
+
+    <!-- Login Form -->
+    <transition name="fade" mode="out-in">
+      <div v-if="mode === 'login'" key="login">
+        <h2 class="auth-title">欢迎回来</h2>
+        <p class="auth-subtitle">登录你的账户继续探索</p>
+        <el-form ref="loginFormRef" :model="loginForm" :rules="loginRules" @submit.prevent="handleLogin">
+          <el-form-item prop="usernameOrEmail">
+            <el-input v-model="loginForm.usernameOrEmail" placeholder="用户名或邮箱" size="large" clearable>
+              <template #prefix>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              </template>
+            </el-input>
+          </el-form-item>
+          <el-form-item prop="password">
+            <el-input v-model="loginForm.password" type="password" placeholder="密码" size="large" show-password @keyup.enter="handleLogin">
+              <template #prefix>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+              </template>
+            </el-input>
+          </el-form-item>
+          <div class="auth-options">
+            <a class="link-text" @click="mode = 'reset'">忘记密码？</a>
           </div>
-        </li>
-      </ul>
-    </section>
+          <el-button type="primary" size="large" class="auth-btn" :loading="loading" @click="handleLogin">
+            登录
+          </el-button>
+        </el-form>
+        <p class="auth-switch">
+          还没有账户？<a class="link-text" @click="mode = 'register'">立即注册</a>
+        </p>
+      </div>
 
-    <section class="login-side login-side--form">
-      <div class="login-card bp-card">
-        <header class="login-card__header">
-          <h2>{{ title }}</h2>
-          <p>{{ subtitle }}</p>
-        </header>
-
-        <el-form
-          ref="formRef"
-          :model="formData"
-          :rules="rules"
-          label-position="top"
-          class="login-form"
-          @keyup.enter="submit"
-        >
-          <el-form-item
-            v-if="mode !== 'forgot'"
-            prop="username"
-            :label="mode === 'login' ? '用户名 / 邮箱' : '用户名'"
-          >
-            <el-input
-              v-model="formData.username"
-              size="large"
-              :prefix-icon="User"
-              :placeholder="mode === 'login' ? '账号或邮箱' : '5-16 位用户名'"
-            />
+      <!-- Register Form -->
+      <div v-else-if="mode === 'register'" key="register">
+        <h2 class="auth-title">创建账户</h2>
+        <p class="auth-subtitle">加入我们，开始你的创作之旅</p>
+        <el-form ref="regFormRef" :model="regForm" :rules="regRules" @submit.prevent="handleRegister">
+          <el-form-item prop="username">
+            <el-input v-model="regForm.username" placeholder="用户名（5-16位字母数字）" size="large" clearable>
+              <template #prefix>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              </template>
+            </el-input>
           </el-form-item>
-
-          <el-form-item v-if="mode !== 'login'" prop="email" label="邮箱">
-            <el-input
-              v-model="formData.email"
-              size="large"
-              :prefix-icon="Message"
-              placeholder="请输入邮箱"
-            />
+          <el-form-item prop="email">
+            <el-input v-model="regForm.email" placeholder="邮箱" size="large" clearable>
+              <template #prefix>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+              </template>
+            </el-input>
           </el-form-item>
-
-          <el-form-item v-if="mode !== 'login'" prop="captcha" label="验证码">
+          <el-form-item prop="captcha">
             <div class="captcha-row">
-              <el-input
-                v-model="formData.captcha"
-                size="large"
-                :prefix-icon="Key"
-                placeholder="邮箱验证码"
-              />
-              <el-button
-                size="large"
-                :loading="captchaLoading"
-                :disabled="countdown > 0"
-                @click="sendCaptcha"
-              >
-                {{ countdown > 0 ? `${countdown}s` : "获取" }}
+              <el-input v-model="regForm.captcha" placeholder="邮箱验证码" size="large">
+                <template #prefix>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                </template>
+              </el-input>
+              <el-button size="large" :disabled="captchaCountdown > 0 || sendingCaptcha" :loading="sendingCaptcha" @click="sendCaptcha" class="captcha-btn">
+                {{ captchaCountdown > 0 ? `${captchaCountdown}s` : '发送验证码' }}
               </el-button>
             </div>
           </el-form-item>
-
-          <el-form-item v-if="mode !== 'forgot'" prop="password" label="密码">
-            <el-input
-              v-model="formData.password"
-              size="large"
-              :prefix-icon="Lock"
-              type="password"
-              show-password
-              placeholder="请输入密码"
-            />
+          <el-form-item prop="password">
+            <el-input v-model="regForm.password" type="password" placeholder="密码（6-20位）" size="large" show-password>
+              <template #prefix>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+              </template>
+            </el-input>
           </el-form-item>
-
-          <el-form-item
-            v-if="mode === 'register'"
-            prop="confirmPassword"
-            label="确认密码"
-          >
-            <el-input
-              v-model="formData.confirmPassword"
-              size="large"
-              :prefix-icon="Lock"
-              type="password"
-              show-password
-              placeholder="请再次输入密码"
-            />
-          </el-form-item>
-
-          <el-form-item v-if="mode === 'forgot'" prop="newPassword" label="新密码">
-            <el-input
-              v-model="formData.newPassword"
-              size="large"
-              :prefix-icon="Lock"
-              type="password"
-              show-password
-              placeholder="请输入新密码"
-            />
-          </el-form-item>
-
-          <el-button
-            type="primary"
-            size="large"
-            class="login-submit"
-            :loading="loading"
-            @click="submit"
-          >
-            <template v-if="mode === 'login'">登录</template>
-            <template v-else-if="mode === 'register'">立即注册</template>
-            <template v-else>重置密码</template>
+          <el-button type="primary" size="large" class="auth-btn" :loading="loading" @click="handleRegister">
+            注册
           </el-button>
         </el-form>
-
-        <footer class="login-card__footer">
-          <template v-if="mode === 'login'">
-            <span>还没有账号？</span>
-            <el-button link type="primary" @click="switchMode('register')">
-              立即注册
-            </el-button>
-            <span class="dot">·</span>
-            <el-button link @click="switchMode('forgot')">忘记密码？</el-button>
-          </template>
-          <template v-else>
-            <span>已有账号？</span>
-            <el-button link type="primary" @click="switchMode('login')">
-              返回登录
-            </el-button>
-          </template>
-        </footer>
+        <p class="auth-switch">
+          已有账户？<a class="link-text" @click="mode = 'login'">立即登录</a>
+        </p>
       </div>
-    </section>
+
+      <!-- Reset Password -->
+      <div v-else key="reset">
+        <h2 class="auth-title">重置密码</h2>
+        <p class="auth-subtitle">通过邮箱验证重置你的密码</p>
+        <el-form ref="resetFormRef" :model="resetForm" :rules="resetRules">
+          <el-form-item prop="email">
+            <el-input v-model="resetForm.email" placeholder="注册邮箱" size="large">
+              <template #prefix>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+              </template>
+            </el-input>
+          </el-form-item>
+          <el-form-item prop="captcha">
+            <div class="captcha-row">
+              <el-input v-model="resetForm.captcha" placeholder="邮箱验证码" size="large"/>
+              <el-button size="large" :disabled="resetCountdown > 0 || sendingReset" :loading="sendingReset" @click="sendResetCaptcha" class="captcha-btn">
+                {{ resetCountdown > 0 ? `${resetCountdown}s` : '发送' }}
+              </el-button>
+            </div>
+          </el-form-item>
+          <el-form-item prop="newPassword">
+            <el-input v-model="resetForm.newPassword" type="password" placeholder="新密码" size="large" show-password/>
+          </el-form-item>
+          <el-button type="primary" size="large" class="auth-btn" :loading="loading" @click="handleReset">
+            重置密码
+          </el-button>
+        </el-form>
+        <p class="auth-switch">
+          <a class="link-text" @click="mode = 'login'">← 返回登录</a>
+        </p>
+      </div>
+    </transition>
   </div>
 </template>
 
+<script setup>
+import { ref, reactive } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+import { ElMessage } from 'element-plus'
+import { useTokenStore } from '../store/token.js'
+import { useUserInfoStore } from '../store/userInfo.js'
+import {
+  loginService, registerService, getUserInfoService,
+  sendEmailCaptchaService, checkEmailCaptchaService, resetPasswordService
+} from '../api/user.js'
+
+const router = useRouter()
+const route = useRoute()
+const tokenStore = useTokenStore()
+const userInfoStore = useUserInfoStore()
+
+const mode = ref('login')
+const loading = ref(false)
+const sendingCaptcha = ref(false)
+const captchaCountdown = ref(0)
+const sendingReset = ref(false)
+const resetCountdown = ref(0)
+
+const loginFormRef = ref()
+const regFormRef = ref()
+const resetFormRef = ref()
+
+const loginForm = reactive({ usernameOrEmail: '', password: '' })
+const regForm = reactive({ username: '', email: '', captcha: '', password: '' })
+const resetForm = reactive({ email: '', captcha: '', newPassword: '' })
+
+const loginRules = {
+  usernameOrEmail: [{ required: true, message: '请输入用户名或邮箱', trigger: 'blur' }],
+  password: [{ required: true, message: '请输入密码', trigger: 'blur' }]
+}
+
+const regRules = {
+  username: [
+    { required: true, message: '请输入用户名', trigger: 'blur' },
+    { pattern: /^\S{5,16}$/, message: '用户名为5-16位非空字符', trigger: 'blur' }
+  ],
+  email: [
+    { required: true, message: '请输入邮箱', trigger: 'blur' },
+    { type: 'email', message: '邮箱格式不正确', trigger: 'blur' }
+  ],
+  captcha: [{ required: true, message: '请输入验证码', trigger: 'blur' }],
+  password: [
+    { required: true, message: '请输入密码', trigger: 'blur' },
+    { min: 6, max: 20, message: '密码长度为6-20位', trigger: 'blur' }
+  ]
+}
+
+const resetRules = {
+  email: [{ required: true, type: 'email', message: '请输入正确的邮箱', trigger: 'blur' }],
+  captcha: [{ required: true, message: '请输入验证码', trigger: 'blur' }],
+  newPassword: [{ required: true, min: 6, message: '密码至少6位', trigger: 'blur' }]
+}
+
+async function handleLogin() {
+  if (!loginFormRef.value) return
+  await loginFormRef.value.validate(async (valid) => {
+    if (!valid) return
+    loading.value = true
+    try {
+      const res = await loginService({
+        usernameOrEmail: loginForm.usernameOrEmail,
+        password: loginForm.password
+      })
+      tokenStore.setToken(res.data)
+      const info = await getUserInfoService()
+      userInfoStore.setUserInfo(info.data)
+      ElMessage.success('登录成功')
+      const redirect = route.query.redirect || '/home'
+      router.push(redirect)
+    } catch (e) {
+      // error handled by interceptor
+    } finally {
+      loading.value = false
+    }
+  })
+}
+
+async function sendCaptcha() {
+  if (!regForm.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(regForm.email)) {
+    ElMessage.warning('请先填写正确的邮箱')
+    return
+  }
+  sendingCaptcha.value = true
+  try {
+    await sendEmailCaptchaService({ email: regForm.email })
+    ElMessage.success('验证码已发送，请查收邮件')
+    captchaCountdown.value = 60
+    const timer = setInterval(() => {
+      captchaCountdown.value--
+      if (captchaCountdown.value <= 0) clearInterval(timer)
+    }, 1000)
+  } catch {}
+  finally { sendingCaptcha.value = false }
+}
+
+async function handleRegister() {
+  if (!regFormRef.value) return
+  await regFormRef.value.validate(async (valid) => {
+    if (!valid) return
+    loading.value = true
+    try {
+      const verify = await checkEmailCaptchaService({ email: regForm.email, captcha: regForm.captcha })
+      if (!verify.data) { ElMessage.error('验证码错误'); return }
+      await registerService({ username: regForm.username, password: regForm.password, email: regForm.email })
+      ElMessage.success('注册成功，请登录')
+      mode.value = 'login'
+      loginForm.usernameOrEmail = regForm.username
+    } catch {}
+    finally { loading.value = false }
+  })
+}
+
+async function sendResetCaptcha() {
+  if (!resetForm.email) { ElMessage.warning('请先填写邮箱'); return }
+  sendingReset.value = true
+  try {
+    await sendEmailCaptchaService({ email: resetForm.email })
+    ElMessage.success('验证码已发送')
+    resetCountdown.value = 60
+    const timer = setInterval(() => {
+      resetCountdown.value--
+      if (resetCountdown.value <= 0) clearInterval(timer)
+    }, 1000)
+  } catch {}
+  finally { sendingReset.value = false }
+}
+
+async function handleReset() {
+  if (!resetFormRef.value) return
+  await resetFormRef.value.validate(async (valid) => {
+    if (!valid) return
+    loading.value = true
+    try {
+      const verify = await checkEmailCaptchaService({ email: resetForm.email, captcha: resetForm.captcha })
+      if (!verify.data) { ElMessage.error('验证码错误'); return }
+      await resetPasswordService({ email: resetForm.email, newPassword: resetForm.newPassword })
+      ElMessage.success('密码重置成功，请登录')
+      mode.value = 'login'
+    } catch {}
+    finally { loading.value = false }
+  })
+}
+</script>
+
 <style scoped>
-.login-wrap {
-  width: min(1080px, 100%);
-  margin: 0 auto;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 32px;
-  align-items: stretch;
-}
+.auth-view {}
 
-.login-side {
+.auth-tabs {
   display: flex;
-  flex-direction: column;
-  justify-content: center;
+  gap: 0;
+  background: var(--c-surface-2);
+  border-radius: var(--radius);
+  padding: 3px;
+  margin-bottom: 28px;
 }
 
-.login-side--hero {
-  padding: 32px 8px;
-}
-
-.hero-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  border-radius: 999px;
-  background: var(--bp-color-primary-soft);
-  color: var(--bp-color-primary);
-  font-size: 12px;
-  margin-bottom: 16px;
-  width: fit-content;
-}
-
-.hero-title {
-  font-size: clamp(28px, 4vw, 40px);
-  line-height: 1.2;
-  margin: 0 0 16px 0;
-}
-
-.hero-subtitle {
-  color: var(--bp-color-text-secondary);
-  font-size: 15px;
-  line-height: 1.7;
-  margin: 0 0 28px 0;
-  max-width: 460px;
-}
-
-.hero-features {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.hero-features li {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 14px 16px;
-  border-radius: 16px;
-  background: var(--bp-color-bg-elevated);
-  border: 1px solid var(--bp-color-border);
-}
-
-.hero-features__icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--bp-color-primary-soft);
-  color: var(--bp-color-primary);
-  flex-shrink: 0;
-}
-
-.hero-features strong {
-  display: block;
+.auth-tab {
+  flex: 1;
+  padding: 8px;
   font-size: 14px;
-  color: var(--bp-color-text-primary);
+  font-weight: 500;
+  border: none;
+  background: transparent;
+  color: var(--c-text-3);
+  border-radius: 7px;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.auth-tab.active {
+  background: var(--c-surface);
+  color: var(--c-text);
+  box-shadow: var(--shadow-sm);
 }
 
-.hero-features p {
-  margin: 2px 0 0 0;
-  font-size: 12.5px;
-  color: var(--bp-color-text-tertiary);
-}
-
-.login-card {
-  padding: 36px;
-  width: 100%;
-  max-width: 460px;
-  margin: 0 auto;
-}
-
-.login-card__header h2 {
+.auth-title {
   font-size: 22px;
+  font-weight: 700;
+  color: var(--c-text);
+  margin-bottom: 6px;
 }
 
-.login-card__header p {
-  margin-top: 6px;
-  font-size: 13px;
-  color: var(--bp-color-text-tertiary);
+.auth-subtitle {
+  font-size: 14px;
+  color: var(--c-text-3);
+  margin-bottom: 24px;
 }
 
-.login-form {
-  margin-top: 24px;
+.auth-btn {
+  width: 100%;
+  margin-top: 8px;
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.auth-options {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  justify-content: flex-end;
+  margin: -4px 0 12px;
 }
+
+.auth-switch {
+  text-align: center;
+  margin-top: 20px;
+  font-size: 14px;
+  color: var(--c-text-3);
+}
+
+.link-text {
+  color: var(--c-primary);
+  cursor: pointer;
+  font-weight: 500;
+}
+.link-text:hover { text-decoration: underline; }
 
 .captcha-row {
   display: flex;
   gap: 8px;
   width: 100%;
 }
+.captcha-row .el-input { flex: 1; }
+.captcha-btn { flex-shrink: 0; white-space: nowrap; }
 
-.captcha-row .el-button {
-  flex-shrink: 0;
-  min-width: 92px;
-}
-
-.login-submit {
-  width: 100%;
-  margin-top: 8px;
-  height: 44px;
-  font-size: 15px;
-  font-weight: 600;
-}
-
-.login-card__footer {
-  margin-top: 20px;
-  text-align: center;
-  font-size: 13px;
-  color: var(--bp-color-text-tertiary);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-
-.dot {
-  opacity: 0.5;
-}
-
-@media (max-width: 900px) {
-  .login-wrap {
-    grid-template-columns: 1fr;
-    gap: 16px;
-  }
-  .login-side--hero {
-    text-align: center;
-    padding: 8px;
-  }
-  .hero-badge {
-    margin-inline: auto;
-  }
-  .hero-features {
-    text-align: left;
-  }
-}
+:deep(.el-form-item) { margin-bottom: 16px; }
 </style>

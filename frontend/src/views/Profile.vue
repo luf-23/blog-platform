@@ -1,376 +1,315 @@
-<script setup>
-import { reactive, ref, computed, onMounted, watch } from "vue";
-import { useRoute } from "vue-router";
-import { ElMessage } from "element-plus";
-import { EditPen, Picture, UserFilled, Calendar } from "@element-plus/icons-vue";
-import { storeToRefs } from "pinia";
-
-import { useUserInfoStore } from "../store/userInfo.js";
-import {
-  getUserInfoByNameService,
-  updateUserInfoService
-} from "../api/user.js";
-import { ossClient } from "../utils/oss/index.js";
-import UploadImageDialog from "../components/common/UploadImageDialog.vue";
-
-const route = useRoute();
-const userInfoStore = useUserInfoStore();
-const { userInfo } = storeToRefs(userInfoStore);
-
-const queryAuthor = computed(() => route.query.author || null);
-const isAuthor = computed(
-  () => !queryAuthor.value || queryAuthor.value === userInfo.value?.username
-);
-
-const otherUser = ref({});
-
-async function loadOther() {
-  if (!queryAuthor.value || queryAuthor.value === userInfo.value?.username) return;
-  const result = await getUserInfoByNameService({ username: queryAuthor.value });
-  otherUser.value = result.data || {};
-}
-
-watch(queryAuthor, loadOther, { immediate: true });
-
-const display = computed(() => (isAuthor.value ? userInfo.value : otherUser.value));
-
-const dialogVisible = ref(false);
-const formRef = ref(null);
-const formData = reactive({
-  nickname: "",
-  signature: "",
-  avatarImage: "",
-  backgroundImage: ""
-});
-
-const rules = {
-  nickname: [{ required: true, message: "昵称不能为空", trigger: "blur" }]
-};
-
-function openEdit() {
-  Object.assign(formData, {
-    nickname: userInfo.value?.nickname || "",
-    signature: userInfo.value?.signature || "",
-    avatarImage: userInfo.value?.avatarImage || "",
-    backgroundImage: userInfo.value?.backgroundImage || ""
-  });
-  dialogVisible.value = true;
-}
-
-async function submitEdit() {
-  try {
-    await formRef.value.validate();
-  } catch {
-    return;
-  }
-  userInfoStore.setUserInfo({ ...userInfo.value, ...formData });
-  await updateUserInfoService(formData);
-  ElMessage.success("已更新个人资料");
-  dialogVisible.value = false;
-}
-
-const uploadVisible = ref(false);
-const uploadLoading = ref(false);
-const uploadType = ref("avatar");
-
-function openUpload(type) {
-  uploadType.value = type;
-  uploadVisible.value = true;
-}
-
-async function handleUpload(file) {
-  uploadLoading.value = true;
-  try {
-    await ossClient.init();
-    const extension = file.name.split(".").pop();
-    const ossType =
-      uploadType.value === "avatar"
-        ? ossClient.constructor.IMAGE_TYPE.AVATAR
-        : ossClient.constructor.IMAGE_TYPE.BACKGROUND;
-    const fileName = ossClient.generateFileName(
-      userInfo.value?.userId || "user",
-      ossType,
-      extension
-    );
-    await ossClient.uploadFile(fileName, file);
-    const url = ossClient.generateFileUrl(fileName);
-    if (uploadType.value === "avatar") {
-      formData.avatarImage = url;
-    } else {
-      formData.backgroundImage = url;
-    }
-    ElMessage.success("上传成功");
-    uploadVisible.value = false;
-  } catch {
-    ElMessage.error("上传失败");
-  } finally {
-    uploadLoading.value = false;
-  }
-}
-
-function formatDate(value) {
-  if (!value) return "暂无";
-  return new Date(value).toLocaleDateString("zh-CN");
-}
-
-onMounted(loadOther);
-</script>
-
 <template>
-  <div class="bp-page profile-page">
-    <section class="profile-hero bp-card">
-      <div
-        class="profile-hero__bg"
-        :style="{
-          backgroundImage: display?.backgroundImage
-            ? `url(${display.backgroundImage})`
-            : 'none'
-        }"
-      />
-      <div class="profile-hero__content">
-        <el-avatar
-          :size="96"
-          :src="display?.avatarImage || '/avatar/avatar1.png'"
-          class="profile-hero__avatar"
-        />
-        <div class="profile-hero__info">
-          <h1>{{ display?.nickname || display?.username || "未命名用户" }}</h1>
-          <p class="profile-hero__username">@{{ display?.username }}</p>
-          <p class="profile-hero__signature">
-            "{{ display?.signature || "这个人很懒，还没有签名" }}"
-          </p>
+  <div class="profile-page">
+    <!-- Banner -->
+    <div class="profile-banner" :style="bannerStyle">
+      <div class="banner-overlay"></div>
+    </div>
+
+    <div class="page-container">
+      <!-- User card -->
+      <div class="profile-card card">
+        <div class="profile-card-left">
+          <div class="avatar-wrap">
+            <img :src="profileUser?.avatarImage || defaultAvatar" class="profile-avatar" alt="头像"/>
+            <button v-if="isMe" class="avatar-edit-btn" @click="showEditDialog = true">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </button>
+          </div>
+          <div class="profile-info">
+            <h1 class="profile-name">{{ profileUser?.nickname || profileUser?.username }}</h1>
+            <p class="profile-username">@{{ profileUser?.username }}</p>
+            <p v-if="profileUser?.signature" class="profile-bio">{{ profileUser.signature }}</p>
+            <div class="profile-meta">
+              <span v-if="profileUser?.email" class="profile-meta-item">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                {{ profileUser.email }}
+              </span>
+              <span class="profile-meta-item">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                {{ formatDate(profileUser?.createTime) }} 加入
+              </span>
+            </div>
+          </div>
         </div>
-        <div v-if="isAuthor" class="profile-hero__actions">
-          <el-button type="primary" :icon="EditPen" @click="openEdit">
-            编辑资料
-          </el-button>
+        <div v-if="isMe" class="profile-card-right">
+          <button class="btn btn-secondary" @click="showEditDialog = true">编辑资料</button>
         </div>
       </div>
-    </section>
 
-    <section class="info-grid">
-      <div class="info-card bp-card">
-        <h3>账号信息</h3>
-        <ul>
-          <li>
-            <span class="info-card__label">
-              <el-icon><UserFilled /></el-icon> 用户名
-            </span>
-            <span>{{ display?.username }}</span>
-          </li>
-          <li>
-            <span class="info-card__label">
-              <el-icon><EditPen /></el-icon> 昵称
-            </span>
-            <span>{{ display?.nickname || "未设置" }}</span>
-          </li>
-          <li>
-            <span class="info-card__label">
-              <el-icon><Calendar /></el-icon> 注册时间
-            </span>
-            <span>{{ formatDate(display?.createTime) }}</span>
-          </li>
-        </ul>
+      <!-- Articles -->
+      <div class="profile-content">
+        <div class="section-header">
+          <h2 class="section-title">发布的文章</h2>
+          <span class="section-count">{{ articles.length }} 篇</span>
+        </div>
+
+        <div v-if="loading" class="loading-spinner"><el-icon class="is-loading" :size="20"><Loading /></el-icon></div>
+        <div v-else-if="articles.length === 0" class="empty-state">
+          <p>还没有发布文章</p>
+        </div>
+        <div v-else class="article-list">
+          <ArticleCard v-for="a in articles" :key="a.articleId" :article="a"/>
+        </div>
       </div>
+    </div>
 
-      <div class="info-card bp-card">
-        <h3>个性签名</h3>
-        <p class="signature-text">
-          {{ display?.signature || "尚未填写个性签名" }}
-        </p>
-      </div>
-    </section>
-
-    <el-dialog
-      v-model="dialogVisible"
-      title="编辑资料"
-      width="520px"
-      align-center
-      :close-on-click-modal="false"
-    >
-      <el-form
-        ref="formRef"
-        :model="formData"
-        :rules="rules"
-        label-position="top"
-      >
-        <el-form-item label="昵称" prop="nickname">
-          <el-input v-model="formData.nickname" placeholder="给自己起个名字" />
+    <!-- Edit dialog -->
+    <el-dialog v-model="showEditDialog" title="编辑个人资料" width="520px" :close-on-click-modal="false">
+      <el-form ref="editFormRef" :model="editForm" label-position="top">
+        <el-form-item label="头像 URL">
+          <div class="avatar-preview-row">
+            <img :src="editForm.avatarImage || defaultAvatar" class="avatar" style="width:56px;height:56px"/>
+            <el-input v-model="editForm.avatarImage" placeholder="输入头像图片 URL" style="flex:1"/>
+          </div>
+        </el-form-item>
+        <el-form-item label="昵称">
+          <el-input v-model="editForm.nickname" maxlength="50" show-word-limit/>
         </el-form-item>
         <el-form-item label="个性签名">
-          <el-input
-            v-model="formData.signature"
-            type="textarea"
-            :rows="3"
-            placeholder="描述一下你自己"
-          />
+          <el-input v-model="editForm.signature" type="textarea" :rows="3" maxlength="200" show-word-limit placeholder="介绍一下你自己..."/>
         </el-form-item>
-        <el-form-item label="头像">
-          <div class="dual-input">
-            <el-input v-model="formData.avatarImage" placeholder="头像 URL" />
-            <el-button :icon="Picture" @click="openUpload('avatar')">
-              上传
-            </el-button>
-          </div>
-        </el-form-item>
-        <el-form-item label="背景图">
-          <div class="dual-input">
-            <el-input v-model="formData.backgroundImage" placeholder="背景 URL" />
-            <el-button :icon="Picture" @click="openUpload('background')">
-              上传
-            </el-button>
-          </div>
+        <el-form-item label="背景图 URL">
+          <el-input v-model="editForm.backgroundImage" placeholder="输入背景图片 URL"/>
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="submitEdit">保存</el-button>
+        <el-button @click="showEditDialog = false">取消</el-button>
+        <el-button type="primary" :loading="savingEdit" @click="saveProfile">保存</el-button>
       </template>
     </el-dialog>
-
-    <UploadImageDialog
-      v-model:visible="uploadVisible"
-      :title="uploadType === 'avatar' ? '更换头像' : '更换背景'"
-      :loading="uploadLoading"
-      @confirm="handleUpload"
-    />
   </div>
 </template>
 
-<style scoped>
-.profile-hero {
-  position: relative;
-  overflow: hidden;
-  isolation: isolate;
+<script setup>
+import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
+import { Loading } from '@element-plus/icons-vue'
+import { getUserInfoByNameService, updateUserInfoService, getUserInfoService } from '../api/user.js'
+import { searchArticlesService } from '../api/article.js'
+import { useUserInfoStore } from '../store/userInfo.js'
+import ArticleCard from '../components/article/ArticleCard.vue'
+
+const route = useRoute()
+const userInfoStore = useUserInfoStore()
+
+const profileUser = ref(null)
+const articles = ref([])
+const loading = ref(false)
+const showEditDialog = ref(false)
+const savingEdit = ref(false)
+const editFormRef = ref()
+
+const defaultAvatar = 'https://luf-23.oss-cn-wuhan-lr.aliyuncs.com/avatar/default.png'
+
+const isMe = computed(() => {
+  const u = userInfoStore.userInfo
+  if (!u || !profileUser.value) return false
+  return u.userId === profileUser.value.userId
+})
+
+const bannerStyle = computed(() => {
+  const img = profileUser.value?.backgroundImage
+  return img ? { backgroundImage: `url(${img})` } : {}
+})
+
+const editForm = reactive({
+  nickname: '',
+  signature: '',
+  avatarImage: '',
+  backgroundImage: ''
+})
+
+async function loadProfile() {
+  const username = route.params.username
+  loading.value = true
+  try {
+    if (username) {
+      const res = await getUserInfoByNameService({ username })
+      profileUser.value = res.data
+    } else {
+      const res = await getUserInfoService()
+      profileUser.value = res.data
+    }
+    if (profileUser.value) {
+      loadArticles()
+      if (isMe.value) {
+        editForm.nickname = profileUser.value.nickname || ''
+        editForm.signature = profileUser.value.signature || ''
+        editForm.avatarImage = profileUser.value.avatarImage || ''
+        editForm.backgroundImage = profileUser.value.backgroundImage || ''
+      }
+    }
+  } finally { loading.value = false }
 }
 
-.profile-hero__bg {
-  position: absolute;
-  inset: 0;
+async function loadArticles() {
+  try {
+    const res = await searchArticlesService({ authorId: profileUser.value.userId, pageSize: 20 })
+    articles.value = res.data.list || []
+  } catch {}
+}
+
+async function saveProfile() {
+  savingEdit.value = true
+  try {
+    await updateUserInfoService({
+      nickname: editForm.nickname,
+      signature: editForm.signature,
+      avatarImage: editForm.avatarImage,
+      backgroundImage: editForm.backgroundImage
+    })
+    const infoRes = await getUserInfoService()
+    userInfoStore.setUserInfo(infoRes.data)
+    profileUser.value = infoRes.data
+    ElMessage.success('资料已更新')
+    showEditDialog.value = false
+  } finally { savingEdit.value = false }
+}
+
+function formatDate(t) {
+  if (!t) return ''
+  const d = new Date(t)
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`
+}
+
+onMounted(loadProfile)
+watch(() => route.params.username, loadProfile)
+</script>
+
+<style scoped>
+.profile-page {}
+
+.profile-banner {
+  height: 200px;
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
   background-size: cover;
   background-position: center;
-  filter: blur(8px);
-  opacity: 0.5;
-  transform: scale(1.1);
+  position: relative;
 }
 
-.profile-hero__bg::after {
-  content: "";
+.banner-overlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(
-    180deg,
-    rgba(0, 0, 0, 0.1) 0%,
-    var(--bp-color-bg-elevated) 100%
-  );
+  background: linear-gradient(to bottom, transparent 60%, rgba(0,0,0,0.3));
 }
 
-.profile-hero__content {
-  position: relative;
-  padding: 36px clamp(20px, 3vw, 32px);
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  gap: 24px;
-  align-items: center;
-  background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0) 0%,
-    var(--bp-color-bg-elevated) 100%
-  );
-}
-
-:root[data-theme="dark"] .profile-hero__content {
-  background: linear-gradient(
-    180deg,
-    rgba(0, 0, 0, 0) 0%,
-    var(--bp-color-bg-elevated) 100%
-  );
-}
-
-.profile-hero__avatar {
-  border: 4px solid var(--bp-color-bg-elevated);
-  box-shadow: var(--bp-shadow-md);
-}
-
-.profile-hero__info h1 {
-  font-size: 24px;
-  font-weight: 700;
-}
-
-.profile-hero__username {
-  margin-top: 4px;
-  color: var(--bp-color-text-tertiary);
-  font-size: 13px;
-}
-
-.profile-hero__signature {
-  margin-top: 12px;
-  color: var(--bp-color-text-secondary);
-  font-style: italic;
-}
-
-.info-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-}
-
-.info-card {
-  padding: 22px;
+.profile-card {
+  margin-top: -50px;
+  padding: 24px;
   display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.info-card h3 {
-  font-size: 15px;
-}
-
-.info-card ul {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.info-card li {
-  display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: space-between;
-  font-size: 14px;
-  color: var(--bp-color-text-secondary);
+  gap: 16px;
+  margin-bottom: 24px;
+  position: relative;
 }
 
-.info-card__label {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--bp-color-text-tertiary);
-  font-size: 13px;
-}
-
-.signature-text {
-  font-style: italic;
-  color: var(--bp-color-text-secondary);
-  line-height: 1.7;
-}
-
-.dual-input {
+.profile-card-left {
   display: flex;
-  gap: 8px;
-  width: 100%;
+  align-items: flex-end;
+  gap: 20px;
 }
 
-@media (max-width: 720px) {
-  .profile-hero__content {
-    grid-template-columns: 1fr;
-    text-align: center;
-    justify-items: center;
-  }
-  .info-grid {
-    grid-template-columns: 1fr;
-  }
+.avatar-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.profile-avatar {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  border: 4px solid var(--c-surface);
+  object-fit: cover;
+  background: var(--c-border);
+  margin-top: -44px;
+}
+
+.avatar-edit-btn {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--c-primary);
+  color: white;
+  border: 2px solid var(--c-surface);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.profile-name {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--c-text);
+  margin-bottom: 2px;
+}
+
+.profile-username {
+  font-size: 14px;
+  color: var(--c-text-3);
+  margin-bottom: 6px;
+}
+
+.profile-bio {
+  font-size: 14px;
+  color: var(--c-text-2);
+  margin-bottom: 8px;
+  max-width: 400px;
+}
+
+.profile-meta {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.profile-meta-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  color: var(--c-text-3);
+}
+
+/* Content */
+.profile-content {}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.section-title { font-size: 18px; font-weight: 700; color: var(--c-text); }
+.section-count {
+  background: var(--c-surface-2);
+  color: var(--c-text-3);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 40px;
+  color: var(--c-text-4);
+  font-size: 14px;
+}
+
+.article-list { display: flex; flex-direction: column; gap: 12px; }
+
+/* Avatar preview row */
+.avatar-preview-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
 }
 </style>

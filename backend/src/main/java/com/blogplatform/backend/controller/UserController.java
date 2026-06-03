@@ -3,7 +3,7 @@ package com.blogplatform.backend.controller;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.constraints.Pattern;
-import com.blogplatform.backend.Service.UserService;
+import com.blogplatform.backend.service.UserService;
 import com.blogplatform.backend.entity.Result;
 import com.blogplatform.backend.entity.User;
 import org.springframework.beans.factory.annotation.Autowired;

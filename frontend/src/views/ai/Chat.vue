@@ -372,11 +372,27 @@ const SUGGESTIONS = [
 
 <style scoped>
 .chat-shell {
+  --bp-color-bg: #0b1120;
+  --bp-color-bg-elevated: #111827;
+  --bp-color-bg-soft: #172033;
+  --bp-color-bg-hover: #1f2a44;
+  --bp-color-border: #253047;
+  --bp-color-divider: #1e293b;
+  --bp-color-text-primary: #f8fafc;
+  --bp-color-text-secondary: #cbd5e1;
+  --bp-color-text-tertiary: #94a3b8;
+  --bp-color-primary: #6366f1;
+  --bp-color-primary-soft: rgba(99, 102, 241, 0.16);
+  --bp-color-primary-soft-strong: rgba(99, 102, 241, 0.42);
+  --bp-gradient-hero: linear-gradient(135deg, #4f46e5, #7c3aed);
   display: grid;
   grid-template-columns: 280px 1fr;
   height: 100%;
   min-height: 0;
   background: var(--bp-color-bg);
+  border: 1px solid var(--bp-color-border);
+  border-radius: 12px;
+  overflow: hidden;
 }
 
 .chat-sessions {
@@ -452,6 +468,7 @@ const SUGGESTIONS = [
   display: flex;
   flex-direction: column;
   min-height: 0;
+  position: relative;
 }
 
 .chat-toolbar {
@@ -485,16 +502,25 @@ const SUGGESTIONS = [
 }
 
 .chat-settings {
-  margin: 12px 16px 0;
-  padding: 12px 16px;
+  position: absolute;
+  top: 64px;
+  right: 16px;
+  z-index: 5;
+  width: 270px;
+  padding: 18px;
   display: flex;
+  flex-direction: column;
   gap: 16px;
-  flex-wrap: wrap;
+  border-radius: 12px;
+  background: rgba(17, 24, 39, 0.96);
+  border: 1px solid var(--bp-color-border);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.32);
 }
 
 .setting-row {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: stretch;
   gap: 8px;
   font-size: 12px;
   color: var(--bp-color-text-tertiary);
@@ -641,6 +667,21 @@ const SUGGESTIONS = [
 
 .chat-mobile-mask {
   display: none;
+}
+
+.bp-card {
+  background: var(--bp-color-bg-elevated);
+  border: 1px solid var(--bp-color-border);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+}
+
+.bp-card-hover {
+  transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+}
+.bp-card-hover:hover {
+  transform: translateY(-1px);
+  border-color: var(--bp-color-primary-soft-strong);
+  background: var(--bp-color-bg-soft);
 }
 
 .settings-enter-active,

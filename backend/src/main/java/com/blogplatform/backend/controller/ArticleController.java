@@ -1,73 +1,113 @@
 package com.blogplatform.backend.controller;
 
-import com.blogplatform.backend.Service.ArticleService;
+import com.blogplatform.backend.service.ArticleService;
 import com.blogplatform.backend.entity.Article;
 import com.blogplatform.backend.entity.Result;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 
 @RestController
 @RequestMapping("/article")
 public class ArticleController {
+
     @Autowired
-    private ArticleService ArticleService;
+    private ArticleService articleService;
 
-    @GetMapping("/publishedList")
-    public Result getPublishedList(@RequestParam Integer categoryId){
-        return ArticleService.getPublishedList(categoryId);
+    // ── Public: compound search ───────────────────────────────────────────────
+
+    @GetMapping("/search")
+    public Result search(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Integer categoryId,
+            @RequestParam(required = false) Integer tagId,
+            @RequestParam(required = false) Integer authorId,
+            @RequestParam(defaultValue = "latest") String sort,
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "10") Integer pageSize) {
+        return articleService.search(keyword, categoryId, tagId, authorId, sort, page, pageSize);
     }
 
-    @GetMapping("/draftList")
-    public Result getDraftList(@RequestParam Integer categoryId){
-        return ArticleService.getDraftList(categoryId);
+    @GetMapping("/detail/{id}")
+    public Result getDetail(@PathVariable Integer id) {
+        return articleService.getPublicDetail(id);
     }
 
-    @GetMapping("/list")
-    public Result getList(@RequestParam Integer categoryId){
-        return ArticleService.getList(categoryId);
-    }
+    // ── My blog ───────────────────────────────────────────────────────────────
 
-    @GetMapping("/selectedList")
-    public Result getSelectedList(@RequestParam Map<String, Object> params){
-        return ArticleService.getSelectedList(params);
-    }
-
-    @PostMapping("/delete")
-    public Result delete(@RequestParam Integer articleId){
-        return ArticleService.delete(articleId);
+    @GetMapping("/my")
+    public Result getMyArticles(
+            @RequestParam(required = false) String title,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) Integer categoryId) {
+        return articleService.getMyArticles(title, status, categoryId);
     }
 
     @PostMapping("/add")
-    public Result add(@RequestBody Article article){
-        return ArticleService.add(article);
+    public Result add(@RequestBody Map<String, Object> body) {
+        Article article = buildArticle(body);
+        @SuppressWarnings("unchecked")
+        List<String> tagNames = (List<String>) body.get("tagNames");
+        return articleService.add(article, tagNames);
     }
 
-    @PostMapping("/check")
-    public Result check(@RequestParam Integer categoryId){
-        return ArticleService.check(categoryId);
+    @PutMapping("/update")
+    public Result update(@RequestBody Map<String, Object> body) {
+        Article article = buildArticle(body);
+        @SuppressWarnings("unchecked")
+        List<String> tagNames = (List<String>) body.get("tagNames");
+        return articleService.update(article, tagNames);
     }
 
-    @GetMapping("/detail")
-    public Result getDetail(@RequestParam Integer articleId,@RequestParam Integer categoryId){
-        return ArticleService.getDetail(articleId,categoryId);
+    @DeleteMapping("/delete/{id}")
+    public Result delete(@PathVariable Integer id) {
+        return articleService.delete(id);
     }
 
-    @PostMapping("/publish")
-    public Result pubish(@RequestParam Integer articleId,@RequestParam Integer categoryId){
-        return ArticleService.publish(articleId,categoryId);
+    @PostMapping("/submit/{id}")
+    public Result submit(@PathVariable Integer id) {
+        return articleService.submitForReview(id);
     }
 
-    @PostMapping("/update")
-    public Result update(@RequestBody Article article){
-        return ArticleService.update(article);
+    @PostMapping("/cover/{id}")
+    public Result updateCover(@PathVariable Integer id, @RequestParam String coverImage) {
+        return articleService.updateCoverImage(id, coverImage);
     }
 
-    @PostMapping("/updateCoverImage")
-    public Result updateCoverImage(@RequestParam Integer articleId,@RequestParam String coverImageUrl,@RequestParam Integer categoryId){
-        return ArticleService.updateCoverImage(articleId,coverImageUrl,categoryId);
+    // ── Admin ─────────────────────────────────────────────────────────────────
+
+    @GetMapping("/admin/list")
+    public Result adminList(
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "10") Integer pageSize) {
+        return articleService.adminSearch(status, keyword, page, pageSize);
     }
 
+    @PostMapping("/admin/approve/{id}")
+    public Result approve(@PathVariable Integer id) {
+        return articleService.adminApprove(id);
+    }
 
+    @PostMapping("/admin/reject/{id}")
+    public Result reject(@PathVariable Integer id) {
+        return articleService.adminReject(id);
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    private Article buildArticle(Map<String, Object> body) {
+        Article article = new Article();
+        if (body.get("articleId") != null) article.setArticleId((Integer) body.get("articleId"));
+        if (body.get("categoryId") != null) article.setCategoryId((Integer) body.get("categoryId"));
+        if (body.get("title") != null) article.setTitle((String) body.get("title"));
+        if (body.get("summary") != null) article.setSummary((String) body.get("summary"));
+        if (body.get("content") != null) article.setContent((String) body.get("content"));
+        if (body.get("coverImage") != null) article.setCoverImage((String) body.get("coverImage"));
+        if (body.get("status") != null) article.setStatus((String) body.get("status"));
+        return article;
+    }
 }

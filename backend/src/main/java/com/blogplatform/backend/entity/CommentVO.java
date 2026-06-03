@@ -13,15 +13,22 @@ public class CommentVO {
     private Integer userId;
     private Integer parentId;
     private Integer rootId;
+    private Integer replyToUserId;
     private String content;
     private LocalDateTime createTime;
+
+    // Commenter info
     private String username;
     private String nickname;
     private String avatar;
-    /** 被回复者（直接父评论的作者），一级评论为 null */
+
+    // Reply-to user info
     private String replyToUsername;
     private String replyToNickname;
+
     private Integer likeCount;
     private Boolean isLiked;
+
+    private Integer replyCount;
     private List<CommentVO> children = new ArrayList<>();
 }

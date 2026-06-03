@@ -4,29 +4,20 @@ import { ref } from "vue";
 export const useUserInfoStore = defineStore(
   "userInfo",
   () => {
-    const userInfo = ref({
-      username: "",
-      nickname: "",
-      signature: "",
-      avatarImage: "",
-      backgroundImage: ""
-    });
+    const userInfo = ref(null);
 
-    const setUserInfo = (newUserInfo) => {
-      userInfo.value = newUserInfo || {};
+    const setUserInfo = (info) => {
+      userInfo.value = info || null;
     };
 
-    const removeUserInfo = () => {
-      userInfo.value = {};
+    const clearUserInfo = () => {
+      userInfo.value = null;
     };
 
-    return {
-      userInfo,
-      setUserInfo,
-      removeUserInfo
-    };
+    // backward compat
+    const removeUserInfo = clearUserInfo;
+
+    return { userInfo, setUserInfo, clearUserInfo, removeUserInfo };
   },
-  {
-    persist: { key: "bp-user-info" }
-  }
+  { persist: { key: "bp-user-info" } }
 );

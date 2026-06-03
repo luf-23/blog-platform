@@ -11,6 +11,9 @@ public class Comment {
     private Integer userId;
     private Integer parentId;
     private Integer rootId;
+    private Integer replyToUserId;
     private String content;
+    private Integer likeCount;
+    private Integer status;
     private LocalDateTime createTime;
 }

@@ -1,23 +1,18 @@
 import { createRouter, createWebHistory } from "vue-router";
 import { ElMessage } from "element-plus";
-
 import { useTokenStore } from "../store/token.js";
 import { useUserInfoStore } from "../store/userInfo.js";
-
 import AppLayout from "../layouts/AppLayout.vue";
 import AuthLayout from "../layouts/AuthLayout.vue";
 
 const routes = [
+  { path: "/", redirect: "/home" },
   {
     path: "/",
-    redirect: "/home"
-  },
-  {
-    path: "/login",
     component: AuthLayout,
     children: [
       {
-        path: "",
+        path: "login",
         name: "Login",
         component: () => import("../views/Login.vue"),
         meta: { title: "登录", guest: true }
@@ -27,8 +22,8 @@ const routes = [
   {
     path: "/",
     component: AppLayout,
-    meta: { requireAuth: true },
     children: [
+      // Public routes
       {
         path: "home",
         name: "Home",
@@ -36,14 +31,10 @@ const routes = [
         meta: { title: "发现" }
       },
       {
-        path: "profile",
-        name: "Profile",
-        component: () => import("../views/Profile.vue"),
-        meta: { title: "个人主页" }
-      },
-      {
-        path: "community",
-        redirect: "/home"
+        path: "article/:id",
+        name: "ArticleDetail",
+        component: () => import("../views/article/Article.vue"),
+        meta: { title: "文章详情" }
       },
       {
         path: "announcement",
@@ -52,80 +43,70 @@ const routes = [
         meta: { title: "系统公告" }
       },
       {
+        path: "profile/:username?",
+        name: "Profile",
+        component: () => import("../views/Profile.vue"),
+        meta: { title: "个人主页" }
+      },
+      {
         path: "ai/chat",
         name: "Chat",
         component: () => import("../views/ai/Chat.vue"),
-        meta: { title: "AI 助手" }
+        meta: { title: "AI 助手", requireAuth: true }
       },
+      // Auth-required routes
       {
         path: "article",
-        meta: { title: "我的博客" },
+        meta: { requireAuth: true },
         children: [
+          { path: "", redirect: { name: "MyArticles" } },
           {
-            path: "",
-            redirect: { name: "ArticleCategory" }
-          },
-          {
-            path: "category",
-            name: "ArticleCategory",
-            component: () => import("../views/article/ArticleCategory.vue"),
+            path: "my",
+            name: "MyArticles",
+            component: () => import("../views/article/ArticleList.vue"),
             meta: { title: "我的博客" }
           },
           {
-            path: "list",
-            name: "ArticleList",
-            component: () => import("../views/article/ArticleList.vue"),
-            meta: { title: "文章列表" }
+            path: "categories",
+            name: "ArticleCategories",
+            component: () => import("../views/article/ArticleCategory.vue"),
+            meta: { title: "分类管理" }
           },
           {
-            path: "detail",
-            name: "ArticleDetail",
-            component: () => import("../views/article/Article.vue"),
-            meta: { title: "文章详情", layout: "immersive" }
-          },
-          {
-            path: "add",
-            name: "ArticleAdd",
+            path: "write",
+            name: "ArticleWrite",
             component: () => import("../views/article/SaveArticle.vue"),
-            meta: { title: "新建文章" }
+            meta: { title: "写文章" }
           },
           {
-            path: "edit",
+            path: "edit/:id",
             name: "ArticleEdit",
             component: () => import("../views/article/SaveArticle.vue"),
             meta: { title: "编辑文章" }
           }
         ]
       },
+      // Admin routes
       {
         path: "admin",
-        meta: { title: "管理后台", requireAdmin: true },
+        meta: { requireAuth: true, requireAdmin: true },
         children: [
-          {
-            path: "",
-            redirect: { name: "AdminHome" }
-          },
+          { path: "", redirect: { name: "AdminHome" } },
           {
             path: "home",
             name: "AdminHome",
             component: () => import("../views/admin/AdminHome.vue"),
-            meta: { title: "控制台" }
+            meta: { title: "管理控制台" }
           },
           {
-            path: "list",
-            name: "ArticleListManager",
+            path: "articles",
+            name: "AdminArticles",
             component: () => import("../views/admin/ArticleListManager.vue"),
-            meta: { title: "文章审核" }
+            meta: { title: "文章管理" }
           },
           {
-            path: "detail",
-            name: "ArticleDetailManager",
-            component: () => import("../views/admin/ArticleManager.vue"),
-            meta: { title: "文章审核详情" }
-          },
-          {
-            path: "user",
-            name: "UserManager",
+            path: "users",
+            name: "AdminUsers",
             component: () => import("../views/admin/UseManager.vue"),
             meta: { title: "用户管理" }
           }
@@ -144,9 +125,7 @@ const routes = [
 const router = createRouter({
   history: createWebHistory(),
   routes,
-  scrollBehavior() {
-    return { top: 0 };
-  }
+  scrollBehavior() { return { top: 0 }; }
 });
 
 router.beforeEach((to, _from, next) => {
@@ -158,18 +137,16 @@ router.beforeEach((to, _from, next) => {
     document.title = `${to.meta.title} · Blog Platform`;
   }
 
-  if (to.meta.guest && token) {
-    next("/home");
-    return;
-  }
+  if (to.meta.guest && token) { next("/home"); return; }
 
-  if (to.matched.some((record) => record.meta.requireAuth) && !token) {
+  if (to.matched.some(r => r.meta.requireAuth) && !token) {
     next({ path: "/login", query: { redirect: to.fullPath } });
     return;
   }
 
-  if (to.matched.some((record) => record.meta.requireAdmin)) {
-    if (userInfoStore.userInfo?.username !== "admin") {
+  if (to.matched.some(r => r.meta.requireAdmin)) {
+    const u = userInfoStore.userInfo;
+    if (!u || (u.username !== 'admin' && u.role !== 'admin')) {
       ElMessage.warning("权限不足，仅管理员可访问");
       next("/home");
       return;

@@ -1,7 +1,7 @@
 package com.blogplatform.backend.controller;
 
 import com.blogplatform.backend.entity.Result;
-import com.blogplatform.backend.Service.OssService;
+import com.blogplatform.backend.service.OssService;
 import com.blogplatform.backend.utils.ThreadLocalUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;

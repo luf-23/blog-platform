@@ -1,0 +1,245 @@
+package com.blogplatform.backend.service.impl;
+
+import com.blogplatform.backend.mapper.ArticleLikeMapper;
+import com.blogplatform.backend.mapper.ArticleMapper;
+import com.blogplatform.backend.mapper.CategoryMapper;
+import com.blogplatform.backend.mapper.TagMapper;
+import com.blogplatform.backend.service.ArticleService;
+import com.blogplatform.backend.entity.Article;
+import com.blogplatform.backend.entity.ArticleVO;
+import com.blogplatform.backend.entity.Result;
+import com.blogplatform.backend.entity.Tag;
+import com.blogplatform.backend.utils.ThreadLocalUtil;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.*;
+
+@Service
+public class ArticleServiceImpl implements ArticleService {
+
+    @Autowired
+    private ArticleMapper articleMapper;
+    @Autowired
+    private CategoryMapper categoryMapper;
+    @Autowired
+    private TagMapper tagMapper;
+    @Autowired
+    private ArticleLikeMapper articleLikeMapper;
+
+    // ── Public discovery ──────────────────────────────────────────────────────
+
+    @Override
+    public Result search(String keyword, Integer categoryId, Integer tagId,
+                         Integer authorId, String sort, Integer page, Integer pageSize) {
+        if (page == null || page < 1) page = 1;
+        if (pageSize == null || pageSize < 1) pageSize = 10;
+        if (pageSize > 50) pageSize = 50;
+
+        int offset = (page - 1) * pageSize;
+        List<ArticleVO> list = articleMapper.searchPublished(keyword, categoryId, tagId, authorId, sort, offset, pageSize);
+        int total = articleMapper.countPublished(keyword, categoryId, tagId, authorId);
+
+        if (!list.isEmpty()) {
+            enrichWithTags(list);
+            enrichWithLikedStatus(list);
+        }
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("list", list);
+        result.put("total", total);
+        result.put("page", page);
+        result.put("pageSize", pageSize);
+        return Result.success(result);
+    }
+
+    @Override
+    public Result getPublicDetail(Integer articleId) {
+        ArticleVO vo = articleMapper.selectVOById(articleId);
+        if (vo == null) return Result.error("文章不存在");
+        if (!"published".equals(vo.getStatus())) {
+            Integer currentUserId = resolveCurrentUserId();
+            if (currentUserId == null || !currentUserId.equals(vo.getUserId())) {
+                return Result.error("文章不存在或无权访问");
+            }
+        }
+        vo.setTags(tagMapper.selectByArticleId(articleId));
+        vo.setIsLiked(isArticleLiked(articleId));
+        articleMapper.incrementViewCount(articleId);
+        return Result.success(vo);
+    }
+
+    // ── My blog ───────────────────────────────────────────────────────────────
+
+    @Override
+    public Result getMyArticles(String title, String status, Integer categoryId) {
+        Integer userId = requireCurrentUserId();
+        if (userId == null) return Result.error("请先登录");
+        List<Article> list = articleMapper.selectByCondition(userId, title, status, categoryId);
+        return Result.success(list);
+    }
+
+    @Override
+    @Transactional
+    public Result add(Article article, List<String> tagNames) {
+        Integer userId = requireCurrentUserId();
+        if (userId == null) return Result.error("请先登录");
+        article.setUserId(userId);
+        if (article.getTitle() == null || article.getTitle().isBlank()) return Result.error("标题不能为空");
+        if (article.getContent() == null || article.getContent().isBlank()) return Result.error("内容不能为空");
+
+        if ("published".equals(article.getStatus())) {
+            article.setStatus("pending");
+        }
+        articleMapper.insert(article);
+
+        if (tagNames != null && !tagNames.isEmpty()) {
+            saveArticleTags(article.getArticleId(), tagNames);
+        }
+        return Result.success(article.getArticleId());
+    }
+
+    @Override
+    @Transactional
+    public Result update(Article article, List<String> tagNames) {
+        Integer userId = requireCurrentUserId();
+        if (userId == null) return Result.error("请先登录");
+        Article existing = articleMapper.selectById(article.getArticleId());
+        if (existing == null) return Result.error("文章不存在");
+        if (!existing.getUserId().equals(userId)) return Result.error("权限不足");
+
+        if ("published".equals(article.getStatus())) {
+            article.setStatus("pending");
+        }
+        articleMapper.update(article);
+
+        tagMapper.deleteArticleTags(article.getArticleId());
+        if (tagNames != null && !tagNames.isEmpty()) {
+            saveArticleTags(article.getArticleId(), tagNames);
+        }
+        return Result.success();
+    }
+
+    @Override
+    public Result delete(Integer articleId) {
+        Article article = articleMapper.selectById(articleId);
+        if (article == null) return Result.error("文章不存在");
+        Integer userId = requireCurrentUserId();
+        if (userId == null) return Result.error("请先登录");
+        if (!article.getUserId().equals(userId)) return Result.error("权限不足");
+        articleMapper.deleteById(articleId);
+        return Result.success();
+    }
+
+    @Override
+    public Result submitForReview(Integer articleId) {
+        Article article = articleMapper.selectById(articleId);
+        if (article == null) return Result.error("文章不存在");
+        Integer userId = requireCurrentUserId();
+        if (userId == null) return Result.error("请先登录");
+        if (!article.getUserId().equals(userId)) return Result.error("权限不足");
+        articleMapper.submitForReview(articleId);
+        return Result.success();
+    }
+
+    @Override
+    public Result updateCoverImage(Integer articleId, String coverImage) {
+        Article article = articleMapper.selectById(articleId);
+        if (article == null) return Result.error("文章不存在");
+        Integer userId = requireCurrentUserId();
+        if (userId == null) return Result.error("请先登录");
+        if (!article.getUserId().equals(userId)) return Result.error("权限不足");
+        articleMapper.updateCoverImage(articleId, coverImage);
+        return Result.success();
+    }
+
+    // ── Admin ─────────────────────────────────────────────────────────────────
+
+    @Override
+    public Result adminSearch(String status, String keyword, Integer page, Integer pageSize) {
+        if (page == null || page < 1) page = 1;
+        if (pageSize == null || pageSize < 1) pageSize = 10;
+        int offset = (page - 1) * pageSize;
+        List<ArticleVO> list = articleMapper.adminSearch(status, keyword, offset, pageSize);
+        int total = articleMapper.adminCount(status, keyword);
+        if (!list.isEmpty()) enrichWithTags(list);
+        Map<String, Object> result = new HashMap<>();
+        result.put("list", list);
+        result.put("total", total);
+        result.put("page", page);
+        result.put("pageSize", pageSize);
+        return Result.success(result);
+    }
+
+    @Override
+    public Result adminApprove(Integer articleId) {
+        articleMapper.approveArticle(articleId);
+        return Result.success();
+    }
+
+    @Override
+    public Result adminReject(Integer articleId) {
+        articleMapper.rejectArticle(articleId);
+        return Result.success();
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    private void saveArticleTags(Integer articleId, List<String> tagNames) {
+        for (String name : tagNames) {
+            if (name == null || name.isBlank()) continue;
+            Tag tag = tagMapper.selectByName(name.trim());
+            if (tag == null) {
+                tag = new Tag();
+                tag.setTagName(name.trim());
+                tagMapper.insert(tag);
+            }
+            tagMapper.addArticleTag(articleId, tag.getTagId());
+            tagMapper.incrementCount(tag.getTagId());
+        }
+    }
+
+    private void enrichWithTags(List<ArticleVO> list) {
+        List<Integer> ids = list.stream().map(ArticleVO::getArticleId).toList();
+        List<Tag> allTags = tagMapper.selectByArticleIds(ids);
+
+        // We need article_id association — query individually for simplicity
+        Map<Integer, List<Tag>> tagMap = new HashMap<>();
+        for (ArticleVO vo : list) {
+            tagMap.put(vo.getArticleId(), tagMapper.selectByArticleId(vo.getArticleId()));
+        }
+        list.forEach(vo -> vo.setTags(tagMap.getOrDefault(vo.getArticleId(), List.of())));
+    }
+
+    private void enrichWithLikedStatus(List<ArticleVO> list) {
+        Integer userId = resolveCurrentUserId();
+        if (userId == null) {
+            list.forEach(vo -> vo.setIsLiked(false));
+            return;
+        }
+        List<Integer> ids = list.stream().map(ArticleVO::getArticleId).toList();
+        Set<Integer> likedSet = new HashSet<>(articleLikeMapper.selectLikedArticleIds(userId, ids));
+        list.forEach(vo -> vo.setIsLiked(likedSet.contains(vo.getArticleId())));
+    }
+
+    private boolean isArticleLiked(Integer articleId) {
+        Integer userId = resolveCurrentUserId();
+        if (userId == null) return false;
+        return articleLikeMapper.exists(articleId, userId) > 0;
+    }
+
+    private Integer resolveCurrentUserId() {
+        try {
+            Map<String, Object> claims = ThreadLocalUtil.get();
+            if (claims != null && claims.get("id") != null) {
+                return (Integer) claims.get("id");
+            }
+        } catch (Exception ignored) {}
+        return null;
+    }
+
+    private Integer requireCurrentUserId() {
+        return resolveCurrentUserId();
+    }
+}

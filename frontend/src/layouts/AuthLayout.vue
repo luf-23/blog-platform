@@ -1,162 +1,79 @@
-<script setup>
-import { Sunny, Moon } from "@element-plus/icons-vue";
-import { useTheme } from "../composables/useTheme.js";
-
-const { isDark, toggle } = useTheme();
-</script>
-
 <template>
-  <div class="auth-shell">
-    <div class="auth-shell__decor">
-      <span class="blob blob--a"></span>
-      <span class="blob blob--b"></span>
-      <span class="blob blob--c"></span>
+  <div class="auth-layout">
+    <div class="auth-bg">
+      <div class="auth-bg-pattern"></div>
     </div>
-
-    <header class="auth-shell__top">
+    <div class="auth-container">
       <div class="auth-brand">
-        <span class="auth-brand__dot" />
-        <strong>Blog Platform</strong>
+        <router-link to="/home" class="brand-logo">
+          <svg width="36" height="36" viewBox="0 0 28 28" fill="none">
+            <rect width="28" height="28" rx="8" fill="var(--c-primary)"/>
+            <path d="M7 9h14M7 14h10M7 19h12" stroke="white" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          <span>Blog Platform</span>
+        </router-link>
       </div>
-      <button class="auth-theme-toggle" @click="toggle">
-        <el-icon>
-          <component :is="isDark ? Sunny : Moon" />
-        </el-icon>
-      </button>
-    </header>
-
-    <main class="auth-shell__body">
-      <router-view />
-    </main>
-
-    <footer class="auth-shell__footer">
-      <span>© {{ new Date().getFullYear() }} Blog Platform · Crafted with Vue 3</span>
-    </footer>
+      <div class="auth-card card">
+        <router-view />
+      </div>
+    </div>
   </div>
 </template>
 
 <style scoped>
-.auth-shell {
-  position: relative;
-  min-height: 100vh;
-  width: 100%;
+.auth-layout {
+  height: 100%;
   display: flex;
-  flex-direction: column;
-  background: var(--bp-color-bg);
-  overflow: hidden;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: var(--c-bg);
+  position: relative;
+  overflow: auto;
+  overscroll-behavior: contain;
 }
 
-.auth-shell__decor {
+.auth-bg {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  z-index: 0;
-  filter: blur(60px);
-  opacity: 0.7;
 }
 
-.blob {
+.auth-bg-pattern {
   position: absolute;
-  border-radius: 999px;
+  inset: 0;
+  background:
+    radial-gradient(circle at 20% 30%, rgba(79, 70, 229, 0.08) 0%, transparent 50%),
+    radial-gradient(circle at 80% 70%, rgba(79, 70, 229, 0.06) 0%, transparent 50%);
 }
 
-.blob--a {
-  width: 480px;
-  height: 480px;
-  left: -120px;
-  top: -100px;
-  background: radial-gradient(
-    circle,
-    rgba(99, 102, 241, 0.55),
-    rgba(99, 102, 241, 0)
-  );
-}
-
-.blob--b {
-  width: 460px;
-  height: 460px;
-  right: -120px;
-  top: 30%;
-  background: radial-gradient(
-    circle,
-    rgba(236, 72, 153, 0.4),
-    rgba(236, 72, 153, 0)
-  );
-}
-
-.blob--c {
-  width: 380px;
-  height: 380px;
-  left: 30%;
-  bottom: -160px;
-  background: radial-gradient(
-    circle,
-    rgba(14, 165, 233, 0.4),
-    rgba(14, 165, 233, 0)
-  );
-}
-
-.auth-shell__top {
+.auth-container {
+  width: 100%;
+  max-width: 440px;
   position: relative;
   z-index: 1;
-  padding: 24px clamp(16px, 4vw, 48px);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
 }
 
 .auth-brand {
-  display: flex;
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.brand-logo {
+  display: inline-flex;
   align-items: center;
   gap: 10px;
-  font-size: 15px;
-  letter-spacing: 0.02em;
-  color: var(--bp-color-text-primary);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--c-text);
+  text-decoration: none;
 }
 
-.auth-brand__dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 999px;
-  background: var(--bp-gradient-hero);
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+.auth-card {
+  padding: 40px;
 }
 
-.auth-theme-toggle {
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
-  border: 1px solid var(--bp-color-border);
-  background: var(--bp-color-bg-elevated);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  color: var(--bp-color-text-secondary);
-  transition: background 0.2s ease, color 0.2s ease;
-}
-
-.auth-theme-toggle:hover {
-  background: var(--bp-color-primary-soft);
-  color: var(--bp-color-primary);
-}
-
-.auth-shell__body {
-  position: relative;
-  z-index: 1;
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: clamp(16px, 4vw, 48px);
-}
-
-.auth-shell__footer {
-  position: relative;
-  z-index: 1;
-  text-align: center;
-  padding: 16px;
-  color: var(--bp-color-text-tertiary);
-  font-size: 12px;
+@media (max-width: 480px) {
+  .auth-card { padding: 28px 24px; }
 }
 </style>

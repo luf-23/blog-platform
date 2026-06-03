@@ -1,106 +1,91 @@
-/**
- * 主题变量
- * 同时定义浅色与深色主题，通过 html[data-theme] 切换
- */
+:root {
+  /* Brand */
+  --c-primary: #4f46e5;
+  --c-primary-hover: #4338ca;
+  --c-primary-light: #eef2ff;
+  --c-primary-rgb: 79, 70, 229;
 
-:root,
-:root[data-theme="light"] {
-  color-scheme: light;
+  /* Surface */
+  --c-bg: #f5f5f7;
+  --c-surface: #ffffff;
+  --c-surface-2: #f9fafb;
+  --c-border: #e5e7eb;
+  --c-border-light: #f3f4f6;
 
-  --bp-color-bg: #f5f7fb;
-  --bp-color-bg-elevated: #ffffff;
-  --bp-color-bg-soft: #f1f4f9;
-  --bp-color-bg-hover: rgba(99, 102, 241, 0.08);
+  /* Text */
+  --c-text: #111827;
+  --c-text-2: #374151;
+  --c-text-3: #6b7280;
+  --c-text-4: #9ca3af;
 
-  --bp-color-text-primary: #0f172a;
-  --bp-color-text-secondary: #475569;
-  --bp-color-text-tertiary: #94a3b8;
-  --bp-color-text-inverse: #ffffff;
+  /* Status */
+  --c-success: #10b981;
+  --c-success-light: #d1fae5;
+  --c-warning: #f59e0b;
+  --c-warning-light: #fef3c7;
+  --c-danger: #ef4444;
+  --c-danger-light: #fee2e2;
+  --c-info: #3b82f6;
+  --c-info-light: #dbeafe;
 
-  --bp-color-border: rgba(15, 23, 42, 0.08);
-  --bp-color-border-strong: rgba(15, 23, 42, 0.16);
-  --bp-color-divider: rgba(15, 23, 42, 0.06);
+  /* Spacing */
+  --nav-height: 64px;
 
-  --bp-color-primary: #6366f1;
-  --bp-color-primary-hover: #4f46e5;
-  --bp-color-primary-soft: rgba(99, 102, 241, 0.12);
-  --bp-color-primary-soft-strong: rgba(99, 102, 241, 0.2);
+  /* Radius */
+  --radius-sm: 6px;
+  --radius: 10px;
+  --radius-lg: 16px;
+  --radius-full: 9999px;
 
-  --bp-color-success: #10b981;
-  --bp-color-warning: #f59e0b;
-  --bp-color-danger: #ef4444;
-  --bp-color-info: #0ea5e9;
+  /* Shadow */
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.05);
+  --shadow: 0 1px 3px rgba(0,0,0,.1), 0 1px 2px rgba(0,0,0,.06);
+  --shadow-md: 0 4px 6px -1px rgba(0,0,0,.1), 0 2px 4px -1px rgba(0,0,0,.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0,0,0,.1), 0 4px 6px -2px rgba(0,0,0,.05);
 
-  --bp-shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
-  --bp-shadow-sm: 0 2px 6px rgba(15, 23, 42, 0.06);
-  --bp-shadow-md: 0 8px 24px rgba(15, 23, 42, 0.08);
-  --bp-shadow-lg: 0 16px 48px rgba(15, 23, 42, 0.12);
+  /* Animation */
+  --transition: 0.2s ease;
 
-  --bp-gradient-hero: linear-gradient(
-    135deg,
-    #6366f1 0%,
-    #8b5cf6 45%,
-    #ec4899 100%
-  );
-  --bp-gradient-soft: linear-gradient(
-    135deg,
-    rgba(99, 102, 241, 0.15),
-    rgba(236, 72, 153, 0.1)
-  );
-
-  --bp-radius-xs: 6px;
-  --bp-radius-sm: 10px;
-  --bp-radius-md: 14px;
-  --bp-radius-lg: 20px;
-  --bp-radius-xl: 28px;
-
-  --bp-header-height: 56px;
-  --bp-content-max-width: 1280px;
-  --bp-article-panel-width: 400px;
-  --bp-article-content-max: 760px;
+  /* Element Plus overrides */
+  --el-color-primary: #4f46e5;
+  --el-color-primary-light-3: #818cf8;
+  --el-color-primary-light-5: #a5b4fc;
+  --el-color-primary-light-7: #c7d2fe;
+  --el-color-primary-light-8: #e0e7ff;
+  --el-color-primary-light-9: #eef2ff;
+  --el-color-primary-dark-2: #4338ca;
+  --el-border-radius-base: 8px;
+  --el-border-color: #e5e7eb;
+  --el-fill-color-blank: #ffffff;
+  --el-bg-color: #ffffff;
+  --el-text-color-primary: #111827;
+  --el-text-color-regular: #374151;
+  --el-text-color-secondary: #6b7280;
 }
 
-:root[data-theme="dark"] {
-  color-scheme: dark;
+[data-theme="dark"] {
+  --c-bg: #0f0f11;
+  --c-surface: #1a1a1f;
+  --c-surface-2: #222228;
+  --c-border: #2d2d35;
+  --c-border-light: #222228;
+  --c-text: #f9fafb;
+  --c-text-2: #e5e7eb;
+  --c-text-3: #9ca3af;
+  --c-text-4: #6b7280;
+  --c-primary-light: #1e1b4b;
 
-  --bp-color-bg: #0b1020;
-  --bp-color-bg-elevated: #131a31;
-  --bp-color-bg-soft: #1a2240;
-  --bp-color-bg-hover: rgba(129, 140, 248, 0.12);
-
-  --bp-color-text-primary: #f8fafc;
-  --bp-color-text-secondary: #cbd5e1;
-  --bp-color-text-tertiary: #64748b;
-  --bp-color-text-inverse: #0f172a;
-
-  --bp-color-border: rgba(148, 163, 184, 0.16);
-  --bp-color-border-strong: rgba(148, 163, 184, 0.32);
-  --bp-color-divider: rgba(148, 163, 184, 0.12);
-
-  --bp-color-primary: #818cf8;
-  --bp-color-primary-hover: #a5b4fc;
-  --bp-color-primary-soft: rgba(129, 140, 248, 0.18);
-  --bp-color-primary-soft-strong: rgba(129, 140, 248, 0.28);
-
-  --bp-color-success: #34d399;
-  --bp-color-warning: #fbbf24;
-  --bp-color-danger: #f87171;
-  --bp-color-info: #38bdf8;
-
-  --bp-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.35);
-  --bp-shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.4);
-  --bp-shadow-md: 0 8px 24px rgba(0, 0, 0, 0.45);
-  --bp-shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.5);
-
-  --bp-gradient-hero: linear-gradient(
-    135deg,
-    #4338ca 0%,
-    #7c3aed 45%,
-    #db2777 100%
-  );
-  --bp-gradient-soft: linear-gradient(
-    135deg,
-    rgba(129, 140, 248, 0.18),
-    rgba(236, 72, 153, 0.14)
-  );
+  --el-bg-color: #1a1a1f;
+  --el-bg-color-page: #0f0f11;
+  --el-bg-color-overlay: #222228;
+  --el-text-color-primary: #f9fafb;
+  --el-text-color-regular: #e5e7eb;
+  --el-text-color-secondary: #9ca3af;
+  --el-border-color: #2d2d35;
+  --el-border-color-light: #222228;
+  --el-border-color-lighter: #1a1a1f;
+  --el-fill-color: #222228;
+  --el-fill-color-blank: #1a1a1f;
+  --el-fill-color-light: #2a2a32;
+  --el-mask-color: rgba(0, 0, 0, 0.7);
 }

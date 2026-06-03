@@ -1,382 +1,530 @@
-<script setup>
-import { inject, computed, ref } from "vue";
-import {
-  StarFilled,
-  Star,
-  Delete,
-  ChatDotRound,
-  ArrowDown,
-  ArrowUp
-} from "@element-plus/icons-vue";
+<template>
+  <article class="comment-item">
+    <img :src="comment.avatar || defaultAvatar" class="comment-avatar avatar" />
 
-defineOptions({ name: "CommentItem" });
+    <div class="comment-main">
+      <div class="comment-meta">
+        <div class="comment-author-line">
+          <span class="comment-author">{{ displayName(comment) }}</span>
+          <span v-if="isAuthor(comment)" class="author-badge">作者</span>
+        </div>
+        <time class="comment-time">{{ formatDate(comment.createTime) }}</time>
+      </div>
+
+      <p class="comment-content">{{ comment.content }}</p>
+
+      <CommentActions
+        :comment="comment"
+        :can-delete="canDelete(comment)"
+        @like="toggleLike(comment)"
+        @reply="openReply(comment)"
+        @delete="deleteComment(comment)"
+      />
+
+      <Transition name="reply-panel">
+        <div v-if="replyTarget" class="reply-panel">
+          <img :src="currentUser?.avatarImage || defaultAvatar" class="reply-avatar avatar" />
+          <div class="reply-editor">
+            <el-input
+              ref="replyInputRef"
+              v-model="replyContent"
+              type="textarea"
+              :placeholder="`回复 ${displayName(replyTarget)}...`"
+              :autosize="{ minRows: 2, maxRows: 5 }"
+              resize="none"
+            />
+            <div class="reply-footer">
+              <span class="char-count" :class="{ over: replyContent.length > 1000 }">
+                {{ replyContent.length }}/1000
+              </span>
+              <button class="reply-cancel" @click="cancelReply">取消</button>
+              <button class="reply-submit" :disabled="!canSubmitReply" @click="submitReply">
+                <el-icon v-if="submitting" class="is-loading"><Loading /></el-icon>
+                回复
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+
+      <div v-if="visibleReplies.length" class="reply-list">
+        <div v-for="reply in visibleReplies" :key="reply.commentId" class="reply-item">
+          <img :src="reply.avatar || defaultAvatar" class="reply-avatar avatar" />
+          <div class="reply-main">
+            <div class="reply-meta">
+              <span class="reply-author">{{ displayName(reply) }}</span>
+              <span v-if="isAuthor(reply)" class="author-badge compact">作者</span>
+              <time>{{ formatDate(reply.createTime) }}</time>
+            </div>
+            <p class="reply-content">
+              <template v-if="shouldShowReplyTo(reply)">
+                <span class="reply-to-text">回复</span>
+                <span class="reply-to-name">@{{ reply.replyToNickname || reply.replyToUsername }}</span>
+                <span class="reply-colon">：</span>
+              </template>
+              {{ reply.content }}
+            </p>
+            <CommentActions
+              :comment="reply"
+              :can-delete="canDelete(reply)"
+              compact
+              @like="toggleLike(reply)"
+              @reply="openReply(reply)"
+              @delete="deleteComment(reply)"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div v-if="comment.replyCount > visibleReplies.length || loadedFromServer" class="reply-more">
+        <button v-if="hasMoreReplies" class="reply-more-btn" :disabled="loadingReplies" @click="loadMoreReplies">
+          <el-icon v-if="loadingReplies" class="is-loading"><Loading /></el-icon>
+          {{ loadingReplies ? '加载中...' : `展开更多回复（${remainingReplyCount}）` }}
+        </button>
+        <button v-else-if="visibleReplies.length > previewReplies.length" class="reply-more-btn muted" @click="collapseReplies">
+          收起回复
+        </button>
+      </div>
+    </div>
+  </article>
+</template>
+
+<script setup>
+import { ref, computed, nextTick, h } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { Loading } from '@element-plus/icons-vue'
+import { publishCommentService, deleteCommentService, getCommentRepliesService } from '../../api/comment.js'
+import { likeCommentService, unlikeCommentService } from '../../api/commentLike.js'
+import { useUserInfoStore } from '../../store/userInfo.js'
 
 const props = defineProps({
   comment: { type: Object, required: true },
-  depth: { type: Number, default: 0 },
-  variant: { type: String, default: "default" },
-  currentUsername: { type: String, default: "" },
-  isArticleAuthor: { type: Boolean, default: false }
-});
+  articleId: { type: Number, required: true },
+  authorId: { type: Number, default: null }
+})
+const emit = defineEmits(['reply-submitted', 'deleted'])
 
-const isPanel = computed(() => props.variant === "panel");
-const isRoot = computed(() => props.depth === 0);
+const userInfoStore = useUserInfoStore()
+const currentUser = computed(() => userInfoStore.userInfo)
+const defaultAvatar = 'https://luf-23.oss-cn-wuhan-lr.aliyuncs.com/avatar/default.png'
+const REPLY_PAGE_SIZE = 10
 
-const emit = defineEmits(["delete", "toggle-like", "view-author"]);
+const replyTarget = ref(null)
+const replyContent = ref('')
+const submitting = ref(false)
+const replyInputRef = ref()
+const replies = ref([...(props.comment.children || [])])
+const repliesPage = ref(1)
+const loadingReplies = ref(false)
+const loadedFromServer = ref(false)
 
-const commentActions = inject("commentActions", null);
+const previewReplies = computed(() => props.comment.children || [])
+const visibleReplies = computed(() => replies.value)
+const hasMoreReplies = computed(() => (props.comment.replyCount || 0) > visibleReplies.value.length)
+const remainingReplyCount = computed(() => Math.max(0, (props.comment.replyCount || 0) - visibleReplies.value.length))
+const canSubmitReply = computed(() => replyContent.value.trim() && replyContent.value.length <= 1000 && !submitting.value)
 
-const isReplying = computed(
-  () => commentActions?.replyingId?.value === props.comment.commentId
-);
-
-const replyDraft = computed({
-  get: () => commentActions?.replyDraft.value ?? "",
-  set: (v) => {
-    if (commentActions?.replyDraft) commentActions.replyDraft.value = v;
+const CommentActions = {
+  props: {
+    comment: { type: Object, required: true },
+    canDelete: { type: Boolean, default: false },
+    compact: { type: Boolean, default: false }
+  },
+  emits: ['like', 'reply', 'delete'],
+  setup(actionProps, { emit: actionEmit }) {
+    return () => h('div', { class: ['comment-actions', { compact: actionProps.compact }] }, [
+      h('button', {
+        class: ['comment-action like-action', { liked: actionProps.comment.isLiked }],
+        onClick: () => actionEmit('like')
+      }, [
+        h('span', { class: 'heart-icon' }, actionProps.comment.isLiked ? '♥' : '♡'),
+        actionProps.comment.likeCount ? h('span', actionProps.comment.likeCount) : null
+      ]),
+      currentUser.value ? h('button', {
+        class: 'comment-action',
+        onClick: () => actionEmit('reply')
+      }, '回复') : null,
+      actionProps.canDelete ? h('button', {
+        class: 'comment-action delete-action',
+        onClick: () => actionEmit('delete')
+      }, '删除') : null
+    ])
   }
-});
-
-const replyCount = computed(() => countDescendants(props.comment.children));
-
-const repliesOpen = ref(true);
-
-const likeCount = computed(() => Number(props.comment.likeCount) || 0);
-
-function countDescendants(children) {
-  if (!children?.length) return 0;
-  return children.reduce(
-    (n, c) => n + 1 + countDescendants(c.children),
-    0
-  );
 }
 
-function formatDate(value) {
-  if (!value) return "";
-  return new Date(value).toLocaleString("zh-CN", { hour12: false });
+function displayName(comment) {
+  return comment.nickname || comment.username || '匿名用户'
 }
 
-function canDelete() {
+function isAuthor(comment) {
+  return props.authorId != null && comment.userId === props.authorId
+}
+
+function canDelete(comment) {
+  if (!currentUser.value) return false
   return (
-    props.currentUsername === props.comment.username || props.isArticleAuthor
-  );
+    currentUser.value.userId === comment.userId ||
+    currentUser.value.username === 'admin' ||
+    currentUser.value.role === 'admin'
+  )
 }
 
-function onReplyClick() {
-  commentActions?.startReply(props.comment);
+function shouldShowReplyTo(reply) {
+  return reply.replyToUserId && reply.replyToUserId !== props.comment.userId
 }
 
-function onSubmitReply() {
-  commentActions?.submitReply();
+function openReply(comment) {
+  if (!currentUser.value) {
+    ElMessage.warning('请先登录')
+    return
+  }
+  replyTarget.value = comment
+  nextTick(() => replyInputRef.value?.focus())
 }
 
-function onCancelReply() {
-  commentActions?.cancelReply();
+function cancelReply() {
+  replyTarget.value = null
+  replyContent.value = ''
 }
 
-function toggleReplies() {
-  repliesOpen.value = !repliesOpen.value;
+async function submitReply() {
+  if (!canSubmitReply.value || !replyTarget.value) return
+  submitting.value = true
+  try {
+    await publishCommentService({
+      articleId: props.articleId,
+      content: replyContent.value.trim(),
+      parentId: props.comment.commentId,
+      replyToUserId: replyTarget.value.userId
+    })
+    ElMessage.success('回复成功')
+    replyContent.value = ''
+    replyTarget.value = null
+    emit('reply-submitted')
+  } catch {}
+  finally { submitting.value = false }
+}
+
+async function deleteComment(comment) {
+  try {
+    await ElMessageBox.confirm('确定要删除这条评论吗？', '删除确认', {
+      confirmButtonText: '删除',
+      cancelButtonText: '取消',
+      type: 'warning',
+      confirmButtonClass: 'el-button--danger'
+    })
+    await deleteCommentService(comment.commentId)
+    ElMessage.success('已删除')
+    emit('deleted')
+  } catch {}
+}
+
+async function toggleLike(comment) {
+  if (!currentUser.value) { ElMessage.warning('请先登录'); return }
+  try {
+    if (comment.isLiked) {
+      await unlikeCommentService(comment.commentId)
+      comment.isLiked = false
+      comment.likeCount = Math.max(0, (comment.likeCount || 1) - 1)
+    } else {
+      await likeCommentService(comment.commentId)
+      comment.isLiked = true
+      comment.likeCount = (comment.likeCount || 0) + 1
+    }
+  } catch {}
+}
+
+async function loadMoreReplies() {
+  loadingReplies.value = true
+  try {
+    const nextPage = loadedFromServer.value ? repliesPage.value + 1 : 1
+    const res = await getCommentRepliesService({
+      articleId: props.articleId,
+      rootId: props.comment.commentId,
+      page: nextPage,
+      pageSize: REPLY_PAGE_SIZE
+    })
+    const list = res.data.list || []
+    if (nextPage === 1) {
+      replies.value = list
+    } else {
+      const existingIds = new Set(replies.value.map(item => item.commentId))
+      replies.value.push(...list.filter(item => !existingIds.has(item.commentId)))
+    }
+    repliesPage.value = nextPage
+    loadedFromServer.value = true
+  } finally {
+    loadingReplies.value = false
+  }
+}
+
+function collapseReplies() {
+  replies.value = [...previewReplies.value]
+  repliesPage.value = 1
+  loadedFromServer.value = false
+}
+
+function formatDate(time) {
+  if (!time) return ''
+  const d = new Date(time)
+  const now = new Date()
+  const diff = now - d
+  if (diff < 60000) return '刚刚'
+  if (diff < 3600000) return `${Math.floor(diff / 60000)} 分钟前`
+  if (diff < 86400000) return `${Math.floor(diff / 3600000)} 小时前`
+  if (diff < 2592000000) return `${Math.floor(diff / 86400000)} 天前`
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 </script>
 
-<template>
-  <article
-    class="comment"
-    :class="{
-      'comment--nested': depth > 0,
-      'comment--panel': isPanel,
-      'comment--panel-nested': isPanel && depth > 0,
-      'comment--root': isRoot
-    }"
-  >
-    <el-avatar
-      :size="isPanel ? (depth > 0 ? 28 : 32) : depth > 0 ? 32 : 40"
-      :src="comment.avatar || '/avatar/avatar1.png'"
-      class="comment__avatar"
-      @click="emit('view-author', comment.username)"
-    />
-    <div class="comment__body">
-      <header class="comment__head">
-        <div class="comment__meta">
-          <strong
-            class="comment__name"
-            @click="emit('view-author', comment.username)"
-          >
-            {{ comment.nickname || comment.username }}
-          </strong>
-          <template v-if="comment.parentId && comment.replyToUsername">
-            <span class="comment__reply-label">回复</span>
-            <strong
-              class="comment__name comment__name--target"
-              @click="emit('view-author', comment.replyToUsername)"
-            >
-              {{ comment.replyToNickname || comment.replyToUsername }}
-            </strong>
-          </template>
-        </div>
-        <span class="comment__time">{{ formatDate(comment.createTime) }}</span>
-      </header>
-      <p class="comment__content">{{ comment.content }}</p>
-      <div class="comment__actions">
-        <button
-          type="button"
-          class="action-btn action-btn--like"
-          :class="{ 'action-btn--liked': comment.isLiked }"
-          @click="emit('toggle-like', comment)"
-        >
-          <el-icon>
-            <StarFilled v-if="comment.isLiked" />
-            <Star v-else />
-          </el-icon>
-          <span class="action-btn__text">赞</span>
-          <span class="action-btn__count">{{ likeCount }}</span>
-        </button>
-        <button type="button" class="action-btn" @click="onReplyClick">
-          <el-icon><ChatDotRound /></el-icon>
-          回复
-        </button>
-        <button
-          v-if="canDelete()"
-          type="button"
-          class="action-btn action-btn--danger"
-          @click="emit('delete', comment.commentId)"
-        >
-          <el-icon><Delete /></el-icon>
-          删除
-        </button>
-      </div>
-
-      <div v-if="isReplying" class="comment__reply-box">
-        <el-input
-          v-model="replyDraft"
-          type="textarea"
-          :rows="2"
-          :placeholder="`回复 ${comment.nickname || comment.username}...`"
-          resize="none"
-        />
-        <div class="comment__reply-actions">
-          <el-button size="small" @click="onCancelReply">取消</el-button>
-          <el-button
-            type="primary"
-            size="small"
-            :loading="commentActions?.submitting?.value"
-            @click="onSubmitReply"
-          >
-            发表回复
-          </el-button>
-        </div>
-      </div>
-
-      <button
-        v-if="isRoot && replyCount > 0"
-        type="button"
-        class="comment__replies-toggle"
-        @click="toggleReplies"
-      >
-        <el-icon>
-          <ArrowUp v-if="repliesOpen" />
-          <ArrowDown v-else />
-        </el-icon>
-        {{ repliesOpen ? "收起" : "展开" }} {{ replyCount }} 条回复
-      </button>
-    </div>
-  </article>
-
-  <div
-    v-if="comment.children?.length && (!isRoot || repliesOpen)"
-    class="comment__children"
-  >
-    <CommentItem
-      v-for="child in comment.children"
-      :key="child.commentId"
-      :comment="child"
-      :depth="depth + 1"
-      :variant="variant"
-      :current-username="currentUsername"
-      :is-article-author="isArticleAuthor"
-      @delete="emit('delete', $event)"
-      @toggle-like="emit('toggle-like', $event)"
-      @view-author="emit('view-author', $event)"
-    />
-  </div>
-</template>
-
 <style scoped>
-.comment {
+.comment-item {
   display: flex;
-  gap: 12px;
-  padding: 14px;
-  border-radius: 14px;
-  background: var(--bp-color-bg-soft);
-  border: 1px solid var(--bp-color-border);
+  gap: 14px;
+  padding: 22px 0;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.16);
 }
+.comment-item:last-child { border-bottom: none; }
 
-.comment--panel {
-  padding: 12px 4px;
-  margin: 0;
-  border: none;
-  border-radius: 0;
-  background: transparent;
-  border-bottom: 1px solid var(--bp-color-divider);
-}
-
-.comment--panel-nested {
-  padding: 8px 4px 8px 10px;
-  border-bottom: none;
-  border-left: 2px solid var(--bp-color-border);
-  margin-left: 6px;
-}
-
-.comment__avatar {
-  cursor: pointer;
+.comment-avatar {
+  width: 44px;
+  height: 44px;
   flex-shrink: 0;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
 }
 
-.comment__body {
+.comment-main,
+.reply-main {
   flex: 1;
   min-width: 0;
 }
 
-.comment__head {
+.comment-meta,
+.reply-meta {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.comment-author-line,
+.reply-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
-.comment__meta {
-  display: inline-flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.comment__reply-label {
-  font-size: 12px;
-  color: var(--bp-color-text-tertiary);
-}
-
-.comment__name {
-  font-size: 14px;
-  cursor: pointer;
-  color: var(--bp-color-text-primary);
-}
-
-.comment__name:hover,
-.comment__name--target:hover {
-  color: var(--bp-color-primary);
-}
-
-.comment__name--target {
+.comment-author,
+.reply-author {
   font-weight: 600;
+  font-size: 14px;
+  color: var(--c-text);
 }
 
-.comment__time {
+.author-badge {
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+  background: linear-gradient(135deg, #eef2ff, #e0e7ff);
+  color: var(--c-primary);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 18px;
+}
+.author-badge.compact {
+  font-size: 10px;
+  line-height: 16px;
+}
+
+.comment-time,
+.reply-meta time {
   font-size: 12px;
-  color: var(--bp-color-text-tertiary);
+  color: var(--c-text-4);
+  white-space: nowrap;
   flex-shrink: 0;
 }
 
-.comment__content {
-  margin-top: 6px;
-  font-size: 14px;
-  color: var(--bp-color-text-secondary);
-  line-height: 1.7;
-  white-space: pre-wrap;
+.comment-content {
+  font-size: 15px;
+  color: var(--c-text);
+  line-height: 1.75;
+  word-break: break-word;
+  margin-bottom: 10px;
 }
 
-.comment--panel .comment__content {
-  font-size: 13px;
-}
-
-.comment__actions {
-  margin-top: 8px;
+:deep(.comment-actions) {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 4px;
+  gap: 14px;
 }
 
-.comment__replies-toggle {
-  margin-top: 8px;
+:deep(.comment-actions.compact) {
+  gap: 12px;
+  margin-top: 5px;
+}
+
+:deep(.comment-action) {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 4px 10px;
+  gap: 5px;
+  padding: 0;
   border: none;
-  border-radius: 6px;
-  background: var(--bp-color-bg-soft);
-  color: var(--bp-color-text-secondary);
-  font-size: 12px;
+  background: none;
+  font-size: 13px;
   font-weight: 500;
+  color: var(--c-text-3);
   cursor: pointer;
-  transition: background 0.2s ease, color 0.2s ease;
+  transition: all var(--transition);
+}
+:deep(.comment-action:hover) { color: var(--c-primary); }
+:deep(.like-action.liked),
+:deep(.like-action:hover) { color: var(--c-danger); }
+:deep(.heart-icon) { font-size: 16px; line-height: 1; }
+:deep(.delete-action:hover) { color: var(--c-danger); }
+
+.reply-panel {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin-top: 14px;
+  padding: 14px;
+  background: linear-gradient(180deg, var(--c-surface-2), rgba(249, 250, 251, 0.72));
+  border: 1px solid var(--c-border-light);
+  border-radius: 14px;
 }
 
-.comment__replies-toggle:hover {
-  background: var(--bp-color-bg-hover);
-  color: var(--bp-color-primary);
+.reply-avatar {
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
 }
 
-.comment__reply-box {
-  margin-top: 10px;
+.reply-editor {
+  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.comment__reply-actions {
+.reply-footer {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
   gap: 8px;
 }
 
-.comment__children {
+.char-count {
+  flex: 1;
+  font-size: 12px;
+  color: var(--c-text-4);
+}
+.char-count.over { color: var(--c-danger); }
+
+.reply-cancel,
+.reply-submit {
+  border: none;
+  border-radius: var(--radius-full);
+  padding: 7px 15px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.reply-cancel {
+  color: var(--c-text-3);
+  background: transparent;
+}
+.reply-cancel:hover {
+  color: var(--c-text);
+  background: var(--c-border-light);
+}
+.reply-submit {
+  color: #fff;
+  background: linear-gradient(135deg, var(--c-primary), #6366f1);
+  box-shadow: 0 8px 18px rgba(var(--c-primary-rgb), 0.22);
+}
+.reply-submit:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.reply-list {
+  margin-top: 14px;
   display: flex;
   flex-direction: column;
+  gap: 14px;
 }
 
-.action-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  background: transparent;
-  border: none;
-  color: var(--bp-color-text-tertiary);
-  cursor: pointer;
-  font-size: 13px;
-  padding: 4px 8px;
-  border-radius: 8px;
-  transition: background 0.2s ease, color 0.2s ease;
+.reply-item {
+  display: flex;
+  gap: 10px;
+  padding: 12px 14px;
+  background: rgba(248, 250, 252, 0.82);
+  border: 1px solid rgba(226, 232, 240, 0.82);
+  border-radius: 14px;
 }
 
-.action-btn:hover {
-  background: var(--bp-color-bg-hover);
-  color: var(--bp-color-primary);
+.reply-content {
+  margin-bottom: 0;
+  color: var(--c-text-2);
+  font-size: 14px;
+  line-height: 1.7;
+  word-break: break-word;
 }
 
-.action-btn--like {
-  min-width: 52px;
+.reply-to-text,
+.reply-colon {
+  color: var(--c-text-3);
 }
 
-.action-btn--like .action-btn__count {
-  min-width: 1.2em;
-  font-variant-numeric: tabular-nums;
+.reply-to-name {
+  margin: 0 2px;
+  color: var(--c-primary);
   font-weight: 600;
-  color: var(--bp-color-text-secondary);
 }
 
-.action-btn--liked {
-  color: var(--bp-color-warning);
+.reply-more {
+  margin-top: 12px;
+  padding-left: 40px;
 }
 
-.action-btn--liked .action-btn__count {
-  color: var(--bp-color-warning);
+.reply-more-btn {
+  border: none;
+  background: transparent;
+  color: var(--c-primary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 0;
+  transition: color var(--transition);
+}
+.reply-more-btn:hover { color: var(--c-primary-hover); }
+.reply-more-btn.muted { color: var(--c-text-4); }
+
+.reply-panel-enter-active,
+.reply-panel-leave-active {
+  transition: all 0.18s ease;
+}
+.reply-panel-enter-from,
+.reply-panel-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
 }
 
-.action-btn--danger:hover {
-  background: rgba(239, 68, 68, 0.1);
-  color: var(--bp-color-danger);
+[data-theme="dark"] .reply-panel {
+  background: rgba(34, 34, 40, 0.82);
+}
+[data-theme="dark"] .reply-item {
+  background: rgba(34, 34, 40, 0.66);
+  border-color: var(--c-border);
+}
+
+@media (max-width: 640px) {
+  .comment-item { gap: 10px; padding: 18px 0; }
+  .comment-avatar { width: 38px; height: 38px; }
+  .comment-meta { align-items: flex-start; flex-direction: column; gap: 2px; }
+  .reply-more { padding-left: 0; }
 }
 </style>

@@ -1,273 +1,145 @@
-<script setup>
-import { computed, ref } from "vue";
-import { storeToRefs } from "pinia";
-import { ElMessage, ElMessageBox } from "element-plus";
-import {
-  Plus,
-  Delete,
-  InfoFilled,
-  CircleCheckFilled,
-  WarningFilled,
-  CircleCloseFilled
-} from "@element-plus/icons-vue";
-
-import PageHeader from "../components/common/PageHeader.vue";
-import EmptyState from "../components/common/EmptyState.vue";
-import {
-  getAnnouncementListService,
-  addAnnouncementService,
-  deleteAnnouncementService
-} from "../api/admin.js";
-import { useUserInfoStore } from "../store/userInfo.js";
-
-const userInfoStore = useUserInfoStore();
-const { userInfo } = storeToRefs(userInfoStore);
-const isAdmin = computed(() => userInfo.value?.username === "admin");
-
-const announcements = ref([]);
-const loading = ref(false);
-
-async function fetchList() {
-  loading.value = true;
-  try {
-    const result = await getAnnouncementListService();
-    announcements.value = (result.data || []).map((item) => ({
-      id: item.id,
-      title: item.title,
-      content: item.content,
-      date: item.date,
-      type: item.type || "info"
-    }));
-    announcements.value.sort((a, b) => new Date(b.date) - new Date(a.date));
-  } finally {
-    loading.value = false;
-  }
-}
-
-fetchList();
-
-const TYPE_MAP = {
-  info: { label: "通知", icon: InfoFilled, color: "var(--bp-color-info)" },
-  success: { label: "公告", icon: CircleCheckFilled, color: "var(--bp-color-success)" },
-  warning: { label: "提醒", icon: WarningFilled, color: "var(--bp-color-warning)" },
-  danger: { label: "重要", icon: CircleCloseFilled, color: "var(--bp-color-danger)" }
-};
-
-function typeInfo(type) {
-  return TYPE_MAP[type] || TYPE_MAP.info;
-}
-
-function formatDate(value) {
-  if (!value) return "";
-  return new Date(value).toLocaleString("zh-CN", { hour12: false });
-}
-
-function remove(id) {
-  ElMessageBox.confirm("确定删除该公告吗？", "删除公告", {
-    confirmButtonText: "删除",
-    cancelButtonText: "取消",
-    type: "warning"
-  })
-    .then(async () => {
-      await deleteAnnouncementService({ id });
-      ElMessage.success("删除成功");
-      fetchList();
-    })
-    .catch(() => {});
-}
-
-const dialogVisible = ref(false);
-const formRef = ref(null);
-const formData = ref({ title: "", content: "", type: "info" });
-const rules = {
-  title: [{ required: true, message: "请填写标题", trigger: "blur" }],
-  content: [{ required: true, message: "请填写内容", trigger: "blur" }]
-};
-
-function openCreate() {
-  formData.value = { title: "", content: "", type: "info" };
-  dialogVisible.value = true;
-}
-
-async function submit() {
-  try {
-    await formRef.value.validate();
-  } catch {
-    return;
-  }
-  await addAnnouncementService(formData.value);
-  ElMessage.success("公告已发布");
-  dialogVisible.value = false;
-  fetchList();
-}
-</script>
-
 <template>
-  <div class="bp-page bp-page--compact">
-    <PageHeader title="系统公告" compact>
-      <template #actions>
-        <el-button v-if="isAdmin" type="primary" :icon="Plus" @click="openCreate">
-          发布公告
-        </el-button>
-      </template>
-    </PageHeader>
-
-    <div v-loading="loading" class="announcement-list">
-      <article
-        v-for="item in announcements"
-        :key="item.id"
-        class="announcement bp-card"
-      >
-        <div
-          class="announcement__icon"
-          :style="{
-            background: `color-mix(in srgb, ${typeInfo(item.type).color} 18%, transparent)`,
-            color: typeInfo(item.type).color
-          }"
-        >
-          <el-icon size="18">
-            <component :is="typeInfo(item.type).icon" />
-          </el-icon>
-        </div>
-        <div class="announcement__body">
-          <header class="announcement__head">
-            <div>
-              <span
-                class="announcement__tag"
-                :style="{
-                  color: typeInfo(item.type).color,
-                  background: `color-mix(in srgb, ${typeInfo(item.type).color} 12%, transparent)`
-                }"
-              >
-                {{ typeInfo(item.type).label }}
-              </span>
-              <h3>{{ item.title }}</h3>
-            </div>
-            <el-button
-              v-if="isAdmin"
-              size="small"
-              type="danger"
-              plain
-              :icon="Delete"
-              @click="remove(item.id)"
-            >
-              删除
-            </el-button>
-          </header>
-          <p class="announcement__content">{{ item.content }}</p>
-          <span class="announcement__date">{{ formatDate(item.date) }}</span>
-        </div>
-      </article>
-
-      <EmptyState
-        v-if="!loading && !announcements.length"
-        title="暂无公告"
-        description="目前没有需要关注的系统消息"
-      />
+  <div class="announcement-page page-container-narrow">
+    <div class="page-top">
+      <h1 class="page-title">系统公告</h1>
+      <p class="page-subtitle">来自平台的官方通知和消息</p>
     </div>
 
-    <el-dialog
-      v-model="dialogVisible"
-      title="发布公告"
-      width="520px"
-      align-center
-      :close-on-click-modal="false"
-    >
-      <el-form
-        ref="formRef"
-        :model="formData"
-        :rules="rules"
-        label-position="top"
+    <div v-if="loading" class="loading-spinner" style="height:200px">
+      <el-icon class="is-loading" :size="24"><Loading /></el-icon>
+    </div>
+
+    <div v-else-if="announcements.length === 0" class="empty-state">
+      <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="var(--c-text-4)" stroke-width="1.2">
+        <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/>
+      </svg>
+      <p>暂无公告</p>
+    </div>
+
+    <div v-else class="ann-list">
+      <div
+        v-for="ann in announcements"
+        :key="ann.id"
+        class="ann-card card"
+        :class="`ann-${ann.type}`"
       >
-        <el-form-item label="标题" prop="title">
-          <el-input v-model="formData.title" placeholder="公告标题" />
-        </el-form-item>
-        <el-form-item label="内容" prop="content">
-          <el-input
-            v-model="formData.content"
-            type="textarea"
-            :rows="5"
-            placeholder="公告内容"
-          />
-        </el-form-item>
-        <el-form-item label="类型">
-          <el-select v-model="formData.type" style="width: 100%">
-            <el-option label="通知" value="info" />
-            <el-option label="公告" value="success" />
-            <el-option label="提醒" value="warning" />
-            <el-option label="重要" value="danger" />
-          </el-select>
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="submit">发布</el-button>
-      </template>
-    </el-dialog>
+        <div class="ann-header">
+          <div class="ann-badge" :class="`badge-${ann.type}`">
+            <component :is="typeIcon(ann.type)" :size="14"/>
+            {{ typeLabel(ann.type) }}
+          </div>
+          <time class="ann-time">{{ formatDate(ann.date) }}</time>
+        </div>
+        <h3 class="ann-title">{{ ann.title }}</h3>
+        <p class="ann-content">{{ ann.content }}</p>
+      </div>
+    </div>
   </div>
 </template>
 
+<script setup>
+import { ref, onMounted, h } from 'vue'
+import { Loading } from '@element-plus/icons-vue'
+import { getAnnouncementService } from '../api/admin.js'
+
+const announcements = ref([])
+const loading = ref(false)
+
+const typeLabels = { success: '成功', info: '通知', warning: '注意', danger: '紧急' }
+const typeLabel = (t) => typeLabels[t] || t
+
+function typeIcon(type) {
+  const paths = {
+    success: h('svg', { width: 14, height: 14, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': 2 }, [h('polyline', { points: '20 6 9 17 4 12' })]),
+    info: h('svg', { width: 14, height: 14, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': 2 }, [h('circle', { cx: 12, cy: 12, r: 10 }), h('line', { x1: 12, y1: 8, x2: 12, y2: 16 }), h('line', { x1: 12, y1: 16, x2: 12, y2: 20 })]),
+    warning: h('svg', { width: 14, height: 14, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': 2 }, [h('path', { d: 'M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z' }), h('line', { x1: 12, y1: 9, x2: 12, y2: 13 }), h('line', { x1: 12, y1: 17, x2: 12.01, y2: 17 })]),
+    danger: h('svg', { width: 14, height: 14, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': 2 }, [h('circle', { cx: 12, cy: 12, r: 10 }), h('line', { x1: 12, y1: 8, x2: 12, y2: 12 }), h('line', { x1: 12, y1: 16, x2: 12.01, y2: 16 })])
+  }
+  return paths[type] || paths.info
+}
+
+function formatDate(t) {
+  if (!t) return ''
+  const d = new Date(t)
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+}
+
+onMounted(async () => {
+  loading.value = true
+  try {
+    const res = await getAnnouncementService()
+    announcements.value = (res.data || []).reverse()
+  } finally { loading.value = false }
+})
+</script>
+
 <style scoped>
-.announcement-list {
+.announcement-page {}
+
+.page-top {
+  margin-bottom: 28px;
+  text-align: center;
+}
+.page-title { font-size: 28px; font-weight: 800; color: var(--c-text); }
+.page-subtitle { font-size: 15px; color: var(--c-text-3); margin-top: 6px; }
+
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--c-text-4);
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
 }
 
-.announcement {
-  display: flex;
-  gap: 16px;
-  padding: 18px 20px;
-}
+.ann-list { display: flex; flex-direction: column; gap: 12px; }
 
-.announcement__icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 14px;
+.ann-card {
+  padding: 20px 24px;
+  border-left: 4px solid var(--c-primary);
+  transition: all var(--transition);
+}
+.ann-success { border-left-color: var(--c-success); }
+.ann-warning { border-left-color: var(--c-warning); }
+.ann-danger { border-left-color: var(--c-danger); }
+.ann-info { border-left-color: var(--c-info); }
+
+.ann-header {
   display: flex;
   align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.announcement__body {
-  flex: 1;
-  min-width: 0;
-}
-
-.announcement__head {
-  display: flex;
   justify-content: space-between;
-  align-items: flex-start;
   gap: 12px;
+  margin-bottom: 10px;
 }
 
-.announcement__head h3 {
-  margin-top: 6px;
-  font-size: 16px;
-}
-
-.announcement__tag {
-  display: inline-block;
-  padding: 2px 10px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.announcement__content {
-  margin-top: 10px;
-  color: var(--bp-color-text-secondary);
-  line-height: 1.7;
-  white-space: pre-wrap;
-}
-
-.announcement__date {
-  display: inline-block;
-  margin-top: 10px;
+.ann-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
   font-size: 12px;
-  color: var(--bp-color-text-tertiary);
+  font-weight: 600;
+}
+.badge-success { background: var(--c-success-light); color: var(--c-success); }
+.badge-warning { background: var(--c-warning-light); color: var(--c-warning); }
+.badge-danger { background: var(--c-danger-light); color: var(--c-danger); }
+.badge-info { background: var(--c-info-light); color: var(--c-info); }
+
+.ann-time { font-size: 12px; color: var(--c-text-4); }
+
+.ann-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--c-text);
+  margin-bottom: 8px;
+}
+
+.ann-content {
+  font-size: 14px;
+  color: var(--c-text-2);
+  line-height: 1.7;
 }
 </style>

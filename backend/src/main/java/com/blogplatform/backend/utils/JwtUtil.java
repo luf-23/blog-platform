@@ -31,11 +31,15 @@ public class JwtUtil {
 
     //接收token,验证token,并返回业务数据
     public static Map<String, Object> parseToken(String token) {
-        return JWT.require(Algorithm.HMAC256(KEY))
+        Map<String, Object> claims = JWT.require(Algorithm.HMAC256(KEY))
                 .build()
                 .verify(token)
                 .getClaim("claims")
                 .asMap();
+        if (claims == null) {
+            throw new RuntimeException("Invalid token: missing claims payload");
+        }
+        return claims;
     }
 
 }
