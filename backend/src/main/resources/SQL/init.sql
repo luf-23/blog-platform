@@ -23,8 +23,8 @@ CREATE TABLE user (
     password     VARCHAR(60)  NOT NULL COMMENT 'BCrypt 哈希',
     nickname     VARCHAR(50)  NOT NULL COMMENT '昵称',
     signature    VARCHAR(512) COMMENT '个性签名',
-    avatar_image VARCHAR(512) DEFAULT 'https://luf-23.oss-cn-wuhan-lr.aliyuncs.com/avatar/default.png' COMMENT '头像 URL',
-    background_image VARCHAR(512) DEFAULT 'https://luf-23.oss-cn-wuhan-lr.aliyuncs.com/background/default.jpg' COMMENT '背景图 URL',
+    avatar_image VARCHAR(512) DEFAULT '/avatar/avatar1.png' COMMENT '头像 URL',
+    background_image VARCHAR(512) DEFAULT '/background/background1.jpg' COMMENT '背景图 URL',
     email        VARCHAR(255) NULL UNIQUE COMMENT '邮箱',
     role         ENUM('user','admin') DEFAULT 'user' COMMENT '角色',
     last_login   TIMESTAMP NULL COMMENT '最后登录时间',
@@ -60,7 +60,7 @@ CREATE TABLE article (
     title         VARCHAR(200) NOT NULL COMMENT '标题',
     summary       VARCHAR(500) COMMENT '摘要',
     content       LONGTEXT NOT NULL COMMENT '内容（Markdown）',
-    cover_image   VARCHAR(512) DEFAULT 'https://luf-23.oss-cn-wuhan-lr.aliyuncs.com/article/background/default.jpg' COMMENT '封面 URL',
+    cover_image   VARCHAR(512) DEFAULT '/background/background1.jpg' COMMENT '封面 URL',
     status        ENUM('draft','published','pending') DEFAULT 'draft' COMMENT '文章状态',
     view_count    INT DEFAULT 0 COMMENT '浏览量',
     like_count    INT DEFAULT 0 COMMENT '点赞数',
@@ -129,6 +129,64 @@ CREATE TABLE comment_like_record (
     FOREIGN KEY (user_id) REFERENCES user (user_id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 AUTO_INCREMENT = 100001;
 
+CREATE TABLE community_post (
+    post_id       INT AUTO_INCREMENT PRIMARY KEY COMMENT '社区动态 ID',
+    user_id       INT NOT NULL COMMENT '发布者 ID',
+    type          ENUM('question','share','poll') NOT NULL DEFAULT 'share' COMMENT '内容类型',
+    title         VARCHAR(160) NOT NULL COMMENT '标题',
+    content       TEXT NOT NULL COMMENT '正文',
+    topic         VARCHAR(30) NOT NULL DEFAULT '随想' COMMENT '所属话题',
+    solved        BOOLEAN NOT NULL DEFAULT FALSE COMMENT '问答是否解决',
+    like_count    INT NOT NULL DEFAULT 0 COMMENT '点赞数',
+    comment_count INT NOT NULL DEFAULT 0 COMMENT '讨论数',
+    vote_count    INT NOT NULL DEFAULT 0 COMMENT '投票数',
+    status        ENUM('published','hidden') NOT NULL DEFAULT 'published' COMMENT '状态',
+    create_time   TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time   TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    FOREIGN KEY (user_id) REFERENCES user(user_id) ON DELETE CASCADE,
+    INDEX idx_community_topic_time (topic, create_time),
+    INDEX idx_community_hot (status, like_count, comment_count)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 AUTO_INCREMENT = 100001;
+
+CREATE TABLE community_poll_option (
+    option_id   INT AUTO_INCREMENT PRIMARY KEY COMMENT '投票选项 ID',
+    post_id     INT NOT NULL COMMENT '社区动态 ID',
+    option_text VARCHAR(100) NOT NULL COMMENT '选项内容',
+    vote_count  INT NOT NULL DEFAULT 0 COMMENT '票数',
+    FOREIGN KEY (post_id) REFERENCES community_post(post_id) ON DELETE CASCADE,
+    INDEX idx_poll_post (post_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 AUTO_INCREMENT = 100001;
+
+CREATE TABLE community_post_like (
+    post_id     INT NOT NULL,
+    user_id     INT NOT NULL,
+    create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (post_id, user_id),
+    FOREIGN KEY (post_id) REFERENCES community_post(post_id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES user(user_id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE community_poll_vote (
+    post_id     INT NOT NULL,
+    option_id   INT NOT NULL,
+    user_id     INT NOT NULL,
+    create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (post_id, user_id),
+    FOREIGN KEY (post_id) REFERENCES community_post(post_id) ON DELETE CASCADE,
+    FOREIGN KEY (option_id) REFERENCES community_poll_option(option_id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES user(user_id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE user_follow (
+    follower_id  INT NOT NULL COMMENT '关注者',
+    following_id INT NOT NULL COMMENT '被关注者',
+    create_time  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (follower_id, following_id),
+    FOREIGN KEY (follower_id) REFERENCES user(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (following_id) REFERENCES user(user_id) ON DELETE CASCADE,
+    CHECK (follower_id <> following_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 SET FOREIGN_KEY_CHECKS = 1;
 
 -- ---------------------------------------------------------------------------
@@ -136,12 +194,12 @@ SET FOREIGN_KEY_CHECKS = 1;
 -- ---------------------------------------------------------------------------
 SET @pwd = '$2b$10$I/Me9zozCbEwd0Tlkd9SQuLOqDGpQ6yJWc5pcCIxXG8P/F222D3H2';
 
-INSERT INTO user (user_id, username, password, nickname, signature, email, role) VALUES
-(100001, 'admin', @pwd, '管理员',   '系统管理员，负责审核与公告',   'admin@demo.local', 'admin'),
-(100002, 'alice', @pwd, '爱丽丝',   '前端与交互设计爱好者',         'alice@demo.local', 'user'),
-(100003, 'bob',   @pwd, '鲍勃',     'Java 后端开发',               'bob@demo.local',   'user'),
-(100004, 'carol', @pwd, '卡罗',     '算法与数据结构练习',           'carol@demo.local', 'user'),
-(100005, 'david', @pwd, '大卫',     '摄影与旅行记录',               'david@demo.local', 'user');
+INSERT INTO user (user_id, username, password, nickname, signature, avatar_image, background_image, email, role) VALUES
+(100001, 'admin', @pwd, '墨语运营', '维护友好、真实、有价值的创作社区', '/avatar/avatar2.png', '/background/background7.jpg', 'admin@demo.local', 'admin'),
+(100002, 'alice', @pwd, '林小夏', '记录设计、代码与生活中的思考', '/avatar/avatar3.jpg', '/background/background10.jpg', 'alice@demo.local', 'user'),
+(100003, 'bob', @pwd, '安然', '后端工程师，关注系统设计与高并发', '/avatar/avatar1.png', '/background/background6.jpg', 'bob@demo.local', 'user'),
+(100004, 'carol', @pwd, '程序员鱼皮', '全栈开发者，持续分享编程学习方法', '/avatar/avatar2.png', '/background/background4.jpg', 'carol@demo.local', 'user'),
+(100005, 'david', @pwd, '苏三说技术', '用通俗的语言聊后端、数据库与架构', '/avatar/avatar3.jpg', '/background/background8.jpg', 'david@demo.local', 'user');
 
 INSERT INTO category (category_id, user_id, category_name, category_description) VALUES
 (100001, 100001, '平台动态',   '站点公告与更新说明'),
@@ -183,37 +241,37 @@ SET @c3 = '## LeetCode 双指针技巧总结\n\n双指针是解决数组和链�
 
 SET @c4 = '## 冰岛自驾游记：追逐极光的十天\n\n十月的冰岛，白昼渐短，极光开始频繁出没。带着相机和无限的期待，我踏上了这段梦想中的旅程。\n\n### Day 1-2：雷克雅未克\n\n首都不大，却充满了独特的北欧气质。色彩斑斓的建筑、街头涂鸦艺术、地热温泉……每一处都值得细细品味。哈尔格林姆斯教堂登高俯瞰全城，是来雷克雅未克必打卡的地标。\n\n### Day 3-5：黄金圈\n\n盖锡尔间歇泉每隔几分钟就会喷发一次，壮观震撼。黄金瀑布在阳光下折射出彩虹，美不胜收。辛格韦利尔国家公园横跨欧亚两大板块，地质奇观令人叹为观止。\n\n### 极光邂逅\n\n第七天深夜，我们开车驶离小镇，远离光污染。突然，北方天际出现了淡绿色的光带，随后越来越强，舞动起来……那一刻，所有疲惫都化为了感动。\n\n旅行不只是到达，更是途中每一个心动瞬间。';
 
-INSERT INTO article (article_id, user_id, category_id, title, summary, content, status, view_count, like_count, comment_count) VALUES
+INSERT INTO article (article_id, user_id, category_id, title, summary, content, cover_image, status, view_count, like_count, comment_count) VALUES
 (100001, 100002, 100003, 'Vue 3 Composition API 完全指南',
  '深入讲解 Vue 3 Composition API 的核心概念，包括 ref、reactive、computed 和生命周期钩子，帮助你快速掌握 Vue 3 的函数式编程范式。',
- @c1, 'published', 1280, 86, 13),
+ @c1, '/background/background3.jpg', 'published', 1280, 86, 13),
 (100002, 100003, 100005, 'Spring Boot 3 + MyBatis 实战教程',
  '从零搭建 Spring Boot 3 项目，整合 MyBatis 进行数据库操作，实现 JWT 无状态认证，包含完整的项目结构和最佳实践。',
- @c2, 'published', 956, 64, 8),
+ @c2, '/background/background6.jpg', 'published', 956, 64, 8),
 (100003, 100004, 100007, 'LeetCode 双指针专题：从入门到精通',
  '系统整理双指针解题模板，覆盖快慢指针、左右指针、滑动窗口等常见变体，含 10+ 经典例题详解。',
- @c3, 'published', 743, 51, 6),
+ @c3, '/background/background4.jpg', 'published', 743, 51, 6),
 (100004, 100005, 100009, '冰岛十天自驾：追逐极光全记录',
  '十月冰岛自驾游全程记录，从雷克雅未克出发环岛一周，包含极光拍摄技巧、住宿攻略和行程安排。',
- @c4, 'published', 2341, 198, 4),
+ @c4, '/background/background10.jpg', 'published', 2341, 198, 4),
 (100005, 100002, 100003, 'Vue Router 4 动态路由与懒加载',
  '详解 Vue Router 4 的路由懒加载、动态路由匹配、导航守卫等核心特性，附完整代码示例。',
- '## Vue Router 4 路由进阶\n\n路由懒加载可以显著减小初始包体积，通过 `() => import(''./views/Home.vue'')` 的方式实现按需加载。', 'published', 432, 29, 2),
+ '## Vue Router 4 路由进阶\n\n路由懒加载可以显著减小初始包体积，通过 `() => import(''./views/Home.vue'')` 的方式实现按需加载。', '/background/background2.jpg', 'published', 432, 29, 2),
 (100006, 100003, 100005, 'Redis 缓存最佳实践',
  '探讨 Redis 在高并发场景下的缓存策略，包括缓存穿透、缓存击穿、缓存雪崩的解决方案。',
- '## Redis 缓存设计\n\n合理的缓存策略能将数据库压力降低 90% 以上。本文从实际业务场景出发，探讨各种缓存方案的优劣。', 'published', 671, 45, 3),
+ '## Redis 缓存设计\n\n合理的缓存策略能将数据库压力降低 90% 以上。本文从实际业务场景出发，探讨各种缓存方案的优劣。', '/background/background8.jpg', 'published', 671, 45, 3),
 (100007, 100001, 100001, '平台 2025 年功能更新公告',
  '博客平台重大更新：新增标签系统、优化评论体验、引入 AI 写作助手，全面提升用户体验。',
- '## 平台更新说明\n\n本次更新引入了全新的标签系统，支持为文章添加多个标签，方便读者按兴趣筛选内容。', 'published', 389, 22, 1),
+ '## 平台更新说明\n\n本次更新引入了全新的标签系统，支持为文章添加多个标签，方便读者按兴趣筛选内容。', '/background/background7.jpg', 'published', 389, 22, 1),
 (100008, 100004, 100008, '2025 年前端面试高频考点整理',
  '汇总 2025 年前端面试中最常被问到的题目，涵盖 JavaScript 核心原理、Vue/React 框架、工程化配置等方向。',
- '## 前端面试准备\n\n掌握核心原理比死记硬背更重要。本文整理了常见的面试考点，并附上详细解析。', 'published', 1876, 134, 9),
+ '## 前端面试准备\n\n掌握核心原理比死记硬背更重要。本文整理了常见的面试考点，并附上详细解析。', '/background/background5.jpg', 'published', 1876, 134, 9),
 (100009, 100002, 100004, '《人月神话》读书笔记',
  '软件工程经典著作精读，深入理解 Brooks 定律、二次系统效应、焦油坑等核心概念，结合现代软件实践加以诠释。',
- '## 人月神话\n\n这本写于 1975 年的书，至今仍然是软件工程领域的圣经。Brooks 的每一个论断都经受住了时间的考验。', 'published', 287, 31, 2),
+ '## 人月神话\n\n这本写于 1975 年的书，至今仍然是软件工程领域的圣经。Brooks 的每一个论断都经受住了时间的考验。', '/background/background9.jpg', 'published', 287, 31, 2),
 (100010, 100005, 100010, '索尼 A7M4 实拍体验报告',
  '使用索尼 A7M4 拍摄三个月后的真实感受，从画质、对焦、续航、操控等维度全面评测。',
- '## 索尼 A7M4 深度评测\n\n三个月、五千张照片之后，我对这台相机有了非常全面的认识。总体而言，它是目前最均衡的全画幅微单。', 'published', 921, 73, 3);
+ '## 索尼 A7M4 深度评测\n\n三个月、五千张照片之后，我对这台相机有了非常全面的认识。总体而言，它是目前最均衡的全画幅微单。', '/background/background1.jpg', 'published', 921, 73, 3);
 
 -- 文章标签关联
 INSERT INTO article_tag (article_id, tag_id) VALUES
@@ -281,12 +339,46 @@ INSERT INTO article_like_record (article_id, user_id) VALUES
 (100004, 100002),(100004, 100003),(100004, 100004);
 
 INSERT INTO announcement (title, content, type) VALUES
-('平台正式上线公告', '欢迎使用 Blog Platform！平台现已全面上线，支持 Markdown 写作、文章分类、标签系统、评论互动等功能，欢迎大家体验。', 'success'),
+('墨语正式上线公告', '欢迎来到墨语！平台现已全面上线，支持 Markdown 写作、文章分类、标签系统、评论互动等功能，欢迎大家体验。', 'success'),
 ('新功能：标签系统上线', '文章标签功能现已上线，创作者可以为文章添加多个标签，读者也可以通过标签筛选感兴趣的内容。', 'info'),
 ('维护通知', '计划于本周日凌晨 2:00-4:00 进行系统维护，届时平台将短暂不可访问，请提前做好准备。', 'warning');
 
-ALTER TABLE user AUTO_INCREMENT = 100006;
-ALTER TABLE category AUTO_INCREMENT = 100011;
-ALTER TABLE tag AUTO_INCREMENT = 100019;
-ALTER TABLE article AUTO_INCREMENT = 100011;
-ALTER TABLE comment AUTO_INCREMENT = 100022;
+-- 社区广场：提问、经验分享与投票拥有独立的数据语义，不再复用文章表
+INSERT INTO community_post
+(post_id, user_id, type, title, content, topic, solved, like_count, comment_count, vote_count, create_time) VALUES
+(100001, 100003, 'question', '如何设计一个可扩展的评论系统？',
+ '业务增长后评论量激增，如何在保证性能的同时支持多层级回复、@ 提醒和实时通知？希望听听大家在索引设计、缓存与消息队列方面的实践。',
+ '技术开发', TRUE, 76, 28, 0, NOW() - INTERVAL 2 HOUR),
+(100002, 100002, 'share', '你更喜欢哪种 Markdown 编辑体验？',
+ '最近试了几款主流编辑器，发现各有优缺点。我最常用的组合是实时预览、快捷键和稳定的自动保存。这里整理了我的配置思路与效率提升方法。',
+ '产品设计', FALSE, 58, 12, 0, NOW() - INTERVAL 4 HOUR),
+(100003, 100001, 'poll', '你更倾向于哪种社区内容形式？',
+ '我们正在规划更多优质内容，想听听你的真实想法。投票结果会直接影响社区下一阶段的产品方向。',
+ '社区运营', FALSE, 32, 36, 283, NOW() - INTERVAL 6 HOUR),
+(100004, 100004, 'share', '我的 AI 编程实践：先拆问题，再写提示词',
+ '把大任务拆成可验证的小步骤，比追求一条完美提示词更重要。上下文要给够，约束要写清，还要让模型主动运行测试。',
+ 'AI 探索', FALSE, 124, 19, 0, NOW() - INTERVAL 1 DAY),
+(100005, 100005, 'question', '高并发下缓存和数据库一致性怎么取舍？',
+ '更新数据库后删除缓存、延迟双删和订阅 binlog 各有代价。你的项目最终采用了哪种方案？判断依据是什么？',
+ '技术开发', FALSE, 43, 31, 0, NOW() - INTERVAL 2 DAY),
+(100006, 100002, 'share', '独立开发半年后，我重新理解了“先完成再完美”',
+ '真正消耗人的不是写代码，而是不断改变目标。用一周完成一个可交付闭环，再决定是否继续，是我学到最重要的一课。',
+ '副业与成长', FALSE, 89, 24, 0, NOW() - INTERVAL 3 DAY);
+
+INSERT INTO community_poll_option (option_id, post_id, option_text, vote_count) VALUES
+(100001, 100003, '深度长文 / 教程', 128),
+(100002, 100003, '实战案例 / 经验分享', 99),
+(100003, 100003, '短帖 / 问答', 56);
+
+INSERT INTO community_post_like (post_id, user_id) VALUES
+(100001,100002),(100001,100004),(100001,100005),
+(100002,100003),(100002,100004),(100003,100002),
+(100004,100002),(100004,100003),(100004,100005),
+(100006,100003),(100006,100004);
+
+INSERT INTO community_poll_vote (post_id, option_id, user_id) VALUES
+(100003,100001,100002),(100003,100002,100003),(100003,100003,100004);
+
+INSERT INTO user_follow (follower_id, following_id) VALUES
+(100002,100003),(100002,100004),(100002,100005),
+(100003,100002),(100004,100002),(100005,100002);

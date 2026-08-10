@@ -1,12 +1,17 @@
 <template>
-  <div class="save-article page-container">
+  <div class="save-article">
     <div class="editor-header">
       <div class="editor-nav">
         <button class="btn btn-ghost btn-sm" @click="$router.back()">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
           返回
         </button>
-        <h1 class="editor-title">{{ isEdit ? '编辑文章' : '写文章' }}</h1>
+        <div><h1 class="editor-title">{{ form.title || (isEdit ? '编辑文章' : '无标题文章') }}</h1><span class="autosave-state">✓ {{ lastSavedAt ? '已自动保存 ' + lastSavedAt : '本地自动保存已开启' }}</span></div>
+      </div>
+      <div class="editor-modes">
+        <button :class="{ active: editorMode === 'edit' }" @click="editorMode = 'edit'">✎ 编辑</button>
+        <button :class="{ active: editorMode === 'split' }" @click="editorMode = 'split'">▣ 分屏预览</button>
+        <button :class="{ active: editorMode === 'preview' }" @click="editorMode = 'preview'">◉ 预览</button>
       </div>
       <div class="editor-actions">
         <button class="btn btn-secondary" @click="saveDraft" :disabled="saving">
@@ -15,14 +20,23 @@
         </button>
         <button class="btn btn-primary" @click="submitForReview" :disabled="saving">
           <el-icon v-if="saving" class="is-loading"><Loading /></el-icon>
-          提交审核
+          发布
         </button>
       </div>
     </div>
 
     <div class="editor-layout">
+      <aside class="outline-panel surface-card">
+        <header><strong>文章大纲</strong><span>{{ outline.length }} 节</span></header>
+        <nav v-if="outline.length">
+          <button v-for="(item, index) in outline" :key="index" :class="'level-' + item.level">{{ item.text }}</button>
+        </nav>
+        <div v-else class="outline-empty">使用 Markdown 标题后，将在这里生成文章大纲。</div>
+        <footer><span>字数 {{ wordCount }}</span><span>约 {{ readingMinutes }} 分钟</span></footer>
+      </aside>
+
       <!-- Main editor -->
-      <div class="editor-main card">
+      <div class="editor-main surface-card">
         <input
           v-model="form.title"
           class="title-input"
@@ -38,19 +52,21 @@
         ></textarea>
         <div class="editor-divider"></div>
         <MdEditor
+          class="markdown-editor"
           v-model="form.content"
           :theme="isDark ? 'dark' : 'light'"
           :toolbars="toolbars"
-          :preview="false"
+          :preview="editorMode === 'split'"
+          :preview-only="editorMode === 'preview'"
           placeholder="开始你的创作..."
-          style="height: 500px; border-radius: 0 0 var(--radius-lg) var(--radius-lg); border: none;"
         />
+        <footer class="editor-status"><span>Markdown</span><span>字数：{{ wordCount }}</span><span>预计阅读：{{ readingMinutes }} 分钟</span><b>{{ lastSavedAt ? '全部更改已保存' : '正在编辑' }}</b></footer>
       </div>
 
       <!-- Settings sidebar -->
       <aside class="editor-sidebar">
         <!-- Status -->
-        <div class="card sidebar-block">
+        <div class="surface-card sidebar-block">
           <div class="sidebar-block-title">文章设置</div>
 
           <el-form label-position="top" size="small">
@@ -88,7 +104,7 @@
         </div>
 
         <!-- Cover image -->
-        <div class="card sidebar-block">
+        <div class="surface-card sidebar-block">
           <div class="sidebar-block-title">封面图</div>
           <div class="cover-preview" v-if="form.coverImage">
             <img :src="form.coverImage" alt="封面"/>
@@ -100,19 +116,29 @@
           </div>
           <el-input v-model="form.coverImage" placeholder="输入封面图片 URL" size="small" style="margin-top:8px"/>
         </div>
+
+        <div class="surface-card sidebar-block">
+          <div class="sidebar-block-title">发布前检查 <span class="check-count">{{ completedChecks }}/4</span></div>
+          <div class="publish-checks">
+            <p :class="{ done: form.title.trim() }"><i>{{ form.title.trim() ? '✓' : '!' }}</i>标题已填写</p>
+            <p :class="{ done: form.content.trim() }"><i>{{ form.content.trim() ? '✓' : '!' }}</i>正文已填写</p>
+            <p :class="{ done: form.categoryId }"><i>{{ form.categoryId ? '✓' : '!' }}</i>选择文章分类</p>
+            <p :class="{ done: form.summary.trim() }"><i>{{ form.summary.trim() ? '✓' : '!' }}</i>{{ form.summary.trim() ? '摘要已填写' : '缺少文章摘要' }}</p>
+          </div>
+        </div>
       </aside>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Loading } from '@element-plus/icons-vue'
 import { MdEditor } from 'md-editor-v3'
 import 'md-editor-v3/lib/style.css'
-import { addArticleService, updateArticleService, getArticleDetailService } from '../../api/article.js'
+import { addArticleService, updateArticleService, getMyArticleDetailService } from '../../api/article.js'
 import { getCategoryListService } from '../../api/category.js'
 import { useTheme } from '../../composables/useTheme.js'
 
@@ -124,6 +150,9 @@ const isEdit = computed(() => !!route.params.id)
 const saving = ref(false)
 const categories = ref([])
 const tagInput = ref('')
+const editorMode = ref('edit')
+const lastSavedAt = ref('')
+let autosaveTimer = null
 
 const form = reactive({
   articleId: null,
@@ -142,6 +171,15 @@ const toolbars = [
   'code', 'link', 'image', 'table', '-',
   'prettier', 'preview'
 ]
+
+const wordCount = computed(() => form.content.replace(/[#>*_\-\[\]()]/g, '').replace(/\s+/g, '').length)
+const readingMinutes = computed(() => Math.max(1, Math.ceil(wordCount.value / 400)))
+const outline = computed(() => form.content.split('\n').map(line => {
+  const match = line.match(/^(#{1,3})\s+(.+)/)
+  return match ? { level: match[1].length, text: match[2].trim() } : null
+}).filter(Boolean))
+const completedChecks = computed(() => [form.title.trim(), form.content.trim(), form.categoryId, form.summary.trim()].filter(Boolean).length)
+const draftKey = computed(() => 'moyu-editor-draft-' + (route.params.id || 'new'))
 
 function addTag() {
   const t = tagInput.value.trim()
@@ -174,12 +212,14 @@ async function saveDraft() {
   saving.value = true
   try {
     const payload = buildPayload('draft')
-    if (isEdit.value) {
+    if (form.articleId) {
       await updateArticleService(payload)
     } else {
       const res = await addArticleService(payload)
       form.articleId = res.data
     }
+    lastSavedAt.value = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+    localStorage.removeItem(draftKey.value)
     ElMessage.success('已保存草稿')
   } finally { saving.value = false }
 }
@@ -190,7 +230,7 @@ async function submitForReview() {
   saving.value = true
   try {
     const payload = buildPayload('published')
-    if (isEdit.value) {
+    if (form.articleId) {
       await updateArticleService(payload)
     } else {
       await addArticleService(payload)
@@ -203,7 +243,7 @@ async function submitForReview() {
 async function loadArticle() {
   if (!isEdit.value) return
   try {
-    const res = await getArticleDetailService(route.params.id)
+    const res = await getMyArticleDetailService(route.params.id)
     const a = res.data
     form.articleId = a.articleId
     form.title = a.title
@@ -216,34 +256,85 @@ async function loadArticle() {
   } catch { router.push('/article/my') }
 }
 
+function saveLocalDraft() {
+  if (!form.title && !form.content) return
+  localStorage.setItem(draftKey.value, JSON.stringify({
+    title: form.title,
+    summary: form.summary,
+    content: form.content,
+    categoryId: form.categoryId,
+    coverImage: form.coverImage,
+    tagNames: form.tagNames,
+    savedAt: Date.now()
+  }))
+  lastSavedAt.value = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+}
+
+function restoreLocalDraft() {
+  if (isEdit.value) return
+  const raw = localStorage.getItem(draftKey.value)
+  if (!raw) return
+  try {
+    const draft = JSON.parse(raw)
+    Object.assign(form, draft)
+    lastSavedAt.value = new Date(draft.savedAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+    ElMessage.info('已恢复本地草稿')
+  } catch {}
+}
+
 onMounted(() => {
   getCategoryListService().then(r => { categories.value = r.data || [] }).catch(() => {})
   loadArticle()
+  restoreLocalDraft()
+  autosaveTimer = window.setInterval(saveLocalDraft, 12000)
+})
+onUnmounted(() => window.clearInterval(autosaveTimer))
+watch(() => [form.title, form.summary, form.content, form.categoryId, form.coverImage, form.tagNames.join(',')], () => {
+  lastSavedAt.value = ''
 })
 </script>
 
 <style scoped>
-.save-article {}
+.save-article { display: flex; width: min(1500px, calc(100% - 32px)); height: 100%; min-height: 0; margin: 0 auto; padding: 14px 0; flex-direction: column; overflow: hidden; }
 
 .editor-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 20px;
+  min-height: 52px;
+  flex: 0 0 auto;
+  margin-bottom: 12px;
 }
 .editor-nav { display: flex; align-items: center; gap: 12px; }
-.editor-title { font-size: 20px; font-weight: 700; color: var(--c-text); }
+.editor-title { max-width: 360px; overflow: hidden; color: var(--c-text); font-size: 17px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.editor-nav > div { display: flex; flex-direction: column; }
+.autosave-state { color: var(--c-success); font-size: 10px; }
 .editor-actions { display: flex; gap: 8px; }
+.editor-modes { display: inline-flex; padding: 3px; border: 1px solid var(--c-border); border-radius: var(--radius); background: var(--c-surface); }
+.editor-modes button { padding: 7px 11px; border: 0; border-radius: 7px; background: transparent; color: var(--c-text-3); font-size: 12px; font-weight: 600; }
+.editor-modes button.active { background: var(--c-primary-soft); color: var(--c-primary); }
 
 .editor-layout {
   display: grid;
-  grid-template-columns: 1fr 260px;
-  gap: 20px;
-  align-items: start;
+  min-height: 0;
+  flex: 1;
+  grid-template-columns: 190px minmax(0, 1fr) 286px;
+  gap: 14px;
+  align-items: stretch;
 }
 
-.editor-main { overflow: hidden; }
+.editor-main { display: flex; min-height: 0; flex-direction: column; overflow: hidden; }
+.outline-panel { display: flex; min-height: 0; flex-direction: column; padding: 16px 10px; overflow: hidden; }
+.outline-panel header { display: flex; align-items: center; justify-content: space-between; padding: 0 7px 12px; border-bottom: 1px solid var(--c-border); }
+.outline-panel header span { color: var(--c-text-4); font-size: 10px; }
+.outline-panel nav { display: flex; flex: 1; flex-direction: column; gap: 2px; padding-top: 10px; overflow: auto; }
+.outline-panel nav button { padding: 7px 8px; overflow: hidden; border: 0; border-radius: 6px; background: transparent; color: var(--c-text-3); font-size: 11px; text-align: left; text-overflow: ellipsis; white-space: nowrap; }
+.outline-panel nav button:hover { background: var(--c-primary-soft); color: var(--c-primary); }
+.outline-panel nav .level-2 { padding-left: 18px; }
+.outline-panel nav .level-3 { padding-left: 30px; }
+.outline-empty { padding: 22px 8px; color: var(--c-text-4); font-size: 11px; line-height: 1.7; }
+.outline-panel footer { display: flex; justify-content: space-between; padding: 12px 7px 0; border-top: 1px solid var(--c-border); color: var(--c-text-4); font-size: 9px; }
 
 .title-input {
   width: 100%;
@@ -273,15 +364,17 @@ onMounted(() => {
 .summary-input::placeholder { color: var(--c-text-4); }
 
 .editor-divider { height: 1px; background: var(--c-border); }
+.markdown-editor { min-height: 0; flex: 1; border: 0; border-radius: 0; }
+.editor-status { display: flex; align-items: center; gap: 18px; padding: 8px 14px; border-top: 1px solid var(--c-border); background: var(--c-surface-2); color: var(--c-text-4); font-size: 10px; }
+.editor-status b { margin-left: auto; color: var(--c-success); font-weight: 600; }
 
 /* Sidebar */
 .editor-sidebar {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  position: sticky;
-  top: 16px;
-  max-height: calc(100dvh - var(--nav-height) - 56px);
+  min-height: 0;
+  height: 100%;
   overflow-y: auto;
   overscroll-behavior: contain;
   padding-right: 2px;
@@ -296,6 +389,12 @@ onMounted(() => {
   letter-spacing: 0.05em;
   margin-bottom: 12px;
 }
+.sidebar-block-title .check-count { float: right; color: var(--c-success); }
+.publish-checks { display: flex; flex-direction: column; gap: 8px; }
+.publish-checks p { display: flex; align-items: center; gap: 7px; color: var(--c-warning); font-size: 11px; }
+.publish-checks p.done { color: var(--c-text-3); }
+.publish-checks i { display: grid; width: 17px; height: 17px; place-items: center; border-radius: 50%; background: var(--c-warning-soft); font-size: 10px; font-style: normal; font-weight: 800; }
+.publish-checks p.done i { background: var(--c-success-soft); color: var(--c-success); }
 
 /* Tag input */
 .tag-input-area {
@@ -360,7 +459,18 @@ onMounted(() => {
 }
 
 @media (max-width: 900px) {
-  .editor-layout { grid-template-columns: 1fr; }
+  .editor-layout { grid-template-columns: 1fr 260px; }
+  .outline-panel { display: none; }
   .editor-sidebar { position: static; }
+  .editor-modes { order: 3; width: 100%; justify-content: center; }
+  .editor-header { flex-wrap: wrap; }
+}
+@media (max-width: 680px) {
+  .save-article { height: 100%; overflow-y: auto; }
+  .editor-layout { display: block; }
+  .editor-main { height: 720px; margin-bottom: 14px; }
+  .editor-layout { grid-template-columns: 1fr; }
+  .editor-modes { overflow-x: auto; }
+  .editor-actions .btn-secondary { display: none; }
 }
 </style>

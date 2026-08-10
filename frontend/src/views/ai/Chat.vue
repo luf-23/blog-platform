@@ -179,10 +179,17 @@ onUnmounted(() => {
 });
 
 const SUGGESTIONS = [
-  "帮我写一篇关于 Vue 3 Composition API 的简短介绍",
-  "用通俗的语言解释什么是 RESTful API",
-  "给我推荐一些学习设计的资源",
-  "整理一下 Markdown 常用语法"
+  "为一篇 Vue 3 最佳实践文章生成清晰的大纲",
+  "把这段技术说明改写得更适合初学者阅读",
+  "给我的博客文章提供 8 个有吸引力的标题",
+  "从文章草稿中提炼摘要、关键词和结尾观点"
+];
+
+const QUICK_ACTIONS = [
+  { label: "生成大纲", prompt: "请根据我的博客主题生成一份结构清晰、层次完整的文章大纲。" },
+  { label: "润色文字", prompt: "请润色我接下来提供的文字，保留原意，让表达更自然有力量。" },
+  { label: "提炼摘要", prompt: "请从我接下来提供的文章中提炼一段不超过 150 字的摘要。" },
+  { label: "标题灵感", prompt: "请为我的博客文章提供 8 个兼顾信息量和吸引力的标题。" }
 ];
 </script>
 
@@ -294,8 +301,8 @@ const SUGGESTIONS = [
             <span class="chat-welcome__icon">
               <el-icon size="32"><ChatLineRound /></el-icon>
             </span>
-            <h2>有什么想问的？</h2>
-            <p>试试下面的提示，或者直接输入你的问题</p>
+            <h2>你好，我是墨语 AI 写作助手</h2>
+            <p>从选题、大纲到润色发布，陪你把想法变成一篇好文章</p>
           </div>
           <div class="chat-welcome__suggestions">
             <button
@@ -360,6 +367,54 @@ const SUGGESTIONS = [
       </footer>
     </section>
 
+    <aside class="chat-context">
+      <header class="context-head">
+        <div>
+          <span class="context-kicker">WRITING CONTEXT</span>
+          <h3>创作上下文</h3>
+        </div>
+        <span class="context-status">已同步</span>
+      </header>
+
+      <section class="context-card context-draft">
+        <span class="context-label">当前草稿</span>
+        <strong>从零设计博客系统</strong>
+        <p>草稿中的标题、分类与选中文字会成为 AI 的回答背景。</p>
+        <div class="draft-progress"><span /></div>
+        <div class="context-metrics">
+          <span><b>3,842</b> 字</span>
+          <span><b>约 9</b> 分钟</span>
+        </div>
+      </section>
+
+      <section class="context-section">
+        <span class="context-label">文章信息</span>
+        <dl class="context-list">
+          <div><dt>状态</dt><dd><i class="status-dot" />草稿中</dd></div>
+          <div><dt>分类</dt><dd>技术分享</dd></div>
+          <div><dt>选中文字</dt><dd>326 字</dd></div>
+        </dl>
+      </section>
+
+      <section class="context-section">
+        <span class="context-label">快捷能力</span>
+        <div class="context-actions">
+          <button
+            v-for="action in QUICK_ACTIONS"
+            :key="action.label"
+            @click="inputMessage = action.prompt"
+          >
+            <span>✦</span>{{ action.label }}
+          </button>
+        </div>
+      </section>
+
+      <div class="context-tip">
+        <strong>小提示</strong>
+        <p>描述目标读者和文章语气，AI 会给出更贴合的内容。</p>
+      </div>
+    </aside>
+
     <transition name="fade">
       <div
         v-if="sessionsOpen"
@@ -372,26 +427,26 @@ const SUGGESTIONS = [
 
 <style scoped>
 .chat-shell {
-  --bp-color-bg: #0b1120;
-  --bp-color-bg-elevated: #111827;
-  --bp-color-bg-soft: #172033;
-  --bp-color-bg-hover: #1f2a44;
-  --bp-color-border: #253047;
-  --bp-color-divider: #1e293b;
-  --bp-color-text-primary: #f8fafc;
-  --bp-color-text-secondary: #cbd5e1;
-  --bp-color-text-tertiary: #94a3b8;
-  --bp-color-primary: #6366f1;
-  --bp-color-primary-soft: rgba(99, 102, 241, 0.16);
-  --bp-color-primary-soft-strong: rgba(99, 102, 241, 0.42);
-  --bp-gradient-hero: linear-gradient(135deg, #4f46e5, #7c3aed);
+  --bp-color-bg: var(--c-bg);
+  --bp-color-bg-elevated: var(--c-surface);
+  --bp-color-bg-soft: var(--c-surface-muted);
+  --bp-color-bg-hover: #f0efff;
+  --bp-color-border: var(--c-border);
+  --bp-color-divider: var(--c-border-light);
+  --bp-color-text-primary: var(--c-text);
+  --bp-color-text-secondary: var(--c-text-2);
+  --bp-color-text-tertiary: var(--c-text-3);
+  --bp-color-primary: var(--c-primary);
+  --bp-color-primary-soft: rgba(81, 70, 229, 0.09);
+  --bp-color-primary-soft-strong: rgba(81, 70, 229, 0.28);
+  --bp-gradient-hero: linear-gradient(135deg, #5146e5, #7768ee);
   display: grid;
-  grid-template-columns: 280px 1fr;
+  grid-template-columns: 250px minmax(0, 1fr) 286px;
   height: 100%;
   min-height: 0;
   background: var(--bp-color-bg);
   border: 1px solid var(--bp-color-border);
-  border-radius: 12px;
+  border-radius: 18px;
   overflow: hidden;
 }
 
@@ -512,9 +567,9 @@ const SUGGESTIONS = [
   flex-direction: column;
   gap: 16px;
   border-radius: 12px;
-  background: rgba(17, 24, 39, 0.96);
+  background: rgba(255, 255, 255, 0.98);
   border: 1px solid var(--bp-color-border);
-  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.32);
+  box-shadow: var(--c-shadow-lg);
 }
 
 .setting-row {
@@ -612,6 +667,164 @@ const SUGGESTIONS = [
   background: var(--bp-gradient-hero);
   color: white;
   border-color: transparent;
+}
+
+.chat-context {
+  min-width: 0;
+  padding: 22px 18px;
+  border-left: 1px solid var(--bp-color-border);
+  background: var(--bp-color-bg-elevated);
+  overflow-y: auto;
+}
+
+.context-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.context-head h3 {
+  margin: 3px 0 0;
+  font-size: 18px;
+}
+
+.context-kicker,
+.context-label {
+  color: var(--bp-color-text-tertiary);
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.context-status {
+  padding: 4px 8px;
+  border-radius: 999px;
+  color: #0b8f73;
+  background: #e9f9f4;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.context-card {
+  padding: 16px;
+  border: 1px solid var(--bp-color-border);
+  border-radius: 14px;
+  background: linear-gradient(145deg, #fafaff, #f5f3ff);
+}
+
+.context-draft strong {
+  display: block;
+  margin: 8px 0 5px;
+  font-size: 14px;
+}
+
+.context-draft p,
+.context-tip p {
+  margin: 0;
+  color: var(--bp-color-text-tertiary);
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.draft-progress {
+  height: 5px;
+  margin: 14px 0 9px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e4e2f5;
+}
+
+.draft-progress span {
+  display: block;
+  width: 68%;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--bp-gradient-hero);
+}
+
+.context-metrics {
+  display: flex;
+  justify-content: space-between;
+  color: var(--bp-color-text-tertiary);
+  font-size: 11px;
+}
+
+.context-metrics b { color: var(--bp-color-text-primary); }
+
+.context-section {
+  padding: 19px 2px;
+  border-bottom: 1px solid var(--bp-color-divider);
+}
+
+.context-list {
+  display: grid;
+  gap: 12px;
+  margin: 13px 0 0;
+}
+
+.context-list div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+}
+
+.context-list dt { color: var(--bp-color-text-tertiary); }
+.context-list dd { margin: 0; color: var(--bp-color-text-secondary); font-weight: 650; }
+
+.status-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 5px;
+  border-radius: 50%;
+  background: #f59e0b;
+}
+
+.context-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.context-actions button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px;
+  border: 1px solid var(--bp-color-border);
+  border-radius: 10px;
+  color: var(--bp-color-text-secondary);
+  background: var(--bp-color-bg-elevated);
+  font-size: 12px;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.context-actions button:hover {
+  color: var(--bp-color-primary);
+  border-color: var(--bp-color-primary-soft-strong);
+  background: var(--bp-color-primary-soft);
+}
+
+.context-actions span { color: var(--bp-color-primary); }
+
+.context-tip {
+  margin-top: 18px;
+  padding: 13px 14px;
+  border-radius: 12px;
+  background: #fff8e8;
+}
+
+.context-tip strong {
+  display: block;
+  margin-bottom: 4px;
+  color: #9a6200;
+  font-size: 12px;
 }
 
 .message-bubble--assistant {
@@ -745,5 +958,14 @@ const SUGGESTIONS = [
   .message-bubble {
     max-width: 88%;
   }
+}
+
+@media (max-width: 1180px) {
+  .chat-shell { grid-template-columns: 250px minmax(0, 1fr); }
+  .chat-context { display: none; }
+}
+
+@media (max-width: 900px) {
+  .chat-shell { grid-template-columns: 1fr; }
 }
 </style>

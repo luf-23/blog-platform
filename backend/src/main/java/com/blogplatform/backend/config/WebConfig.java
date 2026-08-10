@@ -23,6 +23,7 @@ public class WebConfig implements WebMvcConfigurer {
                         "/user/captcha",
                         "/user/verify",
                         "/user/reset-password",
+                        "/user/getInfoByName",
                         "/user/getUserInfoByName",
                         // Public read APIs
                         "/article/search",
@@ -33,6 +34,8 @@ public class WebConfig implements WebMvcConfigurer {
                         "/category/default",
                         "/comment/list",
                         "/comment/replies",
+                        "/community/feed",
+                        "/community/meta",
                         "/announcement/**"
                 );
     }

@@ -14,6 +14,10 @@ export function getMyArticlesService(params) {
   return request({ url: "/article/my", method: "get", params });
 }
 
+export function getMyArticleDetailService(id) {
+  return request({ url: `/article/my/detail/${id}`, method: "get" });
+}
+
 export function addArticleService(data) {
   return request({ url: "/article/add", method: "post", data });
 }

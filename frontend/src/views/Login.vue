@@ -275,32 +275,30 @@ async function handleReset() {
 .auth-tabs {
   display: flex;
   gap: 0;
-  background: var(--c-surface-2);
-  border-radius: var(--radius);
-  padding: 3px;
-  margin-bottom: 28px;
+  border-bottom: 1px solid var(--c-border);
+  margin-bottom: 30px;
 }
 
 .auth-tab {
   flex: 1;
-  padding: 8px;
+  position: relative;
+  padding: 10px 8px 12px;
   font-size: 14px;
   font-weight: 500;
   border: none;
   background: transparent;
   color: var(--c-text-3);
-  border-radius: 7px;
+  border-radius: 0;
   cursor: pointer;
   transition: all var(--transition);
 }
 .auth-tab.active {
-  background: var(--c-surface);
-  color: var(--c-text);
-  box-shadow: var(--shadow-sm);
+  color: var(--c-primary);
+  box-shadow: inset 0 -2px 0 var(--c-primary);
 }
 
 .auth-title {
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 700;
   color: var(--c-text);
   margin-bottom: 6px;
@@ -316,7 +314,9 @@ async function handleReset() {
   width: 100%;
   margin-top: 8px;
   font-size: 15px;
-  font-weight: 500;
+  min-height: 46px;
+  border-radius: 9px;
+  font-weight: 700;
 }
 
 .auth-options {

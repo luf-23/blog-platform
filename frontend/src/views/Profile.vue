@@ -1,5 +1,5 @@
 <template>
-  <div class="profile-page">
+  <div class="profile-page page-shell">
     <!-- Banner -->
     <div class="profile-banner" :style="bannerStyle">
       <div class="banner-overlay"></div>
@@ -33,23 +33,51 @@
         </div>
         <div v-if="isMe" class="profile-card-right">
           <button class="btn btn-secondary" @click="showEditDialog = true">编辑资料</button>
+          <button class="btn btn-ghost" @click="shareProfile">分享主页</button>
         </div>
       </div>
 
-      <!-- Articles -->
-      <div class="profile-content">
-        <div class="section-header">
-          <h2 class="section-title">发布的文章</h2>
-          <span class="section-count">{{ articles.length }} 篇</span>
+      <section class="profile-stats surface-card">
+        <p><i>▤</i><span>文章<strong>{{ articles.length }}</strong></span></p>
+        <p><i>◉</i><span>总阅读<strong>{{ formatCount(profileStats.views) }}</strong></span></p>
+        <p><i>♡</i><span>获赞<strong>{{ formatCount(profileStats.likes) }}</strong></span></p>
+        <p><i>▢</i><span>评论<strong>{{ formatCount(profileStats.comments) }}</strong></span></p>
+      </section>
+
+      <nav class="profile-tabs">
+        <button>主页</button><button class="active">文章</button><button v-if="isMe" @click="$router.push('/article/my')">草稿</button><button>收藏</button><button>关于</button>
+      </nav>
+
+      <div class="profile-layout">
+        <div class="profile-content">
+          <div class="section-header">
+            <div><h2 class="section-title">发布的文章</h2><span class="section-count">{{ articles.length }} 篇</span></div>
+            <el-input placeholder="搜索他的文章" style="width:220px" clearable />
+          </div>
+
+          <div v-if="loading" class="loading-spinner"><el-icon class="is-loading" :size="20"><Loading /></el-icon></div>
+          <div v-else-if="articles.length === 0" class="empty-state surface-card"><p>还没有发布文章</p></div>
+          <div v-else class="article-list"><ArticleCard v-for="a in articles" :key="a.articleId" :article="a"/></div>
         </div>
 
-        <div v-if="loading" class="loading-spinner"><el-icon class="is-loading" :size="20"><Loading /></el-icon></div>
-        <div v-else-if="articles.length === 0" class="empty-state">
-          <p>还没有发布文章</p>
-        </div>
-        <div v-else class="article-list">
-          <ArticleCard v-for="a in articles" :key="a.articleId" :article="a"/>
-        </div>
+        <aside class="profile-aside">
+          <section class="surface-card trend-card">
+            <header><h3>创作趋势</h3><span>最近 30 天</span></header>
+            <div class="mini-chart"><i v-for="(height, index) in trendBars" :key="index" :style="{ height: height + '%' }"></i></div>
+            <p><span>阅读量</span><strong>较上月 +18.6%</strong></p>
+          </section>
+          <section class="surface-card category-card">
+            <header><h3>内容分类</h3><router-link v-if="isMe" to="/article/categories">管理分类</router-link></header>
+            <p v-for="category in profileCategories" :key="category.name"><span>▱ {{ category.name }}</span><strong>{{ category.count }}</strong></p>
+            <p v-if="!profileCategories.length" class="muted">暂无分类</p>
+          </section>
+          <section v-if="isMe" class="surface-card quick-card">
+            <h3>快捷操作</h3>
+            <router-link to="/article/write" class="btn btn-primary">✎ 写文章</router-link>
+            <router-link to="/article/categories" class="btn btn-secondary">▱ 新建分类</router-link>
+            <button class="btn btn-secondary" @click="showEditDialog = true">♙ 编辑资料</button>
+          </section>
+        </aside>
       </div>
     </div>
 
@@ -100,7 +128,8 @@ const showEditDialog = ref(false)
 const savingEdit = ref(false)
 const editFormRef = ref()
 
-const defaultAvatar = 'https://luf-23.oss-cn-wuhan-lr.aliyuncs.com/avatar/default.png'
+const defaultAvatar = '/avatar/avatar1.png'
+const trendBars = [34, 46, 52, 38, 68, 56, 74, 48, 62, 81, 70, 88]
 
 const isMe = computed(() => {
   const u = userInfoStore.userInfo
@@ -111,6 +140,19 @@ const isMe = computed(() => {
 const bannerStyle = computed(() => {
   const img = profileUser.value?.backgroundImage
   return img ? { backgroundImage: `url(${img})` } : {}
+})
+const profileStats = computed(() => ({
+  views: articles.value.reduce((sum, article) => sum + (article.viewCount || 0), 0),
+  likes: articles.value.reduce((sum, article) => sum + (article.likeCount || 0), 0),
+  comments: articles.value.reduce((sum, article) => sum + (article.commentCount || 0), 0)
+}))
+const profileCategories = computed(() => {
+  const counts = new Map()
+  articles.value.forEach(article => {
+    const name = article.categoryName || '未分类'
+    counts.set(name, (counts.get(name) || 0) + 1)
+  })
+  return [...counts.entries()].map(([name, count]) => ({ name, count })).slice(0, 6)
 })
 
 const editForm = reactive({
@@ -173,15 +215,29 @@ function formatDate(t) {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`
 }
 
+function formatCount(value) {
+  const number = Number(value || 0)
+  if (number >= 10000) return (number / 10000).toFixed(1) + '万'
+  if (number >= 1000) return (number / 1000).toFixed(1) + 'k'
+  return String(number)
+}
+
+async function shareProfile() {
+  try {
+    await navigator.clipboard.writeText(window.location.href)
+    ElMessage.success('主页链接已复制')
+  } catch {}
+}
+
 onMounted(loadProfile)
 watch(() => route.params.username, loadProfile)
 </script>
 
 <style scoped>
-.profile-page {}
+.profile-page { padding-top: 0; }
 
 .profile-banner {
-  height: 200px;
+  height: 220px;
   background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
   background-size: cover;
   background-position: center;
@@ -201,7 +257,7 @@ watch(() => route.params.username, loadProfile)
   align-items: flex-end;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 24px;
+  margin-bottom: 14px;
   position: relative;
 }
 
@@ -210,6 +266,7 @@ watch(() => route.params.username, loadProfile)
   align-items: flex-end;
   gap: 20px;
 }
+.profile-card-right { display: flex; gap: 7px; }
 
 .avatar-wrap {
   position: relative;
@@ -278,14 +335,27 @@ watch(() => route.params.username, loadProfile)
 }
 
 /* Content */
-.profile-content {}
+.profile-stats { display: grid; grid-template-columns: repeat(4, 1fr); margin-bottom: 14px; padding: 16px 22px; }
+.profile-stats p { display: flex; align-items: center; justify-content: center; gap: 12px; border-right: 1px solid var(--c-border); }
+.profile-stats p:last-child { border: 0; }
+.profile-stats i { color: var(--c-primary); font-size: 23px; font-style: normal; }
+.profile-stats span { display: flex; flex-direction: column; color: var(--c-text-3); font-size: 11px; }
+.profile-stats strong { color: var(--c-text); font-size: 21px; }
+.profile-tabs { display: flex; gap: 18px; margin-bottom: 18px; border-bottom: 1px solid var(--c-border); }
+.profile-tabs button { position: relative; padding: 11px 12px 13px; border: 0; background: transparent; color: var(--c-text-3); font-weight: 600; }
+.profile-tabs button.active { color: var(--c-primary); }
+.profile-tabs button.active::after { position: absolute; right: 8px; bottom: -1px; left: 8px; height: 3px; border-radius: 3px 3px 0 0; background: var(--c-primary); content: ''; }
+.profile-layout { display: grid; grid-template-columns: minmax(0, 1fr) 310px; gap: 18px; align-items: start; }
+.profile-content { min-width: 0; }
 
 .section-header {
   display: flex;
   align-items: center;
-  gap: 10px;
+  justify-content: space-between;
+  gap: 14px;
   margin-bottom: 16px;
 }
+.section-header > div { display: flex; align-items: center; gap: 10px; }
 .section-title { font-size: 18px; font-weight: 700; color: var(--c-text); }
 .section-count {
   background: var(--c-surface-2);
@@ -304,6 +374,21 @@ watch(() => route.params.username, loadProfile)
 }
 
 .article-list { display: flex; flex-direction: column; gap: 12px; }
+.profile-aside { position: sticky; top: 18px; display: flex; max-height: calc(100dvh - var(--nav-height) - 36px); flex-direction: column; gap: 12px; padding-right: 2px; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
+.profile-aside section { padding: 17px; }
+.profile-aside header { display: flex; align-items: center; justify-content: space-between; }
+.profile-aside h3 { font-size: 15px; }
+.profile-aside header span, .profile-aside header a { color: var(--c-text-4); font-size: 10px; }
+.mini-chart { display: flex; height: 110px; align-items: flex-end; gap: 6px; padding: 16px 2px 8px; border-bottom: 1px solid var(--c-border); background: repeating-linear-gradient(to bottom, transparent 0, transparent 26px, var(--c-border) 27px); }
+.mini-chart i { flex: 1; min-height: 8px; border-radius: 4px 4px 1px 1px; background: linear-gradient(to top, var(--c-primary), #8179ef); }
+.trend-card > p { display: flex; justify-content: space-between; margin-top: 10px; color: var(--c-text-3); font-size: 10px; }
+.trend-card > p strong { color: var(--c-success); }
+.category-card p { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--c-border); color: var(--c-text-2); font-size: 12px; }
+.category-card p:last-child { border: 0; }
+.category-card p strong { color: var(--c-text-4); }
+.quick-card { display: flex; flex-direction: column; gap: 8px; }
+.quick-card h3 { margin-bottom: 4px; }
+.quick-card .btn { width: 100%; }
 
 /* Avatar preview row */
 .avatar-preview-row {
@@ -311,5 +396,23 @@ watch(() => route.params.username, loadProfile)
   align-items: center;
   gap: 12px;
   width: 100%;
+}
+
+@media (max-width: 980px) {
+  .profile-layout { grid-template-columns: 1fr; }
+  .profile-aside { position: static; display: grid; grid-template-columns: repeat(2, 1fr); }
+  .quick-card { grid-column: 1 / -1; }
+  .profile-banner { height: 180px; }
+}
+@media (max-width: 680px) {
+  .profile-card, .profile-card-left { align-items: flex-start; flex-direction: column; }
+  .profile-card-right { width: 100%; }
+  .profile-stats { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .profile-stats p:nth-child(2) { border-right: 0; }
+  .profile-tabs { overflow-x: auto; }
+  .section-header { align-items: flex-start; flex-direction: column; }
+  .section-header :deep(.el-input) { width: 100% !important; }
+  .profile-aside { grid-template-columns: 1fr; }
+  .quick-card { grid-column: auto; }
 }
 </style>

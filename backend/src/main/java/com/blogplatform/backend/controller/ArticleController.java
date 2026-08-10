@@ -45,6 +45,11 @@ public class ArticleController {
         return articleService.getMyArticles(title, status, categoryId);
     }
 
+    @GetMapping("/my/detail/{id}")
+    public Result getMyArticleDetail(@PathVariable Integer id) {
+        return articleService.getPublicDetail(id);
+    }
+
     @PostMapping("/add")
     public Result add(@RequestBody Map<String, Object> body) {
         Article article = buildArticle(body);

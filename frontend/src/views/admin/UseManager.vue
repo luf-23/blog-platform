@@ -62,7 +62,7 @@ const total = ref(0)
 const loading = ref(false)
 const currentPage = ref(1)
 const pageSize = 15
-const defaultAvatar = 'https://luf-23.oss-cn-wuhan-lr.aliyuncs.com/avatar/default.png'
+const defaultAvatar = '/avatar/avatar1.png'
 
 async function fetchUsers() {
   loading.value = true

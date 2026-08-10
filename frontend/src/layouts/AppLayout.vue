@@ -1,213 +1,207 @@
-<template>
-  <div class="app-layout">
-    <!-- Nav -->
-    <header class="nav-bar">
-      <div class="nav-inner page-container">
-        <router-link to="/home" class="nav-logo">
-          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-            <rect width="28" height="28" rx="8" fill="var(--c-primary)"/>
-            <path d="M7 9h14M7 14h10M7 19h12" stroke="white" stroke-width="2" stroke-linecap="round"/>
-          </svg>
-          <span class="nav-logo-text">Blog Platform</span>
-        </router-link>
-
-        <nav class="nav-links">
-          <router-link to="/home" class="nav-link" :class="{ active: $route.path === '/home' }">发现</router-link>
-          <router-link to="/article/my" class="nav-link" :class="{ active: $route.path.startsWith('/article') }">我的博客</router-link>
-          <router-link v-if="isAdmin" to="/admin/home" class="nav-link" :class="{ active: $route.path.startsWith('/admin') }">管理后台</router-link>
-        </nav>
-
-        <div class="nav-actions">
-          <button class="btn btn-ghost btn-icon theme-toggle" @click="toggleTheme" :title="isDark ? '切换亮色' : '切换深色'">
-            <svg v-if="!isDark" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
-            </svg>
-            <svg v-else width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>
-            </svg>
-          </button>
-
-          <router-link to="/announcement" class="btn btn-ghost btn-icon" title="公告">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/>
-            </svg>
-          </router-link>
-
-          <el-dropdown trigger="click" placement="bottom-end" @command="handleCommand">
-            <div class="nav-user-avatar">
-              <img :src="userInfo?.avatarImage || defaultAvatar" :alt="userInfo?.nickname" class="avatar" style="width:32px;height:32px"/>
-            </div>
-            <template #dropdown>
-              <el-dropdown-menu>
-                <div class="nav-user-info">
-                  <img :src="userInfo?.avatarImage || defaultAvatar" class="avatar" style="width:40px;height:40px"/>
-                  <div>
-                    <div style="font-weight:600;font-size:14px">{{ userInfo?.nickname || userInfo?.username }}</div>
-                    <div style="font-size:12px;color:var(--c-text-3)">@{{ userInfo?.username }}</div>
-                  </div>
-                </div>
-                <el-dropdown-item command="profile">个人主页</el-dropdown-item>
-                <el-dropdown-item command="ai">AI 助手</el-dropdown-item>
-                <el-dropdown-item divided command="logout" style="color:var(--c-danger)">退出登录</el-dropdown-item>
-              </el-dropdown-menu>
-            </template>
-          </el-dropdown>
-        </div>
-      </div>
-    </header>
-
-    <!-- Main Content -->
-    <main class="main-content">
-      <router-view v-slot="{ Component }">
-        <transition name="fade" mode="out-in">
-          <component :is="Component" />
-        </transition>
-      </router-view>
-    </main>
-  </div>
-</template>
-
 <script setup>
-import { computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import BrandMark from '../components/common/BrandMark.vue'
 import { useTokenStore } from '../store/token.js'
 import { useUserInfoStore } from '../store/userInfo.js'
 import { useTheme } from '../composables/useTheme.js'
 import request from '../utils/request.js'
 
 const router = useRouter()
+const route = useRoute()
 const tokenStore = useTokenStore()
 const userInfoStore = useUserInfoStore()
-
 const { isDark, toggleTheme } = useTheme()
 
+const searchOpen = ref(false)
+const mobileOpen = ref(false)
+const globalKeyword = ref('')
 const userInfo = computed(() => userInfoStore.userInfo)
+const loggedIn = computed(() => Boolean(tokenStore.token))
 const isAdmin = computed(() => userInfo.value?.username === 'admin' || userInfo.value?.role === 'admin')
-const defaultAvatar = 'https://luf-23.oss-cn-wuhan-lr.aliyuncs.com/avatar/default.png'
+const adminRoute = computed(() => route.path.startsWith('/admin'))
+const workspaceRoute = computed(() =>
+  route.path === '/home' || route.path === '/community' ||
+  route.path.startsWith('/article/write') || route.path.startsWith('/article/edit/') ||
+  /^\/article\/\d+/.test(route.path) || route.path.startsWith('/ai/chat')
+)
+const defaultAvatar = '/avatar/avatar1.png'
+
+const navItems = computed(() => [
+  { label: '发现', path: '/home', active: route.path === '/home' },
+  { label: '社区', path: '/community', active: route.path.startsWith('/community') },
+  { label: '我的创作', path: '/article/my', active: route.path.startsWith('/article/my') || route.path.startsWith('/article/categories') },
+  ...(isAdmin.value ? [{ label: '管理后台', path: '/admin/home', active: route.path.startsWith('/admin') }] : [])
+])
+
+function submitSearch() {
+  const keyword = globalKeyword.value.trim()
+  router.push({ path: '/home', query: keyword ? { keyword } : {} })
+  searchOpen.value = false
+  mobileOpen.value = false
+}
+
+function goWrite() {
+  if (!loggedIn.value) {
+    router.push({ path: '/login', query: { redirect: '/article/write' } })
+    return
+  }
+  router.push('/article/write')
+}
 
 async function handleCommand(cmd) {
-  if (cmd === 'profile') {
-    router.push('/profile')
-  } else if (cmd === 'ai') {
-    router.push('/ai/chat')
-  } else if (cmd === 'logout') {
-    try {
-      await ElMessageBox.confirm('确定要退出登录吗？', '退出登录', {
-        confirmButtonText: '退出',
-        cancelButtonText: '取消',
-        type: 'warning'
-      })
-      await request({ url: '/user/logout', method: 'post' }).catch(() => {})
-      tokenStore.removeToken()
-      userInfoStore.clearUserInfo()
-      ElMessage.success('已退出登录')
-      router.push('/login')
-    } catch {}
-  }
+  if (cmd === 'profile') router.push('/profile')
+  if (cmd === 'articles') router.push('/article/my')
+  if (cmd === 'ai') router.push('/ai/chat')
+  if (cmd === 'theme') toggleTheme()
+  if (cmd !== 'logout') return
+
+  try {
+    await ElMessageBox.confirm('确定要退出当前账号吗？', '退出登录', {
+      confirmButtonText: '退出登录',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+    await request({ url: '/user/logout', method: 'post' }).catch(() => {})
+    tokenStore.removeToken()
+    userInfoStore.clearUserInfo()
+    ElMessage.success('已安全退出')
+    router.push('/login')
+  } catch {}
 }
 </script>
 
+<template>
+  <div class="app-layout">
+    <header v-if="!adminRoute" class="topbar">
+      <div class="topbar__inner page-container">
+        <router-link to="/home" class="topbar__brand" aria-label="墨语首页">
+          <BrandMark />
+        </router-link>
+
+        <nav class="topbar__nav" aria-label="主导航">
+          <router-link
+            v-for="item in navItems"
+            :key="item.path"
+            :to="item.path"
+            class="topbar__link"
+            :class="{ active: item.active }"
+          >{{ item.label }}</router-link>
+        </nav>
+
+        <div class="topbar__actions">
+          <form v-if="searchOpen" class="global-search" @submit.prevent="submitSearch">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+            <input id="global-search" v-model="globalKeyword" name="global-search" autofocus placeholder="搜索文章、作者或标签" />
+            <button type="button" aria-label="关闭搜索" @click="searchOpen = false">×</button>
+          </form>
+          <button v-else class="topbar__icon" aria-label="搜索" @click="searchOpen = true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+          </button>
+
+          <button class="write-button" @click="goWrite">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg>
+            <span>写文章</span>
+          </button>
+
+          <router-link to="/announcement" class="topbar__icon notification" aria-label="系统公告">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 8-3 8h18s-3-1-3-8"/><path d="M10 20h4"/></svg>
+            <span class="notification__dot"></span>
+          </router-link>
+
+          <el-dropdown v-if="loggedIn" trigger="click" placement="bottom-end" @command="handleCommand">
+            <button class="user-trigger">
+              <img :src="userInfo?.avatarImage || defaultAvatar" :alt="userInfo?.nickname || '用户头像'" />
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m8 10 4 4 4-4"/></svg>
+            </button>
+            <template #dropdown>
+              <el-dropdown-menu class="user-menu">
+                <div class="user-menu__head">
+                  <img :src="userInfo?.avatarImage || defaultAvatar" alt="" />
+                  <div><strong>{{ userInfo?.nickname || userInfo?.username }}</strong><span>@{{ userInfo?.username }}</span></div>
+                </div>
+                <el-dropdown-item command="profile">个人主页</el-dropdown-item>
+                <el-dropdown-item command="articles">内容管理</el-dropdown-item>
+                <el-dropdown-item command="ai">AI 写作助手</el-dropdown-item>
+                <el-dropdown-item command="theme">{{ isDark ? '切换浅色模式' : '切换深色模式' }}</el-dropdown-item>
+                <el-dropdown-item divided command="logout" class="danger-item">退出登录</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+          <router-link v-else to="/login" class="login-link">登录</router-link>
+
+          <button class="mobile-toggle" aria-label="展开导航" @click="mobileOpen = !mobileOpen">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <transition name="fade">
+        <nav v-if="mobileOpen" class="mobile-nav">
+          <router-link v-for="item in navItems" :key="item.path" :to="item.path" @click="mobileOpen = false">{{ item.label }}</router-link>
+        </nav>
+      </transition>
+    </header>
+
+    <main class="main-content" :class="{ 'main-content--admin': adminRoute, 'main-content--workspace': workspaceRoute }">
+      <router-view v-slot="{ Component }">
+        <transition name="fade" mode="out-in"><component :is="Component" /></transition>
+      </router-view>
+    </main>
+  </div>
+</template>
+
 <style scoped>
-.app-layout {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
+.app-layout { display: flex; height: 100%; flex-direction: column; overflow: hidden; }
+.topbar { position: relative; z-index: 100; flex: 0 0 var(--nav-height); border-bottom: 1px solid var(--c-border); background: rgba(255,255,255,.96); backdrop-filter: blur(14px); }
+.topbar__inner { display: flex; height: var(--nav-height); align-items: center; gap: 38px; }
+.topbar__brand { display: flex; flex: 0 0 auto; }
+.topbar__nav { display: flex; height: 100%; align-items: stretch; gap: 4px; }
+.topbar__link { position: relative; display: flex; align-items: center; padding: 0 15px; color: var(--c-text-2); font-size: 14px; font-weight: 700; transition: color var(--transition); }
+.topbar__link::after { position: absolute; right: 15px; bottom: -1px; left: 15px; height: 3px; border-radius: 3px 3px 0 0; background: var(--c-primary); content: ''; opacity: 0; transform: scaleX(.35); transition: all var(--transition); }
+.topbar__link:hover, .topbar__link.active { color: var(--c-primary); }
+.topbar__link.active::after { opacity: 1; transform: scaleX(1); }
+.topbar__actions { display: flex; flex: 1; align-items: center; justify-content: flex-end; gap: 8px; min-width: 0; }
+.topbar__icon, .mobile-toggle { display: grid; width: 38px; height: 38px; place-items: center; border: 1px solid transparent; border-radius: var(--radius-sm); background: transparent; color: var(--c-text-2); transition: all var(--transition); }
+.topbar__icon:hover, .mobile-toggle:hover { border-color: var(--c-border); background: var(--c-surface-2); color: var(--c-primary); }
+.topbar__icon svg, .mobile-toggle svg, .write-button svg { width: 19px; height: 19px; }
+.write-button { display: inline-flex; height: 40px; align-items: center; gap: 8px; padding: 0 18px; border: 1px solid var(--c-primary); border-radius: var(--radius-sm); background: var(--c-primary); color: #fff; font-weight: 700; transition: all var(--transition); }
+.write-button:hover { border-color: var(--c-primary-hover); background: var(--c-primary-hover); box-shadow: 0 8px 18px rgba(var(--c-primary-rgb), .18); }
+.notification { position: relative; }
+.notification__dot { position: absolute; top: 7px; right: 7px; width: 7px; height: 7px; border: 2px solid var(--c-surface); border-radius: 50%; background: var(--c-danger); }
+.user-trigger { display: flex; height: 40px; align-items: center; gap: 4px; padding: 2px 4px 2px 2px; border: 0; border-radius: var(--radius-full); background: transparent; color: var(--c-text-3); }
+.user-trigger img { width: 36px; height: 36px; border: 2px solid var(--c-surface); border-radius: 50%; box-shadow: 0 0 0 1px var(--c-border); object-fit: cover; }
+.user-trigger svg { width: 15px; height: 15px; }
+.global-search { display: flex; width: min(360px, 38vw); height: 40px; align-items: center; gap: 9px; padding: 0 10px 0 13px; border: 1px solid var(--c-primary); border-radius: var(--radius-sm); background: var(--c-surface); box-shadow: 0 0 0 3px rgba(var(--c-primary-rgb), .08); }
+.global-search svg { width: 17px; height: 17px; color: var(--c-text-4); }
+.global-search input { min-width: 0; flex: 1; border: 0; outline: 0; background: transparent; color: var(--c-text); }
+.global-search button { border: 0; background: transparent; color: var(--c-text-4); font-size: 20px; }
+.login-link { padding: 8px 10px; color: var(--c-primary); font-weight: 700; }
+.user-menu__head { display: flex; min-width: 220px; align-items: center; gap: 10px; padding: 12px 16px 14px; border-bottom: 1px solid var(--c-border); margin-bottom: 5px; }
+.user-menu__head img { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; }
+.user-menu__head div { display: flex; min-width: 0; flex-direction: column; }
+.user-menu__head strong { color: var(--c-text); }
+.user-menu__head span { color: var(--c-text-3); font-size: 12px; }
+.main-content { min-height: 0; flex: 1; overflow: auto; overscroll-behavior: contain; }
+.main-content--admin { overflow: hidden; }
+.main-content--workspace { overflow: hidden; }
+.mobile-toggle { display: none; }
+.mobile-nav { position: absolute; top: var(--nav-height); right: 14px; left: 14px; display: none; padding: 8px; border: 1px solid var(--c-border); border-radius: var(--radius-lg); background: var(--c-surface); box-shadow: var(--shadow-md); }
+.mobile-nav a { padding: 10px 12px; border-radius: var(--radius-sm); font-weight: 600; }
+.mobile-nav a.router-link-active { background: var(--c-primary-soft); color: var(--c-primary); }
+
+@media (max-width: 900px) {
+  .topbar__nav { display: none; }
+  .mobile-toggle, .mobile-nav { display: flex; }
+  .mobile-nav { flex-direction: column; }
+  .global-search { width: min(340px, 48vw); }
 }
 
-.nav-bar {
-  flex: 0 0 var(--nav-height);
-  z-index: 100;
-  height: var(--nav-height);
-  background: rgba(var(--c-surface, 255,255,255), 0.85);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--c-border);
+@media (max-width: 620px) {
+  .topbar__inner { gap: 12px; }
+  .write-button { width: 40px; padding: 0; justify-content: center; }
+  .write-button span, .topbar__actions > .topbar__icon:first-of-type { display: none; }
+  .global-search { position: absolute; right: 14px; bottom: -52px; left: 14px; width: auto; box-shadow: var(--shadow-md); }
 }
-
-[data-theme="dark"] .nav-bar {
-  background: rgba(26, 26, 31, 0.85);
-}
-
-.nav-inner {
-  height: 100%;
-  display: flex;
-  align-items: center;
-  gap: 32px;
-}
-
-.nav-logo {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-weight: 700;
-  font-size: 18px;
-  color: var(--c-text);
-  text-decoration: none;
-  flex-shrink: 0;
-}
-
-.nav-logo-text { color: var(--c-text); }
-
-.nav-links {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  flex: 1;
-}
-
-.nav-link {
-  padding: 6px 12px;
-  border-radius: var(--radius);
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--c-text-3);
-  transition: all var(--transition);
-  text-decoration: none;
-}
-.nav-link:hover { color: var(--c-text); background: var(--c-surface-2); }
-.nav-link.active { color: var(--c-primary); background: var(--c-primary-light); }
-
-.nav-actions {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  flex-shrink: 0;
-}
-
-.nav-user-avatar {
-  cursor: pointer;
-  border-radius: 50%;
-  transition: opacity var(--transition);
-}
-.nav-user-avatar:hover { opacity: 0.8; }
-
-.nav-user-info {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--c-border);
-  margin-bottom: 4px;
-}
-
-.main-content {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding-top: 24px;
-  padding-bottom: 0;
-  box-sizing: border-box;
-  overscroll-behavior: none;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-
-.main-content::-webkit-scrollbar {
-  display: none;
-}
-
-.theme-toggle { color: var(--c-text-3); }
 </style>

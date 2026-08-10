@@ -4,6 +4,7 @@ import { useTokenStore } from "../store/token.js";
 import { useUserInfoStore } from "../store/userInfo.js";
 import AppLayout from "../layouts/AppLayout.vue";
 import AuthLayout from "../layouts/AuthLayout.vue";
+import AdminLayout from "../layouts/AdminLayout.vue";
 
 const routes = [
   { path: "/", redirect: "/home" },
@@ -29,6 +30,12 @@ const routes = [
         name: "Home",
         component: () => import("../views/Home.vue"),
         meta: { title: "发现" }
+      },
+      {
+        path: "community",
+        name: "Community",
+        component: () => import("../views/Community.vue"),
+        meta: { title: "社区广场" }
       },
       {
         path: "article/:id",
@@ -89,6 +96,7 @@ const routes = [
       // Admin routes
       {
         path: "admin",
+        component: AdminLayout,
         meta: { requireAuth: true, requireAdmin: true },
         children: [
           { path: "", redirect: { name: "AdminHome" } },
@@ -134,7 +142,7 @@ router.beforeEach((to, _from, next) => {
   const token = tokenStore.token;
 
   if (to.meta.title) {
-    document.title = `${to.meta.title} · Blog Platform`;
+    document.title = `${to.meta.title} · 墨语`;
   }
 
   if (to.meta.guest && token) { next("/home"); return; }

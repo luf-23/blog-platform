@@ -1,33 +1,29 @@
-import request from "../utils/request";
-export function getCommunityListService() {
-  return request({
-    url: "/community/list",
-    method: "get",
-    headers: {
-      ContentType: "application/xxx-www-form-urlencoded"
-    }
-  });
+import request from '../utils/request.js'
+
+export function getCommunityFeedService(params) {
+  return request({ url: '/community/feed', method: 'get', params })
 }
 
-export function getSelectedCommunityListService(params) {
-  return request({
-    url: "/community/selectedList",
-    method: "get",
-    params,
-    headers: {
-      ContentType: "application/xxx-www-form-urlencoded"
-    }
-  });
+export function getFollowingCommunityFeedService(params) {
+  return request({ url: '/community/feed/following', method: 'get', params })
 }
 
-//根据categoryId获取作者名字
-export function getAuthorNameService(params) {
-  return request({
-    url: "/community/author",
-    method: "get",
-    params,
-    headers: {
-      ContentType: "application/xxx-www-form-urlencoded"
-    }
-  });
+export function getCommunityMetaService() {
+  return request({ url: '/community/meta', method: 'get' })
+}
+
+export function createCommunityPostService(data) {
+  return request({ url: '/community/posts', method: 'post', data })
+}
+
+export function toggleCommunityLikeService(postId) {
+  return request({ url: `/community/posts/${postId}/like`, method: 'post' })
+}
+
+export function voteCommunityPollService(postId, optionId) {
+  return request({ url: `/community/posts/${postId}/vote`, method: 'post', params: { optionId } })
+}
+
+export function toggleCommunityFollowService(userId) {
+  return request({ url: `/community/follow/${userId}`, method: 'post' })
 }
