@@ -96,6 +96,7 @@ import { Loading } from '@element-plus/icons-vue'
 import { publishCommentService, deleteCommentService, getCommentRepliesService } from '../../api/comment.js'
 import { likeCommentService, unlikeCommentService } from '../../api/commentLike.js'
 import { useUserInfoStore } from '../../store/userInfo.js'
+import { DEFAULT_AVATAR_URL as defaultAvatar } from '../../constants/assets.js'
 
 const props = defineProps({
   comment: { type: Object, required: true },
@@ -106,7 +107,6 @@ const emit = defineEmits(['reply-submitted', 'deleted'])
 
 const userInfoStore = useUserInfoStore()
 const currentUser = computed(() => userInfoStore.userInfo)
-const defaultAvatar = 'https://luf-23.oss-cn-wuhan-lr.aliyuncs.com/avatar/default.png'
 const REPLY_PAGE_SIZE = 10
 
 const replyTarget = ref(null)

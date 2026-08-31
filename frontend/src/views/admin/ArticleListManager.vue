@@ -54,8 +54,9 @@
     <!-- Article list -->
     <div v-else class="card articles-table">
       <div v-for="article in articles" :key="article.articleId" class="article-row">
-        <div class="article-cover" v-if="article.coverImage">
-          <img :src="article.coverImage" :alt="article.title"/>
+        <div class="article-cover" :class="{ fallback: !hasCover(article) }">
+          <img v-if="hasCover(article)" :src="article.coverImage" :alt="`${article.title}封面`" @error="markCoverFailed(article.articleId)" />
+          <strong v-else>{{ article.title?.trim().slice(0, 1) || '文' }}</strong>
         </div>
         <div class="article-body">
           <div class="article-top">
@@ -109,16 +110,25 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Loading } from '@element-plus/icons-vue'
 import { getAdminArticlesService, acceptArticleService, rejectArticleService, dropArticleService as dropService } from '../../api/admin.js'
 import { getAdminStatsService } from '../../api/admin.js'
+import { DEFAULT_AVATAR_URL as defaultAvatar } from '../../constants/assets.js'
 
 const articles = ref([])
 const total = ref(0)
 const pendingCount = ref(0)
 const loading = ref(false)
+const failedCoverIds = ref(new Set())
 const currentPage = ref(1)
 const pageSize = 10
-const defaultAvatar = '/avatar/avatar1.png'
 
 const filters = reactive({ status: 'pending', keyword: '' })
+
+function hasCover(article) {
+  return Boolean(article.coverImage && !failedCoverIds.value.has(article.articleId))
+}
+
+function markCoverFailed(articleId) {
+  failedCoverIds.value = new Set([...failedCoverIds.value, articleId])
+}
 
 const statusTabs = [
   { label: '待审核', value: 'pending' },
@@ -300,6 +310,8 @@ onMounted(() => {
   flex-shrink: 0;
 }
 .article-cover img { width: 100%; height: 100%; object-fit: cover; }
+.article-cover.fallback { display: grid; place-items: center; border: 1px solid var(--c-border); background: linear-gradient(135deg, var(--c-primary-soft), var(--c-surface-3)); color: var(--c-primary); }
+.article-cover.fallback strong { font-size: 20px; }
 
 .article-body { flex: 1; min-width: 0; }
 

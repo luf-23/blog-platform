@@ -51,7 +51,8 @@ public class UserServiceImpl implements UserService {
         String accessToken = JwtUtil.genAccessToken(claims);
         String refreshToken = JwtUtil.genRefreshToken(claims);
 
-        response.addHeader("Set-Cookie", cookieHeaderBuilder(refreshToken).toString());
+        clearLegacyRefreshCookie(response);
+        response.addHeader("Set-Cookie", cookieHeaderBuilder(refreshToken));
 
         System.out.println("LoginInfo:"+user);
         userMapper.updateLoginTime(user.getUserId());
@@ -151,29 +152,39 @@ public class UserServiceImpl implements UserService {
 
         String accessToken = JwtUtil.genAccessToken(claims);
         String newRefreshToken = JwtUtil.genRefreshToken(claims);
-        response.addHeader("Set-Cookie", cookieHeaderBuilder(newRefreshToken).toString());
+        clearLegacyRefreshCookie(response);
+        response.addHeader("Set-Cookie", cookieHeaderBuilder(newRefreshToken));
         return Result.success(accessToken);
     }
 
     @Override
-    public Result logout(String refreshToken) {
+    public Result logout(HttpServletResponse response) {
         Map<String, Object> claims = ThreadLocalUtil.get();
 
         // jti add to black list
         tokenUtil.add((String) claims.get("jti"));
+        response.addHeader("Set-Cookie", clearCookieHeader("/"));
+        clearLegacyRefreshCookie(response);
         return Result.success();
     }
 
-    private StringBuilder cookieHeaderBuilder(String refreshToken){
+    private String cookieHeaderBuilder(String refreshToken){
         Integer expire = Integer.valueOf((int) JwtUtil.REFRESH_EXPIRE_TIME / 1000);
         StringBuilder cookieBuilder = new StringBuilder();
         cookieBuilder.append("refreshToken=").append(refreshToken);
-        cookieBuilder.append("; Path=/user/refreshToken");
+        cookieBuilder.append("; Path=/");
         cookieBuilder.append("; HttpOnly");  // 防止XSS攻击
         cookieBuilder.append("; Max-Age=").append(expire);  // 有效期
         cookieBuilder.append("; SameSite=Lax");  // 允许跨站
-        cookieBuilder.append("; Secure=false");
-        return cookieBuilder;
+        return cookieBuilder.toString();
+    }
+
+    private void clearLegacyRefreshCookie(HttpServletResponse response) {
+        response.addHeader("Set-Cookie", clearCookieHeader("/user/refreshToken"));
+    }
+
+    private String clearCookieHeader(String path) {
+        return "refreshToken=; Path=" + path + "; HttpOnly; Max-Age=0; SameSite=Lax";
     }
 
 }

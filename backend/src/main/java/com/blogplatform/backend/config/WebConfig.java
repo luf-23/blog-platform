@@ -31,7 +31,6 @@ public class WebConfig implements WebMvcConfigurer {
                         "/tag/all",
                         "/tag/popular",
                         "/category/byUser/**",
-                        "/category/default",
                         "/comment/list",
                         "/comment/replies",
                         "/community/feed",

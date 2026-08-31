@@ -72,7 +72,7 @@ public class UserController {
         return userService.refresh(refreshToken,response);
     }
     @PostMapping("/logout")
-    public Result logout(@CookieValue(name = "refreshToken") String refreshToken){
-        return userService.logout(refreshToken);
+    public Result logout(HttpServletResponse response){
+        return userService.logout(response);
     }
 }

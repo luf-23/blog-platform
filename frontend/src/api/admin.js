@@ -24,6 +24,22 @@ export function getAdminUsersService(params) {
   return request({ url: "/admin/users", method: "get", params });
 }
 
+export function getAdminTagsService() {
+  return request({ url: "/admin/tags", method: "get" });
+}
+
+export function addAdminTagService(data) {
+  return request({ url: "/admin/tags", method: "post", data });
+}
+
+export function updateAdminTagService(tagId, data) {
+  return request({ url: `/admin/tags/${tagId}`, method: "put", data });
+}
+
+export function deleteAdminTagService(tagId) {
+  return request({ url: `/admin/tags/${tagId}`, method: "delete" });
+}
+
 export function getAnnouncementService() {
   return request({ url: "/admin/announcement", method: "get" });
 }

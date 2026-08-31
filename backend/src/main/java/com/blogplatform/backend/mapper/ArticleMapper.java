@@ -89,6 +89,20 @@ public interface ArticleMapper {
                                     @Param("status") String status,
                                     @Param("categoryId") Integer categoryId);
 
+    @Select("<script>" +
+            "SELECT a.*, c.category_name FROM article a " +
+            "LEFT JOIN category c ON c.category_id = a.category_id " +
+            "WHERE a.user_id = #{userId} " +
+            "<if test='title != null and title != \"\"'>AND (a.title LIKE CONCAT('%', #{title}, '%') OR a.summary LIKE CONCAT('%', #{title}, '%')) </if>" +
+            "<if test='status != null and status != \"\"'>AND a.status = #{status} </if>" +
+            "<if test='categoryId != null'>AND a.category_id = #{categoryId} </if>" +
+            "ORDER BY a.update_time DESC" +
+            "</script>")
+    List<ArticleVO> selectMyByCondition(@Param("userId") Integer userId,
+                                        @Param("title") String title,
+                                        @Param("status") String status,
+                                        @Param("categoryId") Integer categoryId);
+
     @Select("SELECT * FROM article WHERE article_id = #{articleId}")
     Article selectById(Integer articleId);
 

@@ -47,7 +47,7 @@ public class CategoryController {
     }
 
     @PostMapping("/default")
-    public Result setDefault(@RequestParam Integer userId) {
-        return categoryService.setDefault(userId);
+    public Result setDefault() {
+        return categoryService.setDefault();
     }
 }

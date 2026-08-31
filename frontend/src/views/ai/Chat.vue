@@ -19,6 +19,7 @@ import { getUserInfoService } from "../../api/user.js";
 import { renderAssistantMessage } from "../../utils/markdown/chat/assistant.js";
 import { renderUserMessage } from "../../utils/markdown/chat/user.js";
 import EmptyState from "../../components/common/EmptyState.vue";
+import { DEFAULT_AVATAR_URL as defaultAvatar } from "../../constants/assets.js";
 
 const chatStore = useChatStore();
 const userInfoStore = useUserInfoStore();
@@ -301,7 +302,7 @@ const QUICK_ACTIONS = [
             <span class="chat-welcome__icon">
               <el-icon size="32"><ChatLineRound /></el-icon>
             </span>
-            <h2>你好，我是墨语 AI 写作助手</h2>
+            <h2>你好，我是 BYTE 写作助手</h2>
             <p>从选题、大纲到润色发布，陪你把想法变成一篇好文章</p>
           </div>
           <div class="chat-welcome__suggestions">
@@ -327,8 +328,8 @@ const QUICK_ACTIONS = [
               :size="36"
               :src="
                 msg.role === 'assistant'
-                  ? '/avatar/avatar2.png'
-                  : userInfo?.avatarImage || '/avatar/avatar1.png'
+                  ? defaultAvatar
+                  : userInfo?.avatarImage || defaultAvatar
               "
               class="message-row__avatar"
             />

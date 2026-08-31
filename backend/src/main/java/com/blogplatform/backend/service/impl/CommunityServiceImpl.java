@@ -1,8 +1,9 @@
 package com.blogplatform.backend.service.impl;
 
-import com.blogplatform.backend.entity.CommunityPost;
+import com.blogplatform.backend.entity.ArticleVO;
 import com.blogplatform.backend.entity.Result;
 import com.blogplatform.backend.mapper.CommunityMapper;
+import com.blogplatform.backend.mapper.TagMapper;
 import com.blogplatform.backend.service.CommunityService;
 import com.blogplatform.backend.utils.ThreadLocalUtil;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,31 +20,37 @@ public class CommunityServiceImpl implements CommunityService {
     @Autowired
     private CommunityMapper communityMapper;
 
+    @Autowired
+    private TagMapper tagMapper;
+
     @Override
-    public Result feed(String sort, String topic, String keyword, Integer page, Integer pageSize) {
-        return feedData(sort, topic, keyword, page, pageSize, null);
+    public Result feed(String sort, Integer tagId, String keyword, Integer page, Integer pageSize) {
+        return feedData(sort, tagId, keyword, page, pageSize, null);
     }
 
     @Override
-    public Result followingFeed(String topic, String keyword, Integer page, Integer pageSize) {
+    public Result followingFeed(Integer tagId, String keyword, Integer page, Integer pageSize) {
         Integer userId = currentUserId();
         if (userId == null) return Result.error("请先登录");
-        return feedData("latest", topic, keyword, page, pageSize, userId);
+        return feedData("latest", tagId, keyword, page, pageSize, userId);
     }
 
-    private Result feedData(String sort, String topic, String keyword, Integer page, Integer pageSize, Integer followerId) {
+    private Result feedData(String sort, Integer tagId, String keyword, Integer page,
+                            Integer pageSize, Integer followerId) {
         int safePage = page == null || page < 1 ? 1 : page;
-        int safeSize = pageSize == null ? 10 : Math.min(Math.max(pageSize, 1), 30);
+        int safeSize = pageSize == null ? 12 : Math.min(Math.max(pageSize, 1), 30);
         String safeSort = "hot".equals(sort) ? "hot" : "latest";
-        List<CommunityPost> list = communityMapper.selectFeed(
-                safeSort, topic, keyword, followerId, (safePage - 1) * safeSize, safeSize);
-        list.stream()
-                .filter(post -> "poll".equals(post.getType()))
-                .forEach(post -> post.setOptions(communityMapper.selectOptions(post.getPostId())));
+        String safeKeyword = keyword == null ? null : keyword.trim();
+
+        List<ArticleVO> list = communityMapper.selectFeed(
+                safeSort, tagId, safeKeyword, followerId, (safePage - 1) * safeSize, safeSize);
+        for (ArticleVO article : list) {
+            article.setTags(tagMapper.selectByArticleId(article.getArticleId()));
+        }
 
         Map<String, Object> data = new HashMap<>();
         data.put("list", list);
-        data.put("total", communityMapper.countFeed(topic, keyword, followerId));
+        data.put("total", communityMapper.countFeed(tagId, safeKeyword, followerId));
         data.put("page", safePage);
         data.put("pageSize", safeSize);
         return Result.success(data);
@@ -51,62 +58,18 @@ public class CommunityServiceImpl implements CommunityService {
 
     @Override
     public Result meta() {
+        Integer currentUserId = currentUserId();
+        List<Map<String, Object>> creators = communityMapper.selectRecommendedCreators();
+        for (Map<String, Object> creator : creators) {
+            Integer creatorId = numberValue(creator.get("userId"));
+            creator.put("following", currentUserId != null && creatorId != null
+                    && communityMapper.isFollowing(currentUserId, creatorId) > 0);
+        }
+
         Map<String, Object> data = new HashMap<>();
-        data.put("hotTopics", communityMapper.selectHotTopics());
-        data.put("recommendedCreators", communityMapper.selectRecommendedCreators());
+        data.put("hotTags", communityMapper.selectHotTags());
+        data.put("recommendedCreators", creators);
         return Result.success(data);
-    }
-
-    @Override
-    @Transactional
-    public Result create(CommunityPost post, List<String> options) {
-        Integer userId = currentUserId();
-        if (userId == null) return Result.error("请先登录");
-        if (post.getTitle() == null || post.getTitle().isBlank()) return Result.error("标题不能为空");
-        if (post.getContent() == null || post.getContent().isBlank()) return Result.error("内容不能为空");
-
-        String type = post.getType();
-        if (!List.of("question", "share", "poll").contains(type)) post.setType("share");
-        if ("poll".equals(post.getType()) && (options == null || options.stream().filter(option -> option != null && !option.isBlank()).count() < 2)) {
-            return Result.error("投票至少需要两个选项");
-        }
-        post.setUserId(userId);
-        post.setTopic(post.getTopic() == null || post.getTopic().isBlank() ? "随想" : post.getTopic().trim());
-        communityMapper.insertPost(post);
-
-        if ("poll".equals(post.getType())) {
-            options.stream().filter(option -> option != null && !option.isBlank()).limit(6)
-                    .forEach(option -> communityMapper.insertOption(post.getPostId(), option.trim()));
-        }
-        return Result.success(post.getPostId());
-    }
-
-    @Override
-    @Transactional
-    public Result toggleLike(Integer postId) {
-        Integer userId = currentUserId();
-        if (userId == null) return Result.error("请先登录");
-        boolean liked = communityMapper.hasLiked(postId, userId) > 0;
-        if (liked) {
-            communityMapper.deleteLike(postId, userId);
-            communityMapper.updateLikeCount(postId, -1);
-        } else {
-            communityMapper.insertLike(postId, userId);
-            communityMapper.updateLikeCount(postId, 1);
-        }
-        return Result.success(Map.of("liked", !liked));
-    }
-
-    @Override
-    @Transactional
-    public Result vote(Integer postId, Integer optionId) {
-        Integer userId = currentUserId();
-        if (userId == null) return Result.error("请先登录");
-        if (communityMapper.hasVoted(postId, userId) > 0) return Result.error("你已经参与过该投票");
-        if (communityMapper.updateOptionVote(postId, optionId) == 0) return Result.error("投票选项不存在");
-        communityMapper.insertVote(postId, optionId, userId);
-        communityMapper.updatePostVote(postId);
-        return Result.success();
     }
 
     @Override
@@ -122,7 +85,15 @@ public class CommunityServiceImpl implements CommunityService {
     }
 
     private Integer currentUserId() {
-        Map<String, Object> claims = ThreadLocalUtil.get();
-        return claims == null ? null : (Integer) claims.get("id");
+        try {
+            Map<String, Object> claims = ThreadLocalUtil.get();
+            return claims == null ? null : (Integer) claims.get("id");
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private Integer numberValue(Object value) {
+        return value instanceof Number number ? number.intValue() : null;
     }
 }

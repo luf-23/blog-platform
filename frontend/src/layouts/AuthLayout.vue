@@ -16,7 +16,7 @@ import BrandMark from '../components/common/BrandMark.vue'
         <span class="ink-line ink-line--two"></span>
         <article class="story-card story-card--main">
           <div class="story-image"><i></i><b></b></div>
-          <div><small>产品设计</small><strong>关于专注力的几点思考</strong><p>在信息过载的时代，专注力成为稀缺的认知资源。</p><footer>墨语 · 128 喜欢 · 24 评论</footer></div>
+          <div><small>工程实践</small><strong>一次真实的系统重构复盘</strong><p>记录问题、取舍与可复现的解决方案。</p><footer>BYTE · 128 喜欢 · 24 评论</footer></div>
         </article>
         <article class="story-card story-card--quote"><b>“</b><span>这段话很有启发，受益匪浅！</span><small>思考者 · ♡</small></article>
         <article class="story-card story-card--saved"><b>♧</b><span>已收藏<small>稍后再读</small></span></article>
@@ -26,7 +26,7 @@ import BrandMark from '../components/common/BrandMark.vue'
           <path d="M151 16c-41 16-65 45-72 85 30-8 53-27 72-85ZM76 108c-31 4-48 18-54 42 25 3 43-11 54-42ZM65 151c-29 12-41 30-36 54 24-4 37-22 36-54Z" fill="currentColor" opacity=".78"/>
         </svg>
       </div>
-      <p class="auth-story__foot">© 2026 墨语 · 让每一次表达都有回响</p>
+      <p class="auth-story__foot">© 2026 BYTE · Build in public.</p>
     </section>
 
     <section class="auth-panel">
@@ -38,8 +38,8 @@ import BrandMark from '../components/common/BrandMark.vue'
 </template>
 
 <style scoped>
-.auth-layout { display: grid; width: 100%; height: 100%; grid-template-columns: minmax(480px, 1.12fr) minmax(480px, .88fr); overflow: auto; background: #fbfaf7; color: #161b2a; }
-.auth-story { position: relative; min-height: 760px; overflow: hidden; padding: 38px clamp(44px, 6vw, 94px); background: radial-gradient(circle at 72% 34%, #f1efff 0, transparent 31%), radial-gradient(circle at 18% 76%, #eef9f7 0, transparent 26%), #fbfaf7; }
+.auth-layout { display: grid; width: 100%; height: 100dvh; min-height: 0; grid-template-columns: minmax(480px, 1.12fr) minmax(480px, .88fr); overflow: hidden; background: #fbfaf7; color: #161b2a; }
+.auth-story { position: relative; height: 100%; min-height: 0; overflow: hidden; padding: 38px clamp(44px, 6vw, 94px); background: radial-gradient(circle at 72% 34%, #f1efff 0, transparent 31%), radial-gradient(circle at 18% 76%, #eef9f7 0, transparent 26%), #fbfaf7; }
 .auth-story__brand { position: relative; z-index: 4; }
 .auth-story__copy { position: relative; z-index: 2; margin-top: clamp(76px, 11vh, 130px); }.auth-story__copy h1 { margin: 8px 0 12px; font-family: "Songti SC", "STSong", serif; font-size: clamp(44px, 5vw, 72px); line-height: 1.18; letter-spacing: .08em; }.auth-story__copy > p:last-child { color: #737c8e; font-size: 17px; }
 .story-canvas { position: absolute; right: 6%; bottom: 8%; width: 72%; height: 48%; color: #1f2d58; }
@@ -52,7 +52,7 @@ import BrandMark from '../components/common/BrandMark.vue'
 .story-feather { position: absolute; bottom: -26px; left: -22px; z-index: 1; width: 170px; color: #2f3b6c; transform: rotate(-14deg); opacity: .9; }
 .ink-line { position: absolute; z-index: 0; border: 2px solid rgba(81,70,229,.12); border-radius: 50%; }.ink-line--one { right: 5%; bottom: 0; width: 520px; height: 240px; transform: rotate(15deg); }.ink-line--two { right: 15%; bottom: 5%; width: 430px; height: 180px; transform: rotate(-12deg); }
 .auth-story__foot { position: absolute; bottom: 24px; left: clamp(44px, 6vw, 94px); color: #9ba4b3; font-size: 11px; }
-.auth-panel { display: flex; min-height: 760px; align-items: center; justify-content: center; flex-direction: column; padding: 40px; background: #f7f8fa; }
+.auth-panel { display: flex; height: 100%; min-height: 0; align-items: center; justify-content: center; flex-direction: column; padding: 40px; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; background: #f7f8fa; }
 .auth-card { width: min(500px, 100%); padding: 42px 46px; border-radius: 20px; box-shadow: 0 24px 70px rgba(23, 31, 54, .09); }
 .auth-panel__mobile-brand { display: none; margin-bottom: 24px; }.auth-legal { display: flex; gap: 12px; margin-top: 24px; color: #8c95a5; font-size: 12px; }
 

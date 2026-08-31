@@ -117,6 +117,7 @@ import { getUserInfoByNameService, updateUserInfoService, getUserInfoService } f
 import { searchArticlesService } from '../api/article.js'
 import { useUserInfoStore } from '../store/userInfo.js'
 import ArticleCard from '../components/article/ArticleCard.vue'
+import { DEFAULT_AVATAR_URL as defaultAvatar } from '../constants/assets.js'
 
 const route = useRoute()
 const userInfoStore = useUserInfoStore()
@@ -128,7 +129,6 @@ const showEditDialog = ref(false)
 const savingEdit = ref(false)
 const editFormRef = ref()
 
-const defaultAvatar = '/avatar/avatar1.png'
 const trendBars = [34, 46, 52, 38, 68, 56, 74, 48, 62, 81, 70, 88]
 
 const isMe = computed(() => {

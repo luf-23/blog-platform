@@ -8,11 +8,11 @@ defineProps({
 <template>
   <span class="brand-mark" :class="{ 'brand-mark--compact': compact }">
     <span class="brand-mark__icon" aria-hidden="true">
-      <span>{墨}</span>
+      <span>B</span>
     </span>
     <span v-if="!compact" class="brand-mark__text">
-      <strong>墨语</strong>
-      <small v-if="admin">管理台</small>
+      <strong>BYTE</strong>
+      <small v-if="admin">ADMIN</small>
     </span>
   </span>
 </template>
@@ -30,33 +30,48 @@ defineProps({
   width: 36px;
   height: 36px;
   place-items: center;
-  border: 1px solid #1d4ed8;
-  border-radius: 8px;
-  background: #2563eb;
+  border: 1px solid color-mix(in srgb, var(--c-primary) 78%, #0f172a);
+  border-radius: var(--radius);
+  background: var(--c-primary);
+  box-shadow: 0 5px 14px rgba(var(--c-primary-rgb), .18);
   color: #fff;
 }
-.brand-mark__icon span { font-family: ui-monospace, "SFMono-Regular", Consolas, monospace; font-size: 13px; font-weight: 800; line-height: 1; letter-spacing: -.12em; transform: translateX(-1px); }
+
+.brand-mark__icon span {
+  font-family: Inter, ui-sans-serif, sans-serif;
+  font-size: 18px;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -.06em;
+  transform: translateX(-1px);
+}
 
 .brand-mark__text {
-  display: flex;
+  display: inline-flex;
   align-items: baseline;
   gap: 7px;
   white-space: nowrap;
 }
 
 .brand-mark__text strong {
-  font-family: Inter, "PingFang SC", "Microsoft YaHei", sans-serif;
-  font-size: 22px;
-  font-weight: 800;
+  font-size: 19px;
+  font-weight: 850;
+  line-height: 1;
   letter-spacing: .04em;
 }
 
 .brand-mark__text small {
   color: var(--c-text-3);
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: .04em;
+  font: 700 9px ui-monospace, "SFMono-Regular", Consolas, monospace;
+  letter-spacing: .1em;
 }
 
-.brand-mark--compact .brand-mark__icon { width: 30px; height: 30px; }
+.brand-mark--compact .brand-mark__icon {
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-sm);
+  box-shadow: none;
+}
+
+.brand-mark--compact .brand-mark__icon span { font-size: 15px; }
 </style>

@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import BrandMark from '../components/common/BrandMark.vue'
 import { useUserInfoStore } from '../store/userInfo.js'
 import { getAdminStatsService } from '../api/admin.js'
+import { DEFAULT_AVATAR_URL as defaultAvatar } from '../constants/assets.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -13,10 +14,9 @@ const pendingArticles = ref(0)
 const items = [
   { label: '概览', path: '/admin/home', icon: '⌂' },
   { label: '文章审核', path: '/admin/articles', icon: '▤' },
+  { label: '标签管理', path: '/admin/tags', icon: '#' },
+  { label: '公告管理', path: '/admin/announcements', icon: '◖' },
   { label: '用户管理', path: '/admin/users', icon: '♙' },
-  { label: '评论治理', path: '/admin/comments', icon: '▢', disabled: true },
-  { label: '系统公告', path: '/announcement', icon: '◖' },
-  { label: '系统设置', path: '/admin/settings', icon: '⚙', disabled: true }
 ]
 
 onMounted(async () => {
@@ -40,8 +40,8 @@ onMounted(async () => {
         ><i>{{ item.icon }}</i><span>{{ item.label }}</span><em v-if="item.label === '文章审核' && pendingArticles">{{ pendingArticles }}</em></button>
       </nav>
       <div class="admin-user">
-        <img :src="user?.avatarImage || '/avatar/avatar2.png'" alt="" />
-        <div><strong>{{ user?.nickname || '墨语运营' }}</strong><span>超级管理员</span></div>
+        <img :src="user?.avatarImage || defaultAvatar" alt="" />
+        <div><strong>{{ user?.nickname || 'BYTE 运营' }}</strong><span>超级管理员</span></div>
         <button @click="router.push('/home')">↗</button>
       </div>
     </aside>
@@ -50,7 +50,7 @@ onMounted(async () => {
         <div class="admin-search"><span>⌕</span><input placeholder="搜索用户、文章或操作" /></div>
         <router-link to="/home">返回站点</router-link>
         <router-link to="/announcement" class="notification">♧<i></i></router-link>
-        <img :src="user?.avatarImage || '/avatar/avatar2.png'" alt="" />
+        <img :src="user?.avatarImage || defaultAvatar" alt="" />
       </header>
       <main><router-view /></main>
     </section>

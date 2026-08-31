@@ -124,15 +124,12 @@ public class CommentServiceImpl implements CommentService {
 
         if (parentId == null) {
             comment.setParentId(null);
-            comment.setRootId(null);
             commentMapper.insert(comment);
-            commentMapper.setRootIdToSelf(comment.getCommentId());
         } else {
             Comment parent = commentMapper.selectById(parentId);
             if (parent == null) return Result.error("父评论不存在");
             if (!articleId.equals(parent.getArticleId())) return Result.error("评论不属于该文章");
             comment.setParentId(parentId);
-            comment.setRootId(parent.getRootId() != null ? parent.getRootId() : parent.getCommentId());
             commentMapper.insert(comment);
         }
         articleMapper.incrementCommentCount(articleId);
@@ -179,7 +176,7 @@ public class CommentServiceImpl implements CommentService {
         vo.setArticleId(c.getArticleId());
         vo.setUserId(c.getUserId());
         vo.setParentId(c.getParentId());
-        vo.setRootId(c.getRootId());
+        vo.setRootId(c.getRootId() != null ? c.getRootId() : c.getCommentId());
         vo.setReplyToUserId(c.getReplyToUserId());
         vo.setContent(c.getContent());
         vo.setCreateTime(c.getCreateTime());

@@ -8,20 +8,8 @@ export function getFollowingCommunityFeedService(params) {
   return request({ url: '/community/feed/following', method: 'get', params })
 }
 
-export function getCommunityMetaService() {
-  return request({ url: '/community/meta', method: 'get' })
-}
-
-export function createCommunityPostService(data) {
-  return request({ url: '/community/posts', method: 'post', data })
-}
-
-export function toggleCommunityLikeService(postId) {
-  return request({ url: `/community/posts/${postId}/like`, method: 'post' })
-}
-
-export function voteCommunityPollService(postId, optionId) {
-  return request({ url: `/community/posts/${postId}/vote`, method: 'post', params: { optionId } })
+export function getCommunityMetaService(personalized = false) {
+  return request({ url: personalized ? '/community/meta/personalized' : '/community/meta', method: 'get' })
 }
 
 export function toggleCommunityFollowService(userId) {

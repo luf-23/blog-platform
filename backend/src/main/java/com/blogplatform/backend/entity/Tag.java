@@ -8,6 +8,9 @@ import java.time.LocalDateTime;
 public class Tag {
     private Integer tagId;
     private String tagName;
+    private Integer parentId;
+    private String parentName;
+    private Integer sortOrder;
     private Integer articleCount;
     private LocalDateTime createTime;
 }

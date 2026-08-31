@@ -1,13 +1,14 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { DEFAULT_AVATAR_URL as defaultAvatar } from '../../constants/assets.js'
 
 const props = defineProps({ article: { type: Object, required: true } })
 defineEmits(['tag-click', 'author-click'])
 
 const router = useRouter()
 const bookmarked = ref(false)
-const defaultAvatar = '/avatar/avatar1.png'
+const coverFailed = ref(false)
 const readingMinutes = computed(() => {
   const contentLength = props.article.content?.length || props.article.summary?.length * 4 || 800
   return Math.max(3, Math.ceil(contentLength / 400))
@@ -38,11 +39,11 @@ function formatCount(value) {
 
 <template>
   <article class="article-card surface-card" tabindex="0" @click="gotoDetail" @keyup.enter="gotoDetail">
-    <div v-if="article.coverImage && ['摄影', '旅行'].some(type => article.categoryName?.includes(type))" class="article-card__cover">
-      <img :src="article.coverImage" :alt="article.title" loading="lazy" />
+    <div v-if="article.coverImage && !coverFailed" class="article-card__cover">
+      <img :src="article.coverImage" :alt="`${article.title}封面`" loading="lazy" @error="coverFailed = true" />
     </div>
     <div v-else class="article-card__cover article-card__cover--fallback">
-      <span>{{ article.categoryName?.slice(0, 2) || '墨语' }}</span>
+      <span>{{ article.title?.trim().slice(0, 2) || article.categoryName?.slice(0, 2) || '文章' }}</span>
       <i></i><b></b>
     </div>
 
@@ -50,7 +51,7 @@ function formatCount(value) {
       <div class="article-card__topline">
         <button class="article-card__author" @click.stop="$emit('author-click', { userId: article.userId, username: article.authorUsername })">
           <img :src="article.authorAvatar || defaultAvatar" :alt="article.authorNickname || article.authorUsername" />
-          <span>{{ article.authorNickname || article.authorUsername || '墨语作者' }}</span>
+          <span>{{ article.authorNickname || article.authorUsername || 'BYTE 作者' }}</span>
         </button>
         <span>·</span>
         <time>{{ formatDate(article.createTime || article.updateTime) }}</time>

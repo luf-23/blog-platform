@@ -29,5 +29,5 @@ public interface UserService {
 
     Result refresh(String refreshToken,HttpServletResponse response);
 
-    Result logout(String refreshToken);
+    Result logout(HttpServletResponse response);
 }

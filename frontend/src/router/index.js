@@ -28,14 +28,14 @@ const routes = [
       {
         path: "home",
         name: "Home",
-        component: () => import("../views/Home.vue"),
-        meta: { title: "发现" }
+        component: () => import("../views/Community.vue"),
+        meta: { title: "首页" }
       },
       {
         path: "community",
         name: "Community",
         component: () => import("../views/Community.vue"),
-        meta: { title: "社区广场" }
+        meta: { title: "社区" }
       },
       {
         path: "article/:id",
@@ -77,7 +77,7 @@ const routes = [
             path: "categories",
             name: "ArticleCategories",
             component: () => import("../views/article/ArticleCategory.vue"),
-            meta: { title: "分类管理" }
+            meta: { title: "文章分组" }
           },
           {
             path: "write",
@@ -110,7 +110,19 @@ const routes = [
             path: "articles",
             name: "AdminArticles",
             component: () => import("../views/admin/ArticleListManager.vue"),
-            meta: { title: "文章管理" }
+            meta: { title: "文章审核" }
+          },
+          {
+            path: "tags",
+            name: "AdminTags",
+            component: () => import("../views/admin/TagManager.vue"),
+            meta: { title: "标签管理" }
+          },
+          {
+            path: "announcements",
+            name: "AdminAnnouncements",
+            component: () => import("../views/admin/AnnouncementManager.vue"),
+            meta: { title: "公告管理" }
           },
           {
             path: "users",
@@ -142,7 +154,7 @@ router.beforeEach((to, _from, next) => {
   const token = tokenStore.token;
 
   if (to.meta.title) {
-    document.title = `${to.meta.title} · 墨语`;
+    document.title = `${to.meta.title} · BYTE`;
   }
 
   if (to.meta.guest && token) { next("/home"); return; }

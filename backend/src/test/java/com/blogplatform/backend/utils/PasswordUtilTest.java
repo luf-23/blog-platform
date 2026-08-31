@@ -8,7 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PasswordUtilTest {
 
-  /** 与 init.sql 演示账号密码哈希一致 */
+  /** 与 02_data.sql 开发账号密码哈希一致 */
   private static final String DEMO_HASH =
       "$2b$10$I/Me9zozCbEwd0Tlkd9SQuLOqDGpQ6yJWc5pcCIxXG8P/F222D3H2";
 

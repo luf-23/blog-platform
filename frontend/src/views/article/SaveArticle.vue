@@ -80,25 +80,8 @@
             </el-form-item>
 
             <el-form-item label="文章标签">
-              <div class="tag-input-area">
-                <div class="tag-list">
-                  <span v-for="(tag, i) in form.tagNames" :key="i" class="tag-pill">
-                    # {{ tag }}
-                    <button @click="removeTag(i)" style="border:none;background:none;cursor:pointer;color:inherit;font-size:14px;line-height:1;padding:0">×</button>
-                  </span>
-                </div>
-                <div class="tag-input-row" v-if="form.tagNames.length < 5">
-                  <input
-                    v-model="tagInput"
-                    class="tag-input"
-                    placeholder="添加标签（回车确认）"
-                    maxlength="20"
-                    @keydown.enter.prevent="addTag"
-                    @keydown.tab.prevent="addTag"
-                  />
-                </div>
-              </div>
-              <div style="font-size:12px;color:var(--c-text-4);margin-top:4px">最多5个标签</div>
+              <TagTaxonomyPicker v-model="form.tagNames" :tags="availableTags" :loading="tagsLoading" :limit="5" />
+              <div class="tag-help">先选择内容大类，再选择可贴到文章的二级标签</div>
             </el-form-item>
           </el-form>
         </div>
@@ -137,9 +120,11 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Loading } from '@element-plus/icons-vue'
 import { MdEditor } from 'md-editor-v3'
+import TagTaxonomyPicker from '../../components/article/TagTaxonomyPicker.vue'
 import 'md-editor-v3/lib/style.css'
 import { addArticleService, updateArticleService, getMyArticleDetailService } from '../../api/article.js'
 import { getCategoryListService } from '../../api/category.js'
+import { getAllTagsService } from '../../api/tag.js'
 import { useTheme } from '../../composables/useTheme.js'
 
 const route = useRoute()
@@ -149,7 +134,8 @@ const { isDark } = useTheme()
 const isEdit = computed(() => !!route.params.id)
 const saving = ref(false)
 const categories = ref([])
-const tagInput = ref('')
+const availableTags = ref([])
+const tagsLoading = ref(false)
 const editorMode = ref('edit')
 const lastSavedAt = ref('')
 let autosaveTimer = null
@@ -180,19 +166,6 @@ const outline = computed(() => form.content.split('\n').map(line => {
 }).filter(Boolean))
 const completedChecks = computed(() => [form.title.trim(), form.content.trim(), form.categoryId, form.summary.trim()].filter(Boolean).length)
 const draftKey = computed(() => 'moyu-editor-draft-' + (route.params.id || 'new'))
-
-function addTag() {
-  const t = tagInput.value.trim()
-  if (!t) return
-  if (form.tagNames.includes(t)) { tagInput.value = ''; return }
-  if (form.tagNames.length >= 5) { ElMessage.warning('最多添加5个标签'); return }
-  form.tagNames.push(t)
-  tagInput.value = ''
-}
-
-function removeTag(i) {
-  form.tagNames.splice(i, 1)
-}
 
 function buildPayload(status) {
   return {
@@ -282,10 +255,24 @@ function restoreLocalDraft() {
   } catch {}
 }
 
-onMounted(() => {
-  getCategoryListService().then(r => { categories.value = r.data || [] }).catch(() => {})
-  loadArticle()
+async function loadAvailableTags() {
+  tagsLoading.value = true
+  try {
+    const result = await getAllTagsService()
+    availableTags.value = result.data || []
+  } finally {
+    tagsLoading.value = false
+  }
+}
+
+onMounted(async () => {
+  const categoryTask = getCategoryListService().then(r => { categories.value = r.data || [] }).catch(() => {})
+  await loadAvailableTags()
+  await loadArticle()
   restoreLocalDraft()
+  const allowedNames = new Set(availableTags.value.filter(tag => tag.parentId != null).map(tag => tag.tagName))
+  form.tagNames = form.tagNames.filter(name => allowedNames.has(name)).slice(0, 5)
+  await categoryTask
   autosaveTimer = window.setInterval(saveLocalDraft, 12000)
 })
 onUnmounted(() => window.clearInterval(autosaveTimer))
@@ -396,30 +383,8 @@ watch(() => [form.title, form.summary, form.content, form.categoryId, form.cover
 .publish-checks i { display: grid; width: 17px; height: 17px; place-items: center; border-radius: 50%; background: var(--c-warning-soft); font-size: 10px; font-style: normal; font-weight: 800; }
 .publish-checks p.done i { background: var(--c-success-soft); color: var(--c-success); }
 
-/* Tag input */
-.tag-input-area {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 8px;
-  border: 1px solid var(--c-border);
-  border-radius: var(--radius);
-  background: var(--c-surface-2);
-}
-
-.tag-list { display: flex; flex-wrap: wrap; gap: 4px; }
-.tag-input-row { display: flex; }
-.tag-input {
-  border: none;
-  outline: none;
-  background: transparent;
-  font-size: 13px;
-  color: var(--c-text);
-  width: 100%;
-  font-family: inherit;
-  padding: 2px 0;
-}
-.tag-input::placeholder { color: var(--c-text-4); }
+/* Managed tag selector */
+.tag-help { margin-top: 5px; color: var(--c-text-4); font-size: 10px; }
 
 /* Cover */
 .cover-preview {

@@ -56,13 +56,13 @@
 import { ref, onMounted } from 'vue'
 import { Loading } from '@element-plus/icons-vue'
 import { getAdminUsersService } from '../../api/admin.js'
+import { DEFAULT_AVATAR_URL as defaultAvatar } from '../../constants/assets.js'
 
 const users = ref([])
 const total = ref(0)
 const loading = ref(false)
 const currentPage = ref(1)
 const pageSize = 15
-const defaultAvatar = '/avatar/avatar1.png'
 
 async function fetchUsers() {
   loading.value = true

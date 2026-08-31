@@ -76,7 +76,8 @@ public class ArticleServiceImpl implements ArticleService {
     public Result getMyArticles(String title, String status, Integer categoryId) {
         Integer userId = requireCurrentUserId();
         if (userId == null) return Result.error("请先登录");
-        List<Article> list = articleMapper.selectByCondition(userId, title, status, categoryId);
+        List<ArticleVO> list = articleMapper.selectMyByCondition(userId, title, status, categoryId);
+        if (!list.isEmpty()) enrichWithTags(list);
         return Result.success(list);
     }
 
@@ -88,6 +89,10 @@ public class ArticleServiceImpl implements ArticleService {
         article.setUserId(userId);
         if (article.getTitle() == null || article.getTitle().isBlank()) return Result.error("标题不能为空");
         if (article.getContent() == null || article.getContent().isBlank()) return Result.error("内容不能为空");
+        Result categoryValidation = validateCategoryOwnership(article.getCategoryId(), userId);
+        if (categoryValidation != null) return categoryValidation;
+        Result tagValidation = validateManagedTags(tagNames);
+        if (tagValidation != null) return tagValidation;
 
         if ("published".equals(article.getStatus())) {
             article.setStatus("pending");
@@ -97,6 +102,7 @@ public class ArticleServiceImpl implements ArticleService {
         if (tagNames != null && !tagNames.isEmpty()) {
             saveArticleTags(article.getArticleId(), tagNames);
         }
+        tagMapper.refreshAllCounts();
         return Result.success(article.getArticleId());
     }
 
@@ -108,6 +114,10 @@ public class ArticleServiceImpl implements ArticleService {
         Article existing = articleMapper.selectById(article.getArticleId());
         if (existing == null) return Result.error("文章不存在");
         if (!existing.getUserId().equals(userId)) return Result.error("权限不足");
+        Result categoryValidation = validateCategoryOwnership(article.getCategoryId(), userId);
+        if (categoryValidation != null) return categoryValidation;
+        Result tagValidation = validateManagedTags(tagNames);
+        if (tagValidation != null) return tagValidation;
 
         if ("published".equals(article.getStatus())) {
             article.setStatus("pending");
@@ -118,6 +128,7 @@ public class ArticleServiceImpl implements ArticleService {
         if (tagNames != null && !tagNames.isEmpty()) {
             saveArticleTags(article.getArticleId(), tagNames);
         }
+        tagMapper.refreshAllCounts();
         return Result.success();
     }
 
@@ -129,6 +140,7 @@ public class ArticleServiceImpl implements ArticleService {
         if (userId == null) return Result.error("请先登录");
         if (!article.getUserId().equals(userId)) return Result.error("权限不足");
         articleMapper.deleteById(articleId);
+        tagMapper.refreshAllCounts();
         return Result.success();
     }
 
@@ -186,17 +198,41 @@ public class ArticleServiceImpl implements ArticleService {
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
-    private void saveArticleTags(Integer articleId, List<String> tagNames) {
-        for (String name : tagNames) {
-            if (name == null || name.isBlank()) continue;
-            Tag tag = tagMapper.selectByName(name.trim());
+    private Result validateManagedTags(List<String> tagNames) {
+        if (tagNames == null || tagNames.isEmpty()) return null;
+        Set<String> normalizedNames = new LinkedHashSet<>();
+        for (String value : tagNames) {
+            if (value == null || value.isBlank()) return Result.error("标签不能为空");
+            String name = value.trim();
+            if (name.length() > 30) return Result.error("标签名称不能超过 30 个字符");
+            normalizedNames.add(name);
+        }
+        if (normalizedNames.size() > 5) return Result.error("一篇文章最多选择 5 个标签");
+        for (String name : normalizedNames) {
+            Tag tag = tagMapper.selectByName(name);
             if (tag == null) {
-                tag = new Tag();
-                tag.setTagName(name.trim());
-                tagMapper.insert(tag);
+                return Result.error("标签「" + name + "」不可用，请从管理员维护的标签中选择");
             }
+            if (tag.getParentId() == null) return Result.error("一级标签仅用于分组，请选择具体的二级标签");
+        }
+        return null;
+    }
+
+    private Result validateCategoryOwnership(Integer categoryId, Integer userId) {
+        if (categoryId == null) return null;
+        Integer ownerId = categoryMapper.selectUserIdByCategoryId(categoryId);
+        if (ownerId == null) return Result.error("所选文章分类不存在");
+        if (!ownerId.equals(userId)) return Result.error("不能使用其他用户的文章分类");
+        return null;
+    }
+
+    private void saveArticleTags(Integer articleId, List<String> tagNames) {
+        Set<String> normalizedNames = new LinkedHashSet<>();
+        for (String value : tagNames) normalizedNames.add(value.trim());
+        for (String name : normalizedNames) {
+            Tag tag = tagMapper.selectByName(name);
+            if (tag == null) throw new IllegalStateException("标签已被管理员移除：" + name);
             tagMapper.addArticleTag(articleId, tag.getTagId());
-            tagMapper.incrementCount(tag.getTagId());
         }
     }
 

@@ -33,12 +33,7 @@ public class TagServiceImpl implements TagService {
             if (name == null || name.isBlank()) continue;
             String trimmed = name.trim();
             Tag tag = tagMapper.selectByName(trimmed);
-            if (tag == null) {
-                tag = new Tag();
-                tag.setTagName(trimmed);
-                tagMapper.insert(tag);
-            }
-            result.add(tag);
+            if (tag != null && tag.getParentId() != null) result.add(tag);
         }
         return Result.success(result);
     }

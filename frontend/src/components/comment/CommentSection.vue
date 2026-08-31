@@ -74,6 +74,7 @@ import { Loading } from '@element-plus/icons-vue'
 import { getCommentListService, publishCommentService } from '../../api/comment.js'
 import { useUserInfoStore } from '../../store/userInfo.js'
 import CommentItem from './CommentItem.vue'
+import { DEFAULT_AVATAR_URL as defaultAvatar } from '../../constants/assets.js'
 
 const props = defineProps({
   articleId: { type: Number, required: true },
@@ -86,7 +87,6 @@ const emit = defineEmits(['count-change'])
 const userInfoStore = useUserInfoStore()
 const currentUser = computed(() => userInfoStore.userInfo)
 
-const defaultAvatar = 'https://luf-23.oss-cn-wuhan-lr.aliyuncs.com/avatar/default.png'
 const PAGE_SIZE = 10
 
 const comments = ref([])

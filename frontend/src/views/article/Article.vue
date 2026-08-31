@@ -46,8 +46,8 @@
                   </div>
                 </header>
 
-                <div v-if="article.coverImage && ['摄影', '旅行'].some(type => article.categoryName?.includes(type))" class="article-cover">
-                  <img :src="article.coverImage" :alt="article.title" />
+                <div v-if="article.coverImage && !coverFailed" class="article-cover">
+                  <img :src="article.coverImage" :alt="`${article.title}封面`" @error="coverFailed = true" />
                 </div>
                 <div v-else class="article-cover article-cover--tech" aria-hidden="true">
                   <span>// {{ article.categoryName || 'TECH ARTICLE' }}</span>
@@ -86,9 +86,7 @@
               <img :src="article.authorAvatar || defaultAvatar" alt="" />
               <div><strong>{{ article.authorNickname || article.authorUsername }}</strong><span>@{{ article.authorUsername }}</span></div>
             </div>
-            <p>持续分享有价值的实践、思考与创作经验。</p>
-            <button class="btn btn-secondary">＋ 关注</button>
-            <footer><span>文章<strong>28</strong></span><span>获赞<strong>{{ article.likeCount }}</strong></span><span>阅读<strong>{{ article.viewCount }}</strong></span></footer>
+            <footer><span>本文获赞<strong>{{ article.likeCount }}</strong></span><span>本文阅读<strong>{{ article.viewCount }}</strong></span></footer>
           </section>
         </aside>
       </div>
@@ -108,6 +106,7 @@ import { getArticleDetailService } from '../../api/article.js'
 import { likeArticleService, unlikeArticleService } from '../../api/articleLike.js'
 import { useUserInfoStore } from '../../store/userInfo.js'
 import CommentSection from '../../components/comment/CommentSection.vue'
+import { DEFAULT_AVATAR_URL as defaultAvatar } from '../../constants/assets.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -119,8 +118,8 @@ const toc = ref([])
 const activeTocId = ref('')
 const readingProgress = ref(0)
 const bookmarked = ref(false)
+const coverFailed = ref(false)
 
-const defaultAvatar = '/avatar/avatar1.png'
 const readingMinutes = computed(() => Math.max(3, Math.ceil((article.value?.content?.length || 800) / 400)))
 
 const md = new MarkdownIt({
@@ -378,7 +377,7 @@ onUnmounted(() => document.querySelector('.article-col')?.removeEventListener('s
 .reading-progress { position: fixed; z-index: 101; top: var(--nav-height); right: 0; left: 0; height: 2px; background: transparent; }.reading-progress i { display: block; height: 100%; background: var(--c-primary); transition: width .1s linear; }
 .article-actions { position: sticky; top: 24px; display: flex; align-items: center; flex-direction: column; gap: 0; padding-top: 42px; }.article-actions button { display: flex; width: 58px; align-items: center; justify-content: center; flex-direction: column; gap: 2px; padding: 11px 4px; border: 0; border-bottom: 1px solid var(--c-border-strong); border-radius: 0; background: transparent; color: var(--c-text-3); font-size: 10px; transition: all var(--transition); }.article-actions button:first-child { border-top: 2px solid var(--c-text); }.article-actions button:hover, .article-actions button.active { color: var(--c-primary); }.article-actions svg { width: 19px; height: 19px; }.article-actions b { font-family: Georgia, serif; font-size: 10px; }
 .article-sidebar { position: sticky; top: 20px; display: flex; flex-direction: column; gap: 14px; }.toc-card, .author-card { padding: 18px; }.toc-card h2, .author-card h2 { margin-bottom: 14px; font-size: 16px; }.toc-card button { position: relative; display: block; width: 100%; padding: 6px 8px 6px 14px; overflow: hidden; border: 0; background: transparent; color: var(--c-text-3); font-size: 12px; text-align: left; text-overflow: ellipsis; white-space: nowrap; }.toc-card button::before { position: absolute; top: 7px; bottom: 7px; left: 0; width: 2px; border-radius: 2px; background: var(--c-border); content: ''; }.toc-card button:hover, .toc-card button.active { color: var(--c-primary); }.toc-card button.active::before { background: var(--c-primary); }.toc-card .toc-level-3 { padding-left: 26px; }
-.author-card__profile { display: flex; align-items: center; gap: 10px; cursor: pointer; }.author-card__profile img { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; }.author-card__profile div { display: flex; flex-direction: column; }.author-card__profile span { color: var(--c-text-4); font-size: 11px; }.author-card > p { margin: 13px 0; color: var(--c-text-3); font-size: 12px; line-height: 1.7; }.author-card > .btn { width: 100%; }.author-card footer { display: grid; grid-template-columns: repeat(3, 1fr); margin-top: 14px; border-top: 1px solid var(--c-border); padding-top: 13px; }.author-card footer span { display: flex; align-items: center; flex-direction: column; color: var(--c-text-4); font-size: 9px; }.author-card footer strong { color: var(--c-text); font-size: 12px; }
+.author-card__profile { display: flex; align-items: center; gap: 10px; cursor: pointer; }.author-card__profile img { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; }.author-card__profile div { display: flex; flex-direction: column; }.author-card__profile span { color: var(--c-text-4); font-size: 11px; }.author-card > p { margin: 13px 0; color: var(--c-text-3); font-size: 12px; line-height: 1.7; }.author-card > .btn { width: 100%; }.author-card footer { display: grid; grid-template-columns: repeat(2, 1fr); margin-top: 14px; border-top: 1px solid var(--c-border); padding-top: 13px; }.author-card footer span { display: flex; align-items: center; flex-direction: column; color: var(--c-text-4); font-size: 9px; }.author-card footer strong { color: var(--c-text); font-size: 12px; }
 .article-comments { margin-top: 16px; padding: 4px; overflow: hidden; }
 
 /* Side rails belong to the viewport; only the article column scrolls. */
