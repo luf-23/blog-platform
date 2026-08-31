@@ -95,8 +95,11 @@
         <el-form-item label="分组封面（可选）" prop="coverImage">
           <div class="cover-field">
             <div v-if="form.coverImage" class="cover-form-preview"><img :src="form.coverImage" alt="分组封面预览" /></div>
-            <el-input v-model="form.coverImage" placeholder="输入图片 URL；不填则使用文字封面" maxlength="512" />
-            <small>建议使用 16:9 图片；图片无效时会自动显示文字封面。</small>
+            <div class="cover-field-actions">
+              <button type="button" class="btn btn-secondary btn-sm" @click="coverUploadVisible = true">{{ form.coverImage ? '更换封面' : '上传封面' }}</button>
+              <button v-if="form.coverImage" type="button" class="btn btn-ghost btn-sm" @click="form.coverImage = ''">移除封面</button>
+            </div>
+            <small>建议使用 16:9 横向图片；不上传时会显示文字封面。</small>
           </div>
         </el-form-item>
       </el-form>
@@ -105,6 +108,14 @@
         <el-button type="primary" :loading="saving" @click="saveCategory">{{ editingCat ? '保存' : '创建' }}</el-button>
       </template>
     </el-dialog>
+
+    <UploadImageDialog
+      v-model:visible="coverUploadVisible"
+      title="选择分组封面"
+      :loading="uploadingCover"
+      hint="支持 JPG、PNG、WEBP，图片大小不超过 5MB"
+      @confirm="uploadCategoryCover"
+    />
   </div>
 </template>
 
@@ -112,14 +123,20 @@
 import { computed, ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getCategoryListService, addCategoryService, updateCategoryService, deleteCategoryService } from '../../api/category.js'
+import UploadImageDialog from '../../components/common/UploadImageDialog.vue'
+import { useUserInfoStore } from '../../store/userInfo.js'
+import { OSSClient, uploadImageToOss } from '../../utils/oss/index.js'
 
 const categories = ref([])
 const loading = ref(false)
 const saving = ref(false)
+const uploadingCover = ref(false)
+const coverUploadVisible = ref(false)
 const showAddDialog = ref(false)
 const editingCat = ref(null)
 const failedCategoryCovers = ref(new Set())
 const formRef = ref()
+const userInfoStore = useUserInfoStore()
 const totalArticleCount = computed(() => categories.value.reduce((total, category) => total + Number(category.articleCount || 0), 0))
 
 const form = reactive({ categoryName: '', categoryDescription: '', coverImage: '' })
@@ -158,6 +175,23 @@ function resetForm() {
 
 function closeDialog() {
   showAddDialog.value = false
+}
+
+async function uploadCategoryCover(file) {
+  uploadingCover.value = true
+  try {
+    form.coverImage = await uploadImageToOss(
+      file,
+      OSSClient.IMAGE_TYPE.ARTICLE_COVER,
+      userInfoStore.userInfo?.userId
+    )
+    coverUploadVisible.value = false
+    ElMessage.success('封面已更新')
+  } catch (error) {
+    ElMessage.error(error?.message || '封面上传失败')
+  } finally {
+    uploadingCover.value = false
+  }
 }
 
 async function saveCategory() {
@@ -286,7 +320,7 @@ onMounted(fetchCategories)
 .empty-state strong { display: block; margin: 7px 0; color: var(--c-text); font-size: 20px; }
 .empty-state p { color: var(--c-text-3); font-size: 11px; line-height: 1.75; }
 .empty-state button { padding: 0; border: 0; margin-top: 16px; background: transparent; color: var(--c-primary); font-size: 11px; font-weight: 800; }
-.cover-field { width: 100%; }.cover-field > small { display: block; margin-top: 6px; color: var(--c-text-4); font-size: 9px; }.cover-form-preview { width: 100%; aspect-ratio: 16 / 6; overflow: hidden; border: 1px solid var(--c-border); border-radius: 7px; margin-bottom: 8px; background: var(--c-surface-2); }.cover-form-preview img { width: 100%; height: 100%; object-fit: cover; }
+.cover-field { width: 100%; }.cover-field > small { display: block; margin-top: 7px; color: var(--c-text-4); font-size: 10px; }.cover-field-actions { display: flex; gap: 8px; }.cover-form-preview { width: 100%; aspect-ratio: 16 / 6; overflow: hidden; border: 1px solid var(--c-border); border-radius: 7px; margin-bottom: 8px; background: var(--c-surface-2); }.cover-form-preview img { width: 100%; height: 100%; object-fit: cover; }
 @keyframes category-spin { to { transform: rotate(360deg); } }
 
 @media (max-width: 900px) {

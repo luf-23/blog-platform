@@ -12,6 +12,14 @@ export function getCommunityMetaService(personalized = false) {
   return request({ url: personalized ? '/community/meta/personalized' : '/community/meta', method: 'get' })
 }
 
+export function getCommunityProfileService(userId) {
+  return request({ url: `/community/profile/${userId}`, method: 'get' })
+}
+
+export function getCommunityFollowStateService(userId) {
+  return request({ url: `/community/follow/${userId}`, method: 'get' })
+}
+
 export function toggleCommunityFollowService(userId) {
   return request({ url: `/community/follow/${userId}`, method: 'post' })
 }

@@ -119,7 +119,7 @@ public interface ArticleMapper {
     void insert(Article article);
 
     @Update("UPDATE article SET category_id=#{categoryId}, title=#{title}, summary=#{summary}, " +
-            "content=#{content}, cover_image=#{coverImage}, status=#{status}, update_time=NOW() " +
+            "content=#{content}, cover_image=COALESCE(#{coverImage}, cover_image, '/defaults/article-cover.png'), status=#{status}, update_time=NOW() " +
             "WHERE article_id=#{articleId}")
     void update(Article article);
 

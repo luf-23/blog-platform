@@ -3,7 +3,7 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useTokenStore } from '../store/token.js'
-import { DEFAULT_AVATAR_URL as defaultAvatar } from '../constants/assets.js'
+import { DEFAULT_ARTICLE_COVER_URL as defaultCover, DEFAULT_AVATAR_URL as defaultAvatar } from '../constants/assets.js'
 import {
   getCommunityFeedService,
   getFollowingCommunityFeedService,
@@ -22,6 +22,7 @@ const hasLoaded = ref(false)
 const loadingMore = ref(false)
 const mode = ref('hot')
 const selectedTagId = ref(null)
+const selectedTagName = ref('')
 const keyword = ref('')
 const page = ref(1)
 const total = ref(0)
@@ -104,7 +105,13 @@ function setMode(nextMode) {
 
 function selectTag(tag) {
   const id = valueOf(tag, 'tagId', 'tag_id')
-  selectedTagId.value = selectedTagId.value === id ? null : id
+  if (selectedTagId.value === id) {
+    selectedTagId.value = null
+    selectedTagName.value = ''
+  } else {
+    selectedTagId.value = id
+    selectedTagName.value = valueOf(tag, 'tagName', 'tag_name') || ''
+  }
   refresh()
 }
 
@@ -152,9 +159,8 @@ onMounted(() => {
 
 <template>
   <div class="feed-page workspace-page">
-    <div class="feed-scroll workspace-scroll">
-      <div class="page-container feed-layout">
-        <aside class="left-sidebar">
+      <div class="page-container feed-layout workspace-frame">
+        <aside class="left-sidebar workspace-scroll">
           <section v-if="!tokenStore.token" class="join-card">
             <h2><strong>BYTE</strong> 是面向开发者的技术社区</h2>
             <p>分享实践、记录问题，与认真写代码的人一起成长。</p>
@@ -190,7 +196,7 @@ onMounted(() => {
           <footer class="side-footer">© 2026 BYTE<br />Build in public.</footer>
         </aside>
 
-        <main class="feed-main">
+        <main class="feed-main workspace-scroll">
           <header class="feed-tabs">
             <button :class="{ active: mode === 'hot' }" @click="setMode('hot')">推荐</button>
             <button :class="{ active: mode === 'latest' }" @click="setMode('latest')">最新</button>
@@ -201,8 +207,8 @@ onMounted(() => {
           <div v-if="keyword || selectedTagId" class="filter-strip">
             <span>筛选结果</span>
             <strong v-if="keyword">“{{ keyword }}”</strong>
-            <strong v-else>#{{ valueOf(meta.hotTags.find(tag => valueOf(tag, 'tagId', 'tag_id') === selectedTagId), 'tagName', 'tag_name') }}</strong>
-            <button @click="keyword = ''; selectedTagId = null; router.replace('/home'); refresh()">清除</button>
+            <strong v-else>#{{ selectedTagName }}</strong>
+            <button @click="keyword = ''; selectedTagId = null; selectedTagName = ''; router.replace('/home'); refresh()">清除</button>
           </div>
 
           <div v-if="loading && !hasLoaded" class="feed-loading">
@@ -210,8 +216,8 @@ onMounted(() => {
           </div>
 
           <div v-else-if="articles.length" class="article-feed" :aria-busy="refreshing">
-            <article v-for="(article, index) in articles" :key="article.articleId" class="feed-card" :class="{ featured: index === 0 }" @click="router.push(`/article/${article.articleId}`)">
-              <div v-if="index === 0 && article.coverImage" class="featured-cover"><img :src="article.coverImage" :alt="article.title" /></div>
+            <article v-for="article in articles" :key="article.articleId" class="feed-card" @click="router.push(`/article/${article.articleId}`)">
+              <div class="featured-cover"><img :src="article.coverImage || defaultCover" :alt="article.title" /></div>
               <div class="feed-card__body">
                 <header class="author-line">
                   <button @click.stop="router.push(`/profile/${article.authorUsername}`)"><img :src="article.authorAvatar || defaultAvatar" alt="" /></button>
@@ -219,12 +225,13 @@ onMounted(() => {
                 </header>
                 <div class="article-content">
                   <h2>{{ article.title }}</h2>
-                  <p v-if="index === 0">{{ article.summary || '进入文章查看完整内容。' }}</p>
+                  <p>{{ article.summary || '作者暂未填写摘要，进入文章查看完整内容。' }}</p>
                   <div class="card-tags">
                     <button v-for="tag in (article.tags || []).slice(0, 4)" :key="tag.tagId" @click.stop="selectTag(tag)">#{{ tag.tagName }}</button>
                   </div>
                   <footer>
                     <div class="engagement">
+                      <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12Z"/><circle cx="12" cy="12" r="3"/></svg>{{ formatCount(article.viewCount) }} 阅读</span>
                       <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m12 21-1.5-1.3C5.1 15 2 12.2 2 8.8A4.8 4.8 0 0 1 6.9 4 5.3 5.3 0 0 1 12 7a5.3 5.3 0 0 1 5.1-3A4.8 4.8 0 0 1 22 8.8c0 3.4-3.1 6.2-8.5 10.9Z"/></svg>{{ formatCount(article.likeCount) }} 喜欢</span>
                       <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15a3 3 0 0 1-3 3H8l-5 3V6a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3Z"/></svg>{{ formatCount(article.commentCount) }} 评论</span>
                     </div>
@@ -237,12 +244,12 @@ onMounted(() => {
             <button v-if="hasMore" class="load-more" :disabled="loadingMore" @click="loadMore">{{ loadingMore ? '加载中…' : '加载更多' }}</button>
           </div>
 
-          <div v-else class="empty-feed"><strong>没有找到文章</strong><p>换个关键词或标签再试试。</p><button @click="keyword = ''; selectedTagId = null; refresh()">查看全部</button></div>
+          <div v-else class="empty-feed"><strong>没有找到文章</strong><p>换个关键词或标签再试试。</p><button @click="keyword = ''; selectedTagId = null; selectedTagName = ''; refresh()">查看全部</button></div>
         </main>
 
-        <aside class="right-sidebar">
+        <aside class="right-sidebar workspace-scroll">
           <section class="right-card topic-ranking">
-            <header><div><span>本周热门</span><h2>技术话题</h2></div></header>
+            <header><div><span>社区热门</span><h2>技术话题</h2></div></header>
             <button v-for="tag in meta.hotTags" :key="valueOf(tag, 'tagId', 'tag_id')" @click="selectTag(tag)">
               <strong>#{{ valueOf(tag, 'tagName', 'tag_name') }}</strong>
               <span>{{ valueOf(tag, 'articleCount', 'article_count') }} 篇文章</span>
@@ -267,7 +274,6 @@ onMounted(() => {
           </section>
         </aside>
       </div>
-    </div>
   </div>
 </template>
 
@@ -300,4 +306,28 @@ onMounted(() => {
 @media (max-width: 1200px) { .feed-layout { grid-template-columns: 220px minmax(0, 1fr); }.right-sidebar { display: none; } }
 @media (max-width: 860px) { .feed-page { overflow-y: auto; }.feed-scroll { height: auto; overflow: visible; }.feed-layout { grid-template-columns: 1fr; }.left-sidebar { display: none; }.featured-cover { height: 270px; } }
 @media (max-width: 560px) { .feed-layout { width: 100%; padding: 8px 8px 40px; }.feed-tabs { padding-inline: 4px; }.feed-card__body { padding: 15px 13px; }.article-content { padding-left: 0; }.article-content h2, .featured .article-content h2 { font-size: 20px; }.featured-cover { height: 205px; }.article-content > p { display: none; }.card-tags button:nth-child(n+4) { display: none; }.read-time { display: none; }.engagement { gap: 2px; } }
+
+/* Three independent columns keep navigation and discovery context in place. */
+.feed-layout { height: 100%; min-height: 0; align-items: stretch; padding-top: 0; padding-bottom: 0; }
+.left-sidebar, .right-sidebar { height: 100%; padding: 18px 2px 42px; }
+.feed-main { min-height: 0; padding: 18px 2px 52px; }
+.feed-card { display: grid; min-height: 178px; grid-template-columns: minmax(0, 1fr) 184px; border-radius: var(--radius-sm); }
+.feed-card__body { grid-column: 1; grid-row: 1; padding: 16px 18px; }
+.featured-cover { grid-column: 2; grid-row: 1; height: auto; min-height: 146px; margin: 15px 15px 15px 0; border-radius: 4px; }
+.article-content h2, .featured .article-content h2 { margin-top: 7px; font-size: 21px; }
+.article-content > p { display: -webkit-box; margin-bottom: 8px; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.engagement { flex-wrap: wrap; gap: 4px; }
+.engagement span { padding: 4px 6px; }
+
+@media (max-width: 860px) {
+  .feed-layout { height: auto; }
+  .feed-main { overflow: visible; }
+  .feed-card { grid-template-columns: minmax(0, 1fr) 150px; }
+  .featured-cover { height: auto; min-height: 132px; }
+}
+@media (max-width: 560px) {
+  .feed-card { display: block; min-height: 0; }
+  .featured-cover { height: 190px; margin: 0; border-radius: 0; }
+  .article-content > p { display: -webkit-box; -webkit-line-clamp: 2; }
+}
 </style>

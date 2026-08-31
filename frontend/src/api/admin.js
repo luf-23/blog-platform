@@ -40,8 +40,12 @@ export function deleteAdminTagService(tagId) {
   return request({ url: `/admin/tags/${tagId}`, method: "delete" });
 }
 
-export function getAnnouncementService() {
-  return request({ url: "/admin/announcement", method: "get" });
+export function getAnnouncementService(afterId) {
+  return request({
+    url: "/announcement",
+    method: "get",
+    params: Number.isFinite(Number(afterId)) ? { afterId: Number(afterId) } : undefined
+  });
 }
 
 export function addAnnouncementService(data) {

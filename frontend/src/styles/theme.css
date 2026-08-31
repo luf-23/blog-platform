@@ -37,17 +37,17 @@
 
   --nav-height: 68px;
   --content-width: 1420px;
-  --radius-xs: 4px;
-  --radius-sm: 6px;
-  --radius: 8px;
-  --radius-lg: 10px;
-  --radius-xl: 14px;
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius: 5px;
+  --radius-lg: 6px;
+  --radius-xl: 8px;
   --radius-full: 9999px;
 
-  --shadow-xs: 0 1px 2px rgba(15, 23, 42, .035);
-  --shadow-sm: 0 5px 18px rgba(15, 23, 42, .06);
-  --shadow-md: 0 16px 38px rgba(15, 23, 42, .09);
-  --shadow-lg: 0 30px 70px rgba(15, 23, 42, .13);
+  --shadow-xs: 0 1px 1px rgba(15, 23, 42, .025);
+  --shadow-sm: 0 4px 12px rgba(15, 23, 42, .045);
+  --shadow-md: 0 12px 28px rgba(15, 23, 42, .075);
+  --shadow-lg: 0 22px 54px rgba(15, 23, 42, .1);
   --transition: 180ms cubic-bezier(.2, .8, .2, 1);
 
   --el-color-primary: #2563eb;
@@ -57,7 +57,7 @@
   --el-color-primary-light-8: #dbeafe;
   --el-color-primary-light-9: #eef4ff;
   --el-color-primary-dark-2: #1d4ed8;
-  --el-border-radius-base: 7px;
+  --el-border-radius-base: 4px;
   --el-border-color: #e2e7ef;
   --el-fill-color-blank: #ffffff;
   --el-bg-color: #ffffff;

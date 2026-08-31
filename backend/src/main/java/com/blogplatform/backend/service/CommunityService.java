@@ -9,5 +9,9 @@ public interface CommunityService {
 
     Result meta();
 
+    Result profileMetrics(Integer userId);
+
+    Result followState(Integer userId);
+
     Result toggleFollow(Integer userId);
 }

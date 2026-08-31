@@ -5,12 +5,14 @@ import BrandMark from '../components/common/BrandMark.vue'
 import { useUserInfoStore } from '../store/userInfo.js'
 import { getAdminStatsService } from '../api/admin.js'
 import { DEFAULT_AVATAR_URL as defaultAvatar } from '../constants/assets.js'
+import { useAnnouncements } from '../composables/useAnnouncements.js'
 
 const route = useRoute()
 const router = useRouter()
 const userInfoStore = useUserInfoStore()
 const user = computed(() => userInfoStore.userInfo)
 const pendingArticles = ref(0)
+const { hasNewAnnouncements, markAnnouncementsSeen } = useAnnouncements()
 const items = [
   { label: '概览', path: '/admin/home', icon: '⌂' },
   { label: '文章审核', path: '/admin/articles', icon: '▤' },
@@ -47,9 +49,8 @@ onMounted(async () => {
     </aside>
     <section class="admin-workspace">
       <header class="admin-topbar">
-        <div class="admin-search"><span>⌕</span><input placeholder="搜索用户、文章或操作" /></div>
         <router-link to="/home">返回站点</router-link>
-        <router-link to="/announcement" class="notification">♧<i></i></router-link>
+        <router-link to="/announcement" class="notification" aria-label="系统公告" @click="markAnnouncementsSeen(user?.userId || user?.username)">♧<i v-if="hasNewAnnouncements"></i></router-link>
         <img :src="user?.avatarImage || defaultAvatar" alt="" />
       </header>
       <main><router-view /></main>

@@ -6,11 +6,10 @@
         <aside v-if="article" class="article-actions">
           <button :class="{ active: article.isLiked }" @click="toggleLike"><svg viewBox="0 0 24 24" :fill="article.isLiked ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2"><path d="m12 21-1.5-1.3C5.1 15 2 12.2 2 8.8A4.8 4.8 0 0 1 6.9 4 5.3 5.3 0 0 1 12 7a5.3 5.3 0 0 1 5.1-3A4.8 4.8 0 0 1 22 8.8c0 3.4-3.1 6.2-8.5 10.9Z"/></svg><span>点赞</span><b>{{ article.likeCount }}</b></button>
           <button @click="scrollToComments"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a3 3 0 0 1-3 3H8l-5 3V6a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3Z"/></svg><span>评论</span><b>{{ article.commentCount }}</b></button>
-          <button :class="{ active: bookmarked }" @click="bookmarked = !bookmarked"><svg viewBox="0 0 24 24" :fill="bookmarked ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2"><path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1Z"/></svg><span>收藏</span></button>
           <button @click="shareArticle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"/></svg><span>分享</span></button>
         </aside>
 
-        <div class="article-col workspace-scroll">
+        <div ref="articleScroller" class="article-col workspace-scroll">
           <div v-if="loadingArticle" class="loading-spinner" style="height:200px">
             <el-icon class="is-loading" :size="28"><Loading /></el-icon>
           </div>
@@ -46,16 +45,11 @@
                   </div>
                 </header>
 
-                <div v-if="article.coverImage && !coverFailed" class="article-cover">
-                  <img :src="article.coverImage" :alt="`${article.title}封面`" @error="coverFailed = true" />
-                </div>
-                <div v-else class="article-cover article-cover--tech" aria-hidden="true">
-                  <span>// {{ article.categoryName || 'TECH ARTICLE' }}</span>
-                  <strong>&lt;/&gt;</strong>
-                  <code>const knowledge = share(experience)</code>
+                <div class="article-cover">
+                  <img :src="!coverFailed && article.coverImage ? article.coverImage : defaultCover" :alt="`${article.title}封面`" @error="coverFailed = true" />
                 </div>
 
-                <div class="article-body" v-html="renderedContent"></div>
+                <div ref="articleBody" class="article-body article-prose" v-html="renderedContent" @click="handleArticleBodyClick"></div>
               </div>
             </article>
 
@@ -86,6 +80,12 @@
               <img :src="article.authorAvatar || defaultAvatar" alt="" />
               <div><strong>{{ article.authorNickname || article.authorUsername }}</strong><span>@{{ article.authorUsername }}</span></div>
             </div>
+            <button
+              v-if="!isAuthor"
+              class="btn btn-secondary btn-sm author-follow"
+              :class="{ active: authorMetrics.following }"
+              @click="toggleFollowAuthor"
+            >{{ authorMetrics.following ? '已关注' : '关注作者' }}</button>
             <footer><span>本文获赞<strong>{{ article.likeCount }}</strong></span><span>本文阅读<strong>{{ article.viewCount }}</strong></span></footer>
           </section>
         </aside>
@@ -99,14 +99,14 @@ import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Loading } from '@element-plus/icons-vue'
-import MarkdownIt from 'markdown-it'
-import hljs from 'highlight.js'
 import DOMPurify from 'dompurify'
 import { getArticleDetailService } from '../../api/article.js'
 import { likeArticleService, unlikeArticleService } from '../../api/articleLike.js'
+import { getCommunityFollowStateService, getCommunityProfileService, toggleCommunityFollowService } from '../../api/community.js'
 import { useUserInfoStore } from '../../store/userInfo.js'
 import CommentSection from '../../components/comment/CommentSection.vue'
-import { DEFAULT_AVATAR_URL as defaultAvatar } from '../../constants/assets.js'
+import { createMarkdownRenderer } from '../../utils/markdown/index.js'
+import { DEFAULT_ARTICLE_COVER_URL as defaultCover, DEFAULT_AVATAR_URL as defaultAvatar } from '../../constants/assets.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -117,46 +117,24 @@ const loadingArticle = ref(false)
 const toc = ref([])
 const activeTocId = ref('')
 const readingProgress = ref(0)
-const bookmarked = ref(false)
 const coverFailed = ref(false)
+const authorMetrics = ref({ following: false, followerCount: 0 })
+const articleScroller = ref(null)
+const articleBody = ref(null)
+let headingObserver = null
 
 const readingMinutes = computed(() => Math.max(3, Math.ceil((article.value?.content?.length || 800) / 400)))
+const isAuthor = computed(() => Boolean(
+  userInfoStore.userInfo?.userId && article.value?.userId === userInfoStore.userInfo.userId
+))
 
-const md = new MarkdownIt({
-  html: true,
-  linkify: true,
-  typographer: true,
-  highlight(str, lang) {
-    if (lang && hljs.getLanguage(lang)) {
-      try {
-        return `<pre class="hljs"><code>${hljs.highlight(str, { language: lang }).value}</code></pre>`
-      } catch (_) {}
-    }
-    return `<pre class="hljs"><code>${md.utils.escapeHtml(str)}</code></pre>`
-  }
-})
+const md = createMarkdownRenderer()
 
 const renderedContent = computed(() => {
   if (!article.value?.content) return ''
   const raw = md.render(article.value.content)
   return DOMPurify.sanitize(raw)
 })
-
-function buildToc(htmlStr) {
-  const parser = new DOMParser()
-  const doc = parser.parseFromString(htmlStr, 'text/html')
-  const headings = doc.querySelectorAll('h1,h2,h3')
-  const items = []
-  headings.forEach((h, i) => {
-    const id = `heading-${i}`
-    items.push({
-      id,
-      text: h.textContent,
-      level: parseInt(h.tagName[1])
-    })
-  })
-  return items
-}
 
 async function loadArticle() {
   const id = route.params.id
@@ -165,44 +143,135 @@ async function loadArticle() {
   try {
     const res = await getArticleDetailService(id)
     article.value = res.data
-    await nextTick()
-    toc.value = buildToc(renderedContent.value)
-    injectTocIds()
-    observeHeadings()
+    const profileService = userInfoStore.userInfo ? getCommunityFollowStateService : getCommunityProfileService
+    profileService(article.value.userId)
+      .then(result => { authorMetrics.value = result.data || authorMetrics.value })
+      .catch(() => {})
   } catch {}
   finally { loadingArticle.value = false }
+
+  if (article.value) {
+    await nextTick()
+    setupToc()
+  }
 }
 
-function injectTocIds() {
-  const container = document.querySelector('.article-body')
-  if (!container) return
-  const headings = container.querySelectorAll('h1,h2,h3')
-  headings.forEach((h, i) => { h.id = `heading-${i}` })
+function setupToc() {
+  headingObserver?.disconnect()
+  setupCodeBlocks()
+  const headings = articleBody.value?.querySelectorAll('h1,h2,h3') || []
+  toc.value = Array.from(headings).map((heading, index) => {
+    const id = `heading-${index}`
+    heading.id = id
+    return {
+      id,
+      text: heading.textContent?.trim() || `章节 ${index + 1}`,
+      level: Number(heading.tagName.slice(1))
+    }
+  })
+  activeTocId.value = toc.value[0]?.id || ''
+  observeHeadings(headings)
+
+  const hashId = decodeURIComponent(window.location.hash.slice(1))
+  if (hashId && toc.value.some(item => item.id === hashId)) {
+    requestAnimationFrame(() => scrollTo(hashId, false))
+  }
 }
 
-function observeHeadings() {
-  const headings = document.querySelectorAll('.article-body h1,.article-body h2,.article-body h3')
+function setupCodeBlocks() {
+  const blocks = articleBody.value?.querySelectorAll('pre') || []
+  blocks.forEach(pre => {
+    if (pre.parentElement?.classList.contains('article-code-block')) return
+
+    const wrapper = document.createElement('div')
+    wrapper.className = 'article-code-block'
+    pre.parentNode?.insertBefore(wrapper, pre)
+    wrapper.appendChild(pre)
+
+    const button = document.createElement('button')
+    button.type = 'button'
+    button.className = 'article-code-copy'
+    button.setAttribute('aria-label', '复制代码')
+    button.textContent = '复制'
+    wrapper.appendChild(button)
+  })
+}
+
+async function handleArticleBodyClick(event) {
+  const button = event.target.closest('.article-code-copy')
+  if (!button) return
+  const code = button.parentElement?.querySelector('code')
+  if (!code) return
+
+  try {
+    await copyCodeText(code.textContent || '')
+    button.textContent = '已复制'
+    button.classList.add('copied')
+    window.setTimeout(() => {
+      button.textContent = '复制'
+      button.classList.remove('copied')
+    }, 1600)
+  } catch (_) {
+    ElMessage.error('复制失败，请手动选择代码复制')
+  }
+}
+
+async function copyCodeText(text) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text)
+    return
+  }
+
+  const textarea = document.createElement('textarea')
+  textarea.value = text
+  textarea.setAttribute('readonly', '')
+  textarea.style.position = 'fixed'
+  textarea.style.opacity = '0'
+  document.body.appendChild(textarea)
+  textarea.select()
+  const copied = document.execCommand('copy')
+  textarea.remove()
+  if (!copied) throw new Error('copy failed')
+}
+
+function observeHeadings(headings) {
   if (!headings.length) return
-  const observer = new IntersectionObserver(entries => {
-    entries.forEach(entry => {
-      if (entry.isIntersecting) activeTocId.value = entry.target.id
-    })
-  }, { root: document.querySelector('.article-col'), rootMargin: '-80px 0px -60% 0px' })
-  headings.forEach(h => observer.observe(h))
+  headingObserver = new IntersectionObserver(entries => {
+    const visible = entries
+      .filter(entry => entry.isIntersecting)
+      .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)
+    if (visible[0]) activeTocId.value = visible[0].target.id
+  }, { root: articleScroller.value, rootMargin: '-32px 0px -70% 0px', threshold: 0 })
+  headings.forEach(heading => headingObserver.observe(heading))
 }
 
-function scrollTo(id) {
-  const el = document.getElementById(id)
-  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+function scrollTo(id, smooth = true) {
+  const scroller = articleScroller.value
+  const target = articleBody.value?.querySelector(`#${id}`)
+  if (!scroller || !target) return
+
+  const top = target.getBoundingClientRect().top
+    - scroller.getBoundingClientRect().top
+    + scroller.scrollTop
+    - 24
+  activeTocId.value = id
+  scroller.scrollTo({ top: Math.max(0, top), behavior: smooth ? 'smooth' : 'auto' })
+  window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}#${id}`)
 }
 
 function scrollToComments() {
-  const el = document.getElementById('comments')
-  if (el) el.scrollIntoView({ behavior: 'smooth' })
+  const scroller = articleScroller.value
+  const target = document.getElementById('comments')
+  if (!scroller || !target) return
+  const top = target.getBoundingClientRect().top
+    - scroller.getBoundingClientRect().top
+    + scroller.scrollTop
+    - 16
+  scroller.scrollTo({ top, behavior: 'smooth' })
 }
 
 function updateReadingProgress() {
-  const scroller = document.querySelector('.article-col')
+  const scroller = articleScroller.value
   if (!scroller) return
   const max = scroller.scrollHeight - scroller.clientHeight
   readingProgress.value = max > 0 ? Math.min(100, Math.round(scroller.scrollTop / max * 100)) : 0
@@ -234,6 +303,19 @@ async function toggleLike() {
   } catch {}
 }
 
+async function toggleFollowAuthor(event) {
+  event?.stopPropagation()
+  if (!userInfoStore.userInfo) {
+    router.push({ path: '/login', query: { redirect: route.fullPath } })
+    return
+  }
+  try {
+    const result = await toggleCommunityFollowService(article.value.userId)
+    authorMetrics.value = { ...authorMetrics.value, ...(result.data || {}) }
+    ElMessage.success(authorMetrics.value.following ? '已关注作者' : '已取消关注')
+  } catch (_) {}
+}
+
 function goToAuthor() {
   router.push(`/profile/${article.value.authorUsername}`)
 }
@@ -246,9 +328,12 @@ function formatDate(time) {
 
 onMounted(async () => {
   await loadArticle()
-  document.querySelector('.article-col')?.addEventListener('scroll', updateReadingProgress, { passive: true })
+  articleScroller.value?.addEventListener('scroll', updateReadingProgress, { passive: true })
 })
-onUnmounted(() => document.querySelector('.article-col')?.removeEventListener('scroll', updateReadingProgress))
+onUnmounted(() => {
+  headingObserver?.disconnect()
+  articleScroller.value?.removeEventListener('scroll', updateReadingProgress)
+})
 </script>
 
 <style scoped>
@@ -264,13 +349,15 @@ onUnmounted(() => document.querySelector('.article-col')?.removeEventListener('s
   display: grid;
   height: 100%;
   min-height: 0;
-  grid-template-columns: 74px minmax(0, 880px) 286px;
+  grid-template-areas: "toc article actions";
+  grid-template-columns: 270px minmax(0, 880px) 72px;
   gap: 20px;
   align-items: stretch;
   justify-content: center;
 }
 
 .article-col {
+  grid-area: article;
   min-width: 0;
   padding: 24px 4px 56px;
 }
@@ -388,12 +475,10 @@ onUnmounted(() => document.querySelector('.article-col')?.removeEventListener('s
 @media (max-width: 720px) { .article-page { overflow-y: auto; }.article-shell, .article-layout { height: auto; }.article-layout { grid-template-columns: 1fr; }.article-col { overflow: visible; padding-top: 12px; }.article-actions { z-index: 2; align-items: stretch; flex-direction: row; padding: 12px 0 0; overflow-x: auto; }.article-actions button { min-width: 58px; flex: 1; }.article-inner { padding: 24px 20px 36px; }.article-title { font-size: 28px; }.article-meta { align-items: flex-start; flex-direction: column; gap: 12px; } }
 
 /* Technical reading workspace */
-.article-main { border: 1px solid var(--c-border); border-radius: var(--radius-lg); background: var(--c-surface); box-shadow: var(--shadow-xs); }
+.article-main { border: 0; border-inline: 1px solid var(--c-border); border-radius: 0; background: var(--c-surface); box-shadow: none; }
 .article-category { margin-bottom: 14px; padding: 4px 9px; border: 0; border-radius: 5px; background: var(--c-primary-soft); color: var(--c-primary); font-family: ui-monospace, Consolas, monospace; letter-spacing: .02em; }
 .article-title { font-family: Inter, "PingFang SC", "Microsoft YaHei", sans-serif; font-weight: 850; line-height: 1.22; }
 .article-summary { font-family: Inter, "PingFang SC", "Microsoft YaHei", sans-serif; }
-.article-body { font-family: Inter, "PingFang SC", "Microsoft YaHei", sans-serif; line-height: 1.85; }
-.article-body :deep(h1), .article-body :deep(h2), .article-body :deep(h3), .article-body :deep(h4) { font-family: Inter, "PingFang SC", "Microsoft YaHei", sans-serif; }
 .article-cover { border-radius: 7px; }
 .article-cover img { filter: none; }
 .article-cover--tech { position: relative; display: flex; align-items: flex-start; justify-content: space-between; flex-direction: column; padding: 28px 32px; border: 1px solid #1e293b; background-color: #0f172a; background-image: linear-gradient(rgba(96,165,250,.07) 1px, transparent 1px), linear-gradient(90deg, rgba(96,165,250,.07) 1px, transparent 1px); background-size: 28px 28px; color: #dbeafe; }
@@ -413,4 +498,20 @@ onUnmounted(() => document.querySelector('.article-col')?.removeEventListener('s
 .toc-card h2, .author-card h2 { font-family: Inter, "PingFang SC", sans-serif; font-size: 16px; }
 .toc-card h2::before, .author-card h2::before { display: none; }
 .toc-card button.active::before { background: var(--c-primary); }
+
+/* Reading layout: catalogue stays on the left, article actions stay on the right. */
+.article-actions { grid-area: actions; }
+.article-sidebar { grid-area: toc; }
+.author-follow { width: 100%; margin-top: 14px; }
+.author-follow.active { background: var(--c-surface-2); color: var(--c-text-3); }
+
+@media (max-width: 1240px) {
+  .article-layout { grid-template-columns: 230px minmax(0, 820px) 64px; gap: 14px; }
+}
+@media (max-width: 1080px) {
+  .article-layout { grid-template-areas: "article actions"; grid-template-columns: minmax(0, 880px) 64px; }
+}
+@media (max-width: 720px) {
+  .article-layout { grid-template-areas: "actions" "article"; grid-template-columns: 1fr; }
+}
 </style>

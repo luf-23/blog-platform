@@ -41,9 +41,12 @@
 import { ref, onMounted, h } from 'vue'
 import { Loading } from '@element-plus/icons-vue'
 import { getAnnouncementService } from '../api/admin.js'
+import { useUserInfoStore } from '../store/userInfo.js'
+import { markAnnouncementsSeen } from '../composables/useAnnouncements.js'
 
 const announcements = ref([])
 const loading = ref(false)
+const userInfoStore = useUserInfoStore()
 
 const typeLabels = { success: '成功', info: '通知', warning: '注意', danger: '紧急' }
 const typeLabel = (t) => typeLabels[t] || t
@@ -68,7 +71,10 @@ onMounted(async () => {
   loading.value = true
   try {
     const res = await getAnnouncementService()
-    announcements.value = (res.data || []).reverse()
+    announcements.value = (res.data || []).sort((a, b) => Number(b.id || 0) - Number(a.id || 0))
+    const newestId = announcements.value.reduce((max, item) => Math.max(max, Number(item.id || 0)), 0)
+    const userKey = userInfoStore.userInfo?.userId || userInfoStore.userInfo?.username
+    if (userKey) markAnnouncementsSeen(userKey, newestId)
   } finally { loading.value = false }
 })
 </script>

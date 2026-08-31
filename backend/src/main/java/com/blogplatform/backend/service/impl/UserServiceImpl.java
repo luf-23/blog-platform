@@ -83,12 +83,18 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public Result update(User user) {
+        if (user == null) return Result.error("用户信息不能为空");
         Map<String, Object> claims = ThreadLocalUtil.get();
-        user.setUserId((Integer) claims.get("id"));
-        user.setUsername((String) claims.get("username"));
-        if (user==null) return Result.error("用户信息不能为空");
-        else if (user.getUserId()==null) return Result.error("用户ID不能为空");
-        else if (user.getUsername()==null) return Result.error("用户名不能为空");
+        Integer userId = claims == null ? null : (Integer) claims.get("id");
+        if (userId == null) return Result.error("用户未登录");
+        User existing = userMapper.selectById(userId);
+        if (existing == null) return Result.error("用户不存在");
+        user.setUserId(userId);
+        user.setUsername(existing.getUsername());
+        if (user.getNickname() == null || user.getNickname().isBlank()) user.setNickname(existing.getNickname());
+        if (user.getSignature() == null) user.setSignature(existing.getSignature());
+        if (user.getAvatarImage() == null || user.getAvatarImage().isBlank()) user.setAvatarImage(existing.getAvatarImage());
+        if (user.getBackgroundImage() == null || user.getBackgroundImage().isBlank()) user.setBackgroundImage(existing.getBackgroundImage());
         userMapper.update(user);
         return Result.success();
     }

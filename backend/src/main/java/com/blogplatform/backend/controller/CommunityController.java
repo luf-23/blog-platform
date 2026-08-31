@@ -39,6 +39,16 @@ public class CommunityController {
         return communityService.meta();
     }
 
+    @GetMapping("/profile/{userId}")
+    public Result profileMetrics(@PathVariable Integer userId) {
+        return communityService.profileMetrics(userId);
+    }
+
+    @GetMapping("/follow/{userId}")
+    public Result followState(@PathVariable Integer userId) {
+        return communityService.followState(userId);
+    }
+
     @PostMapping("/follow/{userId}")
     public Result toggleFollow(@PathVariable Integer userId) {
         return communityService.toggleFollow(userId);

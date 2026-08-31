@@ -1,13 +1,12 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { DEFAULT_AVATAR_URL as defaultAvatar } from '../../constants/assets.js'
+import { DEFAULT_ARTICLE_COVER_URL as defaultCover, DEFAULT_AVATAR_URL as defaultAvatar } from '../../constants/assets.js'
 
 const props = defineProps({ article: { type: Object, required: true } })
 defineEmits(['tag-click', 'author-click'])
 
 const router = useRouter()
-const bookmarked = ref(false)
 const coverFailed = ref(false)
 const readingMinutes = computed(() => {
   const contentLength = props.article.content?.length || props.article.summary?.length * 4 || 800
@@ -39,12 +38,8 @@ function formatCount(value) {
 
 <template>
   <article class="article-card surface-card" tabindex="0" @click="gotoDetail" @keyup.enter="gotoDetail">
-    <div v-if="article.coverImage && !coverFailed" class="article-card__cover">
-      <img :src="article.coverImage" :alt="`${article.title}封面`" loading="lazy" @error="coverFailed = true" />
-    </div>
-    <div v-else class="article-card__cover article-card__cover--fallback">
-      <span>{{ article.title?.trim().slice(0, 2) || article.categoryName?.slice(0, 2) || '文章' }}</span>
-      <i></i><b></b>
+    <div class="article-card__cover">
+      <img :src="!coverFailed && article.coverImage ? article.coverImage : defaultCover" :alt="`${article.title}封面`" loading="lazy" @error="coverFailed = true" />
     </div>
 
     <div class="article-card__body">
@@ -84,10 +79,6 @@ function formatCount(value) {
           </span>
           <span>{{ readingMinutes }} 分钟阅读</span>
         </div>
-        <button class="bookmark" :class="{ active: bookmarked }" aria-label="收藏文章" @click.stop="bookmarked = !bookmarked">
-          <svg viewBox="0 0 24 24" :fill="bookmarked ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2"><path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1Z"/></svg>
-          <span>{{ bookmarked ? '已收藏' : '收藏' }}</span>
-        </button>
       </footer>
     </div>
   </article>

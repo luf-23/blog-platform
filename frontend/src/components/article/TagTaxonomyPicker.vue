@@ -70,11 +70,13 @@ function remove(name) { emit('update:modelValue', props.modelValue.filter(item =
       <div v-else class="picker-state compact">没有匹配的二级标签</div>
     </template>
     <template v-else>
+      <div class="picker-section-title"><span>内容方向</span><small>单选</small></div>
       <div class="parent-tabs" role="tablist" aria-label="一级标签">
         <button v-for="group in groups" :key="group.tagId" type="button" role="tab" :aria-selected="activeGroup?.tagId === group.tagId" :class="{ active: activeGroup?.tagId === group.tagId }" @click="activeParentId = group.tagId">
           {{ group.tagName }}<small>{{ group.children.length }}</small>
         </button>
       </div>
+      <div class="picker-section-title leaf-title"><span>{{ activeGroup?.tagName }}标签</span><small>可多选</small></div>
       <div class="leaf-grid" role="tabpanel">
         <button v-for="tag in activeGroup?.children" :key="tag.tagId" type="button" :class="{ selected: isSelected(tag) }" @click="toggle(tag)">
           <span># {{ tag.tagName }}</span><i>{{ isSelected(tag) ? '✓' : '+' }}</i>
@@ -85,13 +87,44 @@ function remove(name) { emit('update:modelValue', props.modelValue.filter(item =
 </template>
 
 <style scoped>
-.taxonomy-picker { overflow: hidden; border: 1px solid var(--c-border); border-radius: 8px; background: var(--c-surface); }
-.selected-tags { display: flex; flex-wrap: wrap; gap: 5px; padding: 8px; border-bottom: 1px solid var(--c-border-light); background: var(--c-primary-soft); }
-.selected-tags > span { display: inline-flex; align-items: center; gap: 4px; padding: 4px 6px; border: 1px solid color-mix(in srgb, var(--c-primary) 28%, var(--c-border)); border-radius: 5px; background: var(--c-surface); color: var(--c-primary); font-size: 10px; font-weight: 700; }
-.selected-tags small { color: var(--c-text-4); font-size: 8px; font-weight: 500; }.selected-tags button { padding: 0; border: 0; background: transparent; color: var(--c-text-4); font-size: 14px; line-height: 1; }
-.tag-search { display: flex; height: 36px; align-items: center; gap: 7px; padding: 0 9px; border-bottom: 1px solid var(--c-border-light); }.tag-search > span { color: var(--c-text-4); }.tag-search input { min-width: 0; flex: 1; border: 0; outline: 0; background: transparent; color: var(--c-text); font-size: 10px; }.tag-search small { color: var(--c-text-4); font-size: 9px; }
-.parent-tabs { display: flex; gap: 3px; padding: 6px; overflow-x: auto; border-bottom: 1px solid var(--c-border-light); background: var(--c-surface-2); scrollbar-width: thin; }.parent-tabs button { display: inline-flex; min-width: max-content; align-items: center; gap: 4px; padding: 5px 7px; border: 1px solid transparent; border-radius: 5px; background: transparent; color: var(--c-text-3); font-size: 9px; }.parent-tabs button.active { border-color: color-mix(in srgb, var(--c-primary) 30%, var(--c-border)); background: var(--c-surface); color: var(--c-primary); font-weight: 800; }.parent-tabs small { display: grid; min-width: 15px; height: 15px; place-items: center; border-radius: 8px; background: var(--c-surface-3); font-size: 8px; }
-.leaf-grid { display: grid; max-height: 176px; grid-template-columns: 1fr; gap: 5px; padding: 7px; overflow-y: auto; }.leaf-grid button, .search-results button { display: flex; min-height: 31px; align-items: center; justify-content: space-between; gap: 8px; padding: 5px 8px; border: 1px solid var(--c-border-light); border-radius: 5px; background: var(--c-surface-2); color: var(--c-text-2); font-size: 9px; text-align: left; }.leaf-grid button:hover, .search-results button:hover { border-color: #93c5fd; }.leaf-grid button.selected, .search-results button.selected { border-color: #93c5fd; background: var(--c-primary-soft); color: var(--c-primary); font-weight: 800; }.leaf-grid i, .search-results i { color: var(--c-primary); font-size: 11px; font-style: normal; font-weight: 900; }
-.search-results { display: flex; max-height: 200px; flex-direction: column; gap: 5px; padding: 7px; overflow-y: auto; }.search-results button span { display: flex; min-width: 0; flex-direction: column; }.search-results small { color: var(--c-text-4); font-size: 8px; }.search-results strong { overflow: hidden; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
-.picker-state { display: grid; min-height: 110px; padding: 18px; place-items: center; color: var(--c-text-4); font-size: 9px; text-align: center; }.picker-state.compact { min-height: 70px; }
+.taxonomy-picker { overflow: hidden; border: 1px solid var(--c-border); border-radius: 7px; background: var(--c-surface); }
+.selected-tags { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px; border-bottom: 1px solid var(--c-border-light); background: var(--c-primary-soft); }
+.selected-tags > span { display: inline-flex; min-height: 27px; align-items: center; gap: 4px; padding: 4px 7px; border: 1px solid color-mix(in srgb, var(--c-primary) 26%, var(--c-border)); border-radius: 4px; background: var(--c-surface); color: var(--c-primary); font-size: 11px; font-weight: 650; }
+.selected-tags small { color: var(--c-text-4); font-size: 9px; font-weight: 500; }
+.selected-tags button { padding: 0 0 0 2px; border: 0; background: transparent; color: var(--c-text-4); font-size: 15px; line-height: 1; }
+.selected-tags button:hover { color: var(--c-danger); }
+
+.tag-search { display: flex; height: 40px; align-items: center; gap: 8px; padding: 0 11px; border-bottom: 1px solid var(--c-border-light); }
+.tag-search > span { color: var(--c-text-4); font-size: 15px; }
+.tag-search input { min-width: 0; flex: 1; border: 0; outline: 0; background: transparent; color: var(--c-text); font-size: 12px; }
+.tag-search input::placeholder { color: var(--c-text-4); }
+.tag-search small { color: var(--c-text-4); font-size: 10px; }
+
+.picker-section-title { display: flex; align-items: center; justify-content: space-between; padding: 10px 10px 6px; color: var(--c-text-3); font-size: 11px; font-weight: 650; }
+.picker-section-title small { color: var(--c-text-4); font-size: 9px; font-weight: 500; }
+.picker-section-title.leaf-title { padding-top: 11px; border-top: 1px solid var(--c-border-light); }
+
+.parent-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; padding: 0 9px 10px; }
+.parent-tabs button { display: flex; min-width: 0; min-height: 35px; align-items: center; justify-content: space-between; gap: 5px; padding: 7px 8px; overflow: hidden; border: 1px solid var(--c-border); border-radius: 5px; background: var(--c-surface-2); color: var(--c-text-3); font-size: 11px; text-align: left; white-space: nowrap; }
+.parent-tabs button.active { border-color: color-mix(in srgb, var(--c-primary) 45%, var(--c-border)); background: var(--c-primary-soft); color: var(--c-primary); font-weight: 700; }
+.parent-tabs button:hover { border-color: var(--c-border-strong); color: var(--c-text); }
+.parent-tabs small { display: grid; min-width: 18px; height: 18px; flex: 0 0 auto; place-items: center; border-radius: 9px; background: var(--c-surface); color: var(--c-text-4); font-size: 9px; }
+
+.leaf-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; padding: 0 9px 10px; }
+.leaf-grid button,
+.search-results button { display: flex; min-width: 0; min-height: 35px; align-items: center; justify-content: space-between; gap: 6px; padding: 7px 8px; overflow: hidden; border: 1px solid var(--c-border-light); border-radius: 5px; background: var(--c-surface-2); color: var(--c-text-2); font-size: 11px; text-align: left; }
+.leaf-grid button span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.leaf-grid button:hover,
+.search-results button:hover { border-color: color-mix(in srgb, var(--c-primary) 45%, var(--c-border)); }
+.leaf-grid button.selected,
+.search-results button.selected { border-color: color-mix(in srgb, var(--c-primary) 55%, var(--c-border)); background: var(--c-primary-soft); color: var(--c-primary); font-weight: 700; }
+.leaf-grid i,
+.search-results i { flex: 0 0 auto; color: var(--c-primary); font-size: 12px; font-style: normal; font-weight: 800; }
+
+.search-results { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; padding: 9px; }
+.search-results button span { display: flex; min-width: 0; flex-direction: column; }
+.search-results small { overflow: hidden; color: var(--c-text-4); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.search-results strong { overflow: hidden; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.picker-state { display: grid; min-height: 100px; padding: 18px; place-items: center; color: var(--c-text-4); font-size: 11px; text-align: center; }
+.picker-state.compact { min-height: 70px; }
 </style>

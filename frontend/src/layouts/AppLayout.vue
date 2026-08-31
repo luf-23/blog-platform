@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import BrandMark from '../components/common/BrandMark.vue'
@@ -8,12 +8,14 @@ import { useUserInfoStore } from '../store/userInfo.js'
 import { useTheme } from '../composables/useTheme.js'
 import request from '../utils/request.js'
 import { DEFAULT_AVATAR_URL as defaultAvatar } from '../constants/assets.js'
+import { useAnnouncements } from '../composables/useAnnouncements.js'
 
 const router = useRouter()
 const route = useRoute()
 const tokenStore = useTokenStore()
 const userInfoStore = useUserInfoStore()
 const { isDark, toggleTheme } = useTheme()
+const { hasNewAnnouncements, checkNewAnnouncements, markAnnouncementsSeen } = useAnnouncements()
 
 const searchOpen = ref(false)
 const mobileOpen = ref(false)
@@ -21,6 +23,7 @@ const globalKeyword = ref('')
 const userInfo = computed(() => userInfoStore.userInfo)
 const loggedIn = computed(() => Boolean(tokenStore.token))
 const isAdmin = computed(() => userInfo.value?.username === 'admin' || userInfo.value?.role === 'admin')
+const announcementUserKey = computed(() => userInfo.value?.userId || userInfo.value?.username || '')
 const adminRoute = computed(() => route.path.startsWith('/admin'))
 const workspaceRoute = computed(() =>
   route.path === '/home' || route.path === '/community' ||
@@ -49,6 +52,10 @@ function goWrite() {
   router.push('/article/write')
 }
 
+function openAnnouncements() {
+  markAnnouncementsSeen(announcementUserKey.value)
+}
+
 async function handleCommand(cmd) {
   if (cmd === 'profile') router.push('/profile')
   if (cmd === 'articles') router.push('/article/my')
@@ -70,6 +77,18 @@ async function handleCommand(cmd) {
     router.push('/login')
   } catch {}
 }
+
+watch(
+  () => [tokenStore.token, announcementUserKey.value],
+  async ([token, userKey]) => {
+    if (!token || !userKey) {
+      await checkNewAnnouncements('')
+      return
+    }
+    await checkNewAnnouncements(userKey).catch(() => {})
+  },
+  { immediate: true }
+)
 </script>
 
 <template>
@@ -105,9 +124,9 @@ async function handleCommand(cmd) {
             <span>写文章</span>
           </button>
 
-          <router-link to="/announcement" class="topbar__icon notification" aria-label="系统公告">
+          <router-link to="/announcement" class="topbar__icon notification" aria-label="系统公告" @click="openAnnouncements">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 8-3 8h18s-3-1-3-8"/><path d="M10 20h4"/></svg>
-            <span class="notification__dot"></span>
+            <span v-if="hasNewAnnouncements" class="notification__dot"></span>
           </router-link>
 
           <router-link v-if="isAdmin" to="/admin/home" class="admin-entry">
@@ -152,7 +171,7 @@ async function handleCommand(cmd) {
 
     <main class="main-content" :class="{ 'main-content--admin': adminRoute, 'main-content--workspace': workspaceRoute }">
       <router-view v-slot="{ Component }">
-        <transition name="fade" mode="out-in"><component :is="Component" /></transition>
+        <transition name="fade" mode="out-in"><component :is="Component" :key="route.fullPath" /></transition>
       </router-view>
     </main>
   </div>

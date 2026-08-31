@@ -106,7 +106,7 @@ function confirm() {
     <template #footer>
       <el-button @click="close">取消</el-button>
       <el-button type="primary" :loading="loading" @click="confirm">
-        确认上传
+        使用这张图片
       </el-button>
     </template>
   </el-dialog>
@@ -116,8 +116,8 @@ function confirm() {
 .upload-zone {
   position: relative;
   height: 220px;
-  border-radius: var(--bp-radius-md);
-  border: 1.5px dashed var(--bp-color-border-strong);
+  border-radius: var(--radius-sm);
+  border: 1.5px dashed var(--c-border-strong);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -126,12 +126,12 @@ function confirm() {
   cursor: pointer;
   overflow: hidden;
   transition: border-color 0.2s ease, background 0.2s ease;
-  background: var(--bp-color-bg-soft);
+  background: var(--c-surface-2);
 }
 
 .upload-zone:hover {
-  border-color: var(--bp-color-primary);
-  background: var(--bp-color-primary-soft);
+  border-color: var(--c-primary);
+  background: var(--c-primary-soft);
 }
 
 .upload-zone__input {
@@ -168,17 +168,17 @@ function confirm() {
 }
 
 .upload-zone__icon {
-  color: var(--bp-color-primary);
+  color: var(--c-primary);
 }
 
 .upload-zone__title {
   font-size: 14px;
   font-weight: 600;
-  color: var(--bp-color-text-primary);
+  color: var(--c-text);
 }
 
 .upload-zone__hint {
   font-size: 12px;
-  color: var(--bp-color-text-tertiary);
+  color: var(--c-text-3);
 }
 </style>

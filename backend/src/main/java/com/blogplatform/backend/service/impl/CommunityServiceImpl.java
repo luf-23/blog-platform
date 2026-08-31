@@ -59,7 +59,7 @@ public class CommunityServiceImpl implements CommunityService {
     @Override
     public Result meta() {
         Integer currentUserId = currentUserId();
-        List<Map<String, Object>> creators = communityMapper.selectRecommendedCreators();
+        List<Map<String, Object>> creators = communityMapper.selectRecommendedCreators(currentUserId);
         for (Map<String, Object> creator : creators) {
             Integer creatorId = numberValue(creator.get("userId"));
             creator.put("following", currentUserId != null && creatorId != null
@@ -73,6 +73,25 @@ public class CommunityServiceImpl implements CommunityService {
     }
 
     @Override
+    public Result profileMetrics(Integer userId) {
+        Map<String, Object> metrics = communityMapper.selectProfileMetrics(userId);
+        if (metrics == null) return Result.error("用户不存在");
+        metrics.put("following", false);
+        return Result.success(metrics);
+    }
+
+    @Override
+    public Result followState(Integer userId) {
+        Integer currentUserId = currentUserId();
+        if (currentUserId == null) return Result.error("请先登录");
+        Map<String, Object> metrics = communityMapper.selectProfileMetrics(userId);
+        if (metrics == null) return Result.error("用户不存在");
+        metrics.put("following", !currentUserId.equals(userId)
+                && communityMapper.isFollowing(currentUserId, userId) > 0);
+        return Result.success(metrics);
+    }
+
+    @Override
     @Transactional
     public Result toggleFollow(Integer userId) {
         Integer currentUserId = currentUserId();
@@ -81,7 +100,9 @@ public class CommunityServiceImpl implements CommunityService {
         boolean following = communityMapper.isFollowing(currentUserId, userId) > 0;
         if (following) communityMapper.deleteFollow(currentUserId, userId);
         else communityMapper.insertFollow(currentUserId, userId);
-        return Result.success(Map.of("following", !following));
+        Map<String, Object> metrics = communityMapper.selectProfileMetrics(userId);
+        metrics.put("following", !following);
+        return Result.success(metrics);
     }
 
     private Integer currentUserId() {

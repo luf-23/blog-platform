@@ -35,6 +35,8 @@ public class WebConfig implements WebMvcConfigurer {
                         "/comment/replies",
                         "/community/feed",
                         "/community/meta",
+                        "/community/profile/**",
+                        "/announcement",
                         "/announcement/**"
                 );
     }

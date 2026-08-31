@@ -67,6 +67,7 @@ public class ArticleServiceImpl implements ArticleService {
         vo.setTags(tagMapper.selectByArticleId(articleId));
         vo.setIsLiked(isArticleLiked(articleId));
         articleMapper.incrementViewCount(articleId);
+        vo.setViewCount((vo.getViewCount() == null ? 0 : vo.getViewCount()) + 1);
         return Result.success(vo);
     }
 
@@ -89,6 +90,7 @@ public class ArticleServiceImpl implements ArticleService {
         article.setUserId(userId);
         if (article.getTitle() == null || article.getTitle().isBlank()) return Result.error("标题不能为空");
         if (article.getContent() == null || article.getContent().isBlank()) return Result.error("内容不能为空");
+        ensureSummary(article);
         Result categoryValidation = validateCategoryOwnership(article.getCategoryId(), userId);
         if (categoryValidation != null) return categoryValidation;
         Result tagValidation = validateManagedTags(tagNames);
@@ -114,6 +116,9 @@ public class ArticleServiceImpl implements ArticleService {
         Article existing = articleMapper.selectById(article.getArticleId());
         if (existing == null) return Result.error("文章不存在");
         if (!existing.getUserId().equals(userId)) return Result.error("权限不足");
+        if (article.getTitle() == null || article.getTitle().isBlank()) return Result.error("标题不能为空");
+        if (article.getContent() == null || article.getContent().isBlank()) return Result.error("内容不能为空");
+        ensureSummary(article);
         Result categoryValidation = validateCategoryOwnership(article.getCategoryId(), userId);
         if (categoryValidation != null) return categoryValidation;
         Result tagValidation = validateManagedTags(tagNames);
@@ -216,6 +221,23 @@ public class ArticleServiceImpl implements ArticleService {
             if (tag.getParentId() == null) return Result.error("一级标签仅用于分组，请选择具体的二级标签");
         }
         return null;
+    }
+
+    private void ensureSummary(Article article) {
+        if (article.getSummary() != null && !article.getSummary().isBlank()) {
+            article.setSummary(article.getSummary().trim());
+            return;
+        }
+        String plainText = article.getContent()
+                .replaceAll("(?s)```.*?```", " ")
+                .replaceAll("`([^`]*)`", "$1")
+                .replaceAll("!\\[[^]]*]\\([^)]*\\)", " ")
+                .replaceAll("\\[([^]]+)]\\([^)]*\\)", "$1")
+                .replaceAll("(?m)^\\s{0,3}[#>*+\\-]+\\s*", "")
+                .replaceAll("[\\r\\n\\t]+", " ")
+                .replaceAll("\\s{2,}", " ")
+                .trim();
+        article.setSummary(plainText.length() > 180 ? plainText.substring(0, 180) + "…" : plainText);
     }
 
     private Result validateCategoryOwnership(Integer categoryId, Integer userId) {

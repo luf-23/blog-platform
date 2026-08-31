@@ -3,6 +3,7 @@
     <!-- Banner -->
     <div class="profile-banner" :style="bannerStyle">
       <div class="banner-overlay"></div>
+      <button v-if="isMe" class="banner-edit" @click="beginImageUpload('background')">更换背景图</button>
     </div>
 
     <div class="page-container">
@@ -31,41 +32,37 @@
             </div>
           </div>
         </div>
-        <div v-if="isMe" class="profile-card-right">
-          <button class="btn btn-secondary" @click="showEditDialog = true">编辑资料</button>
+        <div class="profile-card-right">
+          <button v-if="isMe" class="btn btn-secondary" @click="showEditDialog = true">编辑资料</button>
+          <button v-else class="btn btn-primary" :class="{ following: profileStats.following }" @click="toggleFollow">
+            {{ profileStats.following ? '已关注' : '关注' }}
+          </button>
           <button class="btn btn-ghost" @click="shareProfile">分享主页</button>
         </div>
       </div>
 
       <section class="profile-stats surface-card">
-        <p><i>▤</i><span>文章<strong>{{ articles.length }}</strong></span></p>
+        <p><i>▤</i><span>文章<strong>{{ profileStats.articleCount }}</strong></span></p>
         <p><i>◉</i><span>总阅读<strong>{{ formatCount(profileStats.views) }}</strong></span></p>
         <p><i>♡</i><span>获赞<strong>{{ formatCount(profileStats.likes) }}</strong></span></p>
         <p><i>▢</i><span>评论<strong>{{ formatCount(profileStats.comments) }}</strong></span></p>
+        <p><i>◎</i><span>关注者<strong>{{ formatCount(profileStats.followerCount) }}</strong></span></p>
+        <p><i>→</i><span>正在关注<strong>{{ formatCount(profileStats.followingCount) }}</strong></span></p>
       </section>
-
-      <nav class="profile-tabs">
-        <button>主页</button><button class="active">文章</button><button v-if="isMe" @click="$router.push('/article/my')">草稿</button><button>收藏</button><button>关于</button>
-      </nav>
 
       <div class="profile-layout">
         <div class="profile-content">
           <div class="section-header">
-            <div><h2 class="section-title">发布的文章</h2><span class="section-count">{{ articles.length }} 篇</span></div>
-            <el-input placeholder="搜索他的文章" style="width:220px" clearable />
+            <div><h2 class="section-title">发布的文章</h2><span class="section-count">{{ profileStats.articleCount }} 篇</span></div>
+            <el-input v-model="articleSearch" placeholder="搜索文章" style="width:220px" clearable />
           </div>
 
           <div v-if="loading" class="loading-spinner"><el-icon class="is-loading" :size="20"><Loading /></el-icon></div>
-          <div v-else-if="articles.length === 0" class="empty-state surface-card"><p>还没有发布文章</p></div>
-          <div v-else class="article-list"><ArticleCard v-for="a in articles" :key="a.articleId" :article="a"/></div>
+          <div v-else-if="filteredArticles.length === 0" class="empty-state surface-card"><p>{{ articleSearch ? '没有匹配的文章' : '还没有发布文章' }}</p></div>
+          <div v-else class="article-list"><ArticleCard v-for="a in filteredArticles" :key="a.articleId" :article="a"/></div>
         </div>
 
         <aside class="profile-aside">
-          <section class="surface-card trend-card">
-            <header><h3>创作趋势</h3><span>最近 30 天</span></header>
-            <div class="mini-chart"><i v-for="(height, index) in trendBars" :key="index" :style="{ height: height + '%' }"></i></div>
-            <p><span>阅读量</span><strong>较上月 +18.6%</strong></p>
-          </section>
           <section class="surface-card category-card">
             <header><h3>内容分类</h3><router-link v-if="isMe" to="/article/categories">管理分类</router-link></header>
             <p v-for="category in profileCategories" :key="category.name"><span>▱ {{ category.name }}</span><strong>{{ category.count }}</strong></p>
@@ -84,10 +81,13 @@
     <!-- Edit dialog -->
     <el-dialog v-model="showEditDialog" title="编辑个人资料" width="520px" :close-on-click-modal="false">
       <el-form ref="editFormRef" :model="editForm" label-position="top">
-        <el-form-item label="头像 URL">
+        <el-form-item label="头像">
           <div class="avatar-preview-row">
             <img :src="editForm.avatarImage || defaultAvatar" class="avatar" style="width:56px;height:56px"/>
-            <el-input v-model="editForm.avatarImage" placeholder="输入头像图片 URL" style="flex:1"/>
+            <div class="image-field">
+              <button type="button" class="btn btn-secondary btn-sm" @click="beginImageUpload('avatar')">更换头像</button>
+              <small>支持 JPG、PNG、WEBP，图片大小不超过 5MB</small>
+            </div>
           </div>
         </el-form-item>
         <el-form-item label="昵称">
@@ -96,8 +96,11 @@
         <el-form-item label="个性签名">
           <el-input v-model="editForm.signature" type="textarea" :rows="3" maxlength="200" show-word-limit placeholder="介绍一下你自己..."/>
         </el-form-item>
-        <el-form-item label="背景图 URL">
-          <el-input v-model="editForm.backgroundImage" placeholder="输入背景图片 URL"/>
+        <el-form-item label="背景图">
+          <div class="image-field image-field--wide">
+            <button type="button" class="btn btn-secondary btn-sm" @click="beginImageUpload('background')">更换背景图</button>
+            <small>建议选择横向图片，效果更自然</small>
+          </div>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -105,6 +108,14 @@
         <el-button type="primary" :loading="savingEdit" @click="saveProfile">保存</el-button>
       </template>
     </el-dialog>
+
+    <UploadImageDialog
+      v-model:visible="uploadDialogVisible"
+      :title="uploadTarget === 'avatar' ? '选择头像' : '选择背景图'"
+      :loading="uploadingImage"
+      hint="支持 JPG、PNG、WEBP，图片大小不超过 5MB"
+      @confirm="uploadProfileImage"
+    />
   </div>
 </template>
 
@@ -115,11 +126,15 @@ import { ElMessage } from 'element-plus'
 import { Loading } from '@element-plus/icons-vue'
 import { getUserInfoByNameService, updateUserInfoService, getUserInfoService } from '../api/user.js'
 import { searchArticlesService } from '../api/article.js'
+import { getCommunityFollowStateService, getCommunityProfileService, toggleCommunityFollowService } from '../api/community.js'
 import { useUserInfoStore } from '../store/userInfo.js'
 import ArticleCard from '../components/article/ArticleCard.vue'
-import { DEFAULT_AVATAR_URL as defaultAvatar } from '../constants/assets.js'
+import UploadImageDialog from '../components/common/UploadImageDialog.vue'
+import { OSSClient, uploadImageToOss } from '../utils/oss/index.js'
+import { DEFAULT_AVATAR_URL as defaultAvatar, DEFAULT_PROFILE_BACKGROUND_URL as defaultBackground } from '../constants/assets.js'
 
 const route = useRoute()
+const router = useRouter()
 const userInfoStore = useUserInfoStore()
 
 const profileUser = ref(null)
@@ -128,8 +143,11 @@ const loading = ref(false)
 const showEditDialog = ref(false)
 const savingEdit = ref(false)
 const editFormRef = ref()
-
-const trendBars = [34, 46, 52, 38, 68, 56, 74, 48, 62, 81, 70, 88]
+const articleSearch = ref('')
+const profileMetrics = ref({})
+const uploadDialogVisible = ref(false)
+const uploadingImage = ref(false)
+const uploadTarget = ref('avatar')
 
 const isMe = computed(() => {
   const u = userInfoStore.userInfo
@@ -138,14 +156,25 @@ const isMe = computed(() => {
 })
 
 const bannerStyle = computed(() => {
-  const img = profileUser.value?.backgroundImage
-  return img ? { backgroundImage: `url(${img})` } : {}
+  const img = profileUser.value?.backgroundImage || defaultBackground
+  return { backgroundImage: `url(${img})` }
 })
 const profileStats = computed(() => ({
-  views: articles.value.reduce((sum, article) => sum + (article.viewCount || 0), 0),
-  likes: articles.value.reduce((sum, article) => sum + (article.likeCount || 0), 0),
-  comments: articles.value.reduce((sum, article) => sum + (article.commentCount || 0), 0)
+  articleCount: Number(profileMetrics.value.articleCount ?? articles.value.length),
+  views: Number(profileMetrics.value.viewCount ?? articles.value.reduce((sum, article) => sum + (article.viewCount || 0), 0)),
+  likes: Number(profileMetrics.value.likeCount ?? articles.value.reduce((sum, article) => sum + (article.likeCount || 0), 0)),
+  comments: Number(profileMetrics.value.commentCount ?? articles.value.reduce((sum, article) => sum + (article.commentCount || 0), 0)),
+  followerCount: Number(profileMetrics.value.followerCount || 0),
+  followingCount: Number(profileMetrics.value.followingCount || 0),
+  following: Boolean(profileMetrics.value.following)
 }))
+const filteredArticles = computed(() => {
+  const query = articleSearch.value.trim().toLowerCase()
+  if (!query) return articles.value
+  return articles.value.filter(article =>
+    `${article.title || ''} ${article.summary || ''}`.toLowerCase().includes(query)
+  )
+})
 const profileCategories = computed(() => {
   const counts = new Map()
   articles.value.forEach(article => {
@@ -174,7 +203,7 @@ async function loadProfile() {
       profileUser.value = res.data
     }
     if (profileUser.value) {
-      loadArticles()
+      await Promise.all([loadArticles(), loadProfileMetrics()])
       if (isMe.value) {
         editForm.nickname = profileUser.value.nickname || ''
         editForm.signature = profileUser.value.signature || ''
@@ -187,9 +216,54 @@ async function loadProfile() {
 
 async function loadArticles() {
   try {
-    const res = await searchArticlesService({ authorId: profileUser.value.userId, pageSize: 20 })
+    const res = await searchArticlesService({ authorId: profileUser.value.userId, pageSize: 50 })
     articles.value = res.data.list || []
   } catch {}
+}
+
+async function loadProfileMetrics() {
+  try {
+    const service = userInfoStore.userInfo ? getCommunityFollowStateService : getCommunityProfileService
+    const result = await service(profileUser.value.userId)
+    profileMetrics.value = result.data || {}
+  } catch {
+    const result = await getCommunityProfileService(profileUser.value.userId).catch(() => null)
+    profileMetrics.value = result?.data || {}
+  }
+}
+
+async function toggleFollow() {
+  if (!userInfoStore.userInfo) {
+    router.push({ path: '/login', query: { redirect: route.fullPath } })
+    return
+  }
+  try {
+    const result = await toggleCommunityFollowService(profileUser.value.userId)
+    profileMetrics.value = { ...profileMetrics.value, ...(result.data || {}) }
+    ElMessage.success(profileStats.value.following ? '已关注' : '已取消关注')
+  } catch {}
+}
+
+function beginImageUpload(target) {
+  uploadTarget.value = target
+  showEditDialog.value = true
+  uploadDialogVisible.value = true
+}
+
+async function uploadProfileImage(file) {
+  uploadingImage.value = true
+  try {
+    const type = uploadTarget.value === 'avatar' ? OSSClient.IMAGE_TYPE.AVATAR : OSSClient.IMAGE_TYPE.BACKGROUND
+    const url = await uploadImageToOss(file, type, profileUser.value?.userId)
+    if (uploadTarget.value === 'avatar') editForm.avatarImage = url
+    else editForm.backgroundImage = url
+    uploadDialogVisible.value = false
+    ElMessage.success('图片已更新，请保存资料')
+  } catch (error) {
+    ElMessage.error(error?.message || '图片上传失败')
+  } finally {
+    uploadingImage.value = false
+  }
 }
 
 async function saveProfile() {
@@ -266,6 +340,7 @@ watch(() => route.params.username, loadProfile)
   align-items: flex-end;
   gap: 20px;
 }
+.banner-edit { position: absolute; right: max(24px, calc((100% - var(--content-width)) / 2 + 24px)); bottom: 18px; z-index: 1; padding: 7px 11px; border: 1px solid rgba(255,255,255,.72); border-radius: var(--radius-sm); background: rgba(15,23,42,.56); color: #fff; font-size: 12px; font-weight: 700; backdrop-filter: blur(8px); }
 .profile-card-right { display: flex; gap: 7px; }
 
 .avatar-wrap {
@@ -335,12 +410,13 @@ watch(() => route.params.username, loadProfile)
 }
 
 /* Content */
-.profile-stats { display: grid; grid-template-columns: repeat(4, 1fr); margin-bottom: 14px; padding: 16px 22px; }
+.profile-stats { display: grid; grid-template-columns: repeat(6, 1fr); margin-bottom: 18px; padding: 16px 18px; }
 .profile-stats p { display: flex; align-items: center; justify-content: center; gap: 12px; border-right: 1px solid var(--c-border); }
 .profile-stats p:last-child { border: 0; }
 .profile-stats i { color: var(--c-primary); font-size: 23px; font-style: normal; }
 .profile-stats span { display: flex; flex-direction: column; color: var(--c-text-3); font-size: 11px; }
 .profile-stats strong { color: var(--c-text); font-size: 21px; }
+.profile-card-right .following { border-color: var(--c-border-strong); background: var(--c-surface-2); color: var(--c-text-3); box-shadow: none; }
 .profile-tabs { display: flex; gap: 18px; margin-bottom: 18px; border-bottom: 1px solid var(--c-border); }
 .profile-tabs button { position: relative; padding: 11px 12px 13px; border: 0; background: transparent; color: var(--c-text-3); font-weight: 600; }
 .profile-tabs button.active { color: var(--c-primary); }
@@ -397,18 +473,23 @@ watch(() => route.params.username, loadProfile)
   gap: 12px;
   width: 100%;
 }
+.image-field { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 8px; }
+.image-field--wide { width: 100%; }
+.image-field small { color: var(--c-text-4); font-size: 11px; line-height: 1.5; }
 
 @media (max-width: 980px) {
   .profile-layout { grid-template-columns: 1fr; }
   .profile-aside { position: static; display: grid; grid-template-columns: repeat(2, 1fr); }
   .quick-card { grid-column: 1 / -1; }
   .profile-banner { height: 180px; }
+  .profile-stats { grid-template-columns: repeat(3, 1fr); }
+  .profile-stats p:nth-child(3) { border-right: 0; }
 }
 @media (max-width: 680px) {
   .profile-card, .profile-card-left { align-items: flex-start; flex-direction: column; }
   .profile-card-right { width: 100%; }
   .profile-stats { grid-template-columns: repeat(2, 1fr); gap: 12px; }
-  .profile-stats p:nth-child(2) { border-right: 0; }
+  .profile-stats p:nth-child(2n) { border-right: 0; }
   .profile-tabs { overflow-x: auto; }
   .section-header { align-items: flex-start; flex-direction: column; }
   .section-header :deep(.el-input) { width: 100% !important; }
