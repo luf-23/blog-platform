@@ -109,12 +109,12 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Loading } from '@element-plus/icons-vue'
 import { getAdminArticlesService, acceptArticleService, rejectArticleService, dropArticleService as dropService } from '../../api/admin.js'
-import { getAdminStatsService } from '../../api/admin.js'
 import { DEFAULT_AVATAR_URL as defaultAvatar } from '../../constants/assets.js'
+import { useAdminPendingArticles } from '../../composables/useAdminPendingArticles.js'
 
 const articles = ref([])
 const total = ref(0)
-const pendingCount = ref(0)
+const { pendingArticles: pendingCount, refreshPendingArticles } = useAdminPendingArticles()
 const loading = ref(false)
 const failedCoverIds = ref(new Set())
 const currentPage = ref(1)
@@ -164,8 +164,7 @@ async function fetchArticles() {
 
 async function loadPendingCount() {
   try {
-    const res = await getAdminStatsService()
-    pendingCount.value = res.data.pendingArticles || 0
+    await refreshPendingArticles()
   } catch {}
 }
 
@@ -182,8 +181,7 @@ async function approve(a) {
   try {
     await acceptArticleService(a.articleId)
     ElMessage.success('已通过审核')
-    pendingCount.value = Math.max(0, pendingCount.value - 1)
-    fetchArticles()
+    await Promise.all([fetchArticles(), refreshPendingArticles()])
   } catch {}
 }
 
@@ -196,8 +194,7 @@ async function reject(a) {
     })
     await rejectArticleService(a.articleId)
     ElMessage.success('已驳回')
-    pendingCount.value = Math.max(0, pendingCount.value - 1)
-    fetchArticles()
+    await Promise.all([fetchArticles(), refreshPendingArticles()])
   } catch {}
 }
 

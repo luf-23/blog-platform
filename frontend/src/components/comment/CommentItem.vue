@@ -48,22 +48,21 @@
       </Transition>
 
       <div v-if="visibleReplies.length" class="reply-list">
-        <div v-for="reply in visibleReplies" :key="reply.commentId" class="reply-item">
+        <div v-for="reply in visibleReplies" :key="reply.commentId" class="reply-item" :class="`depth-${Math.min(replyDepth(reply), 3)}`">
           <img :src="reply.avatar || defaultAvatar" class="reply-avatar avatar" />
           <div class="reply-main">
             <div class="reply-meta">
-              <span class="reply-author">{{ displayName(reply) }}</span>
-              <span v-if="isAuthor(reply)" class="author-badge compact">作者</span>
+              <div class="reply-author-line">
+                <span class="reply-author">{{ displayName(reply) }}</span>
+                <span v-if="isAuthor(reply)" class="author-badge compact">作者</span>
+              </div>
               <time>{{ formatDate(reply.createTime) }}</time>
             </div>
-            <p class="reply-content">
-              <template v-if="shouldShowReplyTo(reply)">
-                <span class="reply-to-text">回复</span>
-                <span class="reply-to-name">@{{ reply.replyToNickname || reply.replyToUsername }}</span>
-                <span class="reply-colon">：</span>
-              </template>
-              {{ reply.content }}
-            </p>
+            <div v-if="replyContext(reply)" class="reply-reference">
+              <span>回复 <strong>@{{ replyContext(reply).name }}</strong></span>
+              <q v-if="replyContext(reply).content">{{ replyContext(reply).content }}</q>
+            </div>
+            <p class="reply-content">{{ reply.content }}</p>
             <CommentActions
               :comment="reply"
               :can-delete="canDelete(reply)"
@@ -90,7 +89,7 @@
 </template>
 
 <script setup>
-import { ref, computed, nextTick, h } from 'vue'
+import { ref, computed, nextTick, h, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Loading } from '@element-plus/icons-vue'
 import { publishCommentService, deleteCommentService, getCommentRepliesService } from '../../api/comment.js'
@@ -123,6 +122,15 @@ const visibleReplies = computed(() => replies.value)
 const hasMoreReplies = computed(() => (props.comment.replyCount || 0) > visibleReplies.value.length)
 const remainingReplyCount = computed(() => Math.max(0, (props.comment.replyCount || 0) - visibleReplies.value.length))
 const canSubmitReply = computed(() => replyContent.value.trim() && replyContent.value.length <= 1000 && !submitting.value)
+const replyLookup = computed(() => {
+  const map = new Map([[props.comment.commentId, props.comment]])
+  visibleReplies.value.forEach(reply => map.set(reply.commentId, reply))
+  return map
+})
+
+watch(() => props.comment.children, children => {
+  if (!loadedFromServer.value) replies.value = [...(children || [])]
+})
 
 const CommentActions = {
   props: {
@@ -157,20 +165,44 @@ function displayName(comment) {
 }
 
 function isAuthor(comment) {
-  return props.authorId != null && comment.userId === props.authorId
+  return props.authorId != null && Number(comment.userId) === Number(props.authorId)
 }
 
 function canDelete(comment) {
   if (!currentUser.value) return false
   return (
-    currentUser.value.userId === comment.userId ||
+    Number(currentUser.value.userId) === Number(comment.userId) ||
     currentUser.value.username === 'admin' ||
     currentUser.value.role === 'admin'
   )
 }
 
-function shouldShowReplyTo(reply) {
-  return reply.replyToUserId && reply.replyToUserId !== props.comment.userId
+function replyDepth(reply) {
+  let depth = 1
+  let parent = replyLookup.value.get(reply.parentId)
+  const visited = new Set([reply.commentId])
+  while (parent && parent.commentId !== props.comment.commentId && !visited.has(parent.commentId)) {
+    visited.add(parent.commentId)
+    depth += 1
+    parent = replyLookup.value.get(parent.parentId)
+  }
+  return depth
+}
+
+function replyContext(reply) {
+  if (!reply.replyToUserId) return null
+  let target = replyLookup.value.get(reply.parentId)
+  if (target && Number(target.userId) !== Number(reply.replyToUserId)) {
+    const currentIndex = visibleReplies.value.findIndex(item => item.commentId === reply.commentId)
+    target = visibleReplies.value
+      .slice(0, currentIndex < 0 ? visibleReplies.value.length : currentIndex)
+      .reverse()
+      .find(item => Number(item.userId) === Number(reply.replyToUserId))
+  }
+  return {
+    name: reply.replyToNickname || reply.replyToUsername || (target ? displayName(target) : '该用户'),
+    content: target?.content || ''
+  }
 }
 
 function openReply(comment) {
@@ -194,7 +226,7 @@ async function submitReply() {
     await publishCommentService({
       articleId: props.articleId,
       content: replyContent.value.trim(),
-      parentId: props.comment.commentId,
+      parentId: replyTarget.value.commentId,
       replyToUserId: replyTarget.value.userId
     })
     ElMessage.success('回复成功')
@@ -309,10 +341,11 @@ function formatDate(time) {
 }
 
 .comment-author-line,
-.reply-meta {
+.reply-author-line {
   display: flex;
+  min-width: 0;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
   flex-wrap: wrap;
 }
 
@@ -324,17 +357,20 @@ function formatDate(time) {
 }
 
 .author-badge {
-  padding: 1px 6px;
+  display: inline-flex;
+  height: 19px;
+  align-items: center;
+  padding: 0 6px;
   border-radius: var(--radius-full);
-  background: linear-gradient(135deg, #eef2ff, #e0e7ff);
+  background: var(--c-primary-soft);
   color: var(--c-primary);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
-  line-height: 18px;
+  line-height: 1;
 }
 .author-badge.compact {
-  font-size: 10px;
-  line-height: 16px;
+  height: 17px;
+  font-size: 9px;
 }
 
 .comment-time,
@@ -451,39 +487,68 @@ function formatDate(time) {
 }
 
 .reply-list {
+  position: relative;
   margin-top: 14px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 4px;
+  padding: 4px 0 4px 25px;
+}
+.reply-list::before {
+  position: absolute;
+  top: 0;
+  bottom: 6px;
+  left: 10px;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--c-border);
+  content: '';
 }
 
 .reply-item {
+  position: relative;
   display: flex;
   gap: 10px;
-  padding: 12px 14px;
-  background: rgba(248, 250, 252, 0.82);
-  border: 1px solid rgba(226, 232, 240, 0.82);
-  border-radius: 14px;
+  padding: 11px 12px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: var(--c-surface-2);
+  transition: border-color var(--transition), background var(--transition);
+}
+.reply-item::before {
+  position: absolute;
+  top: 24px;
+  left: -15px;
+  width: 14px;
+  border-top: 2px solid var(--c-border);
+  content: '';
+}
+.reply-item:hover { border-color: var(--c-border); background: var(--c-surface); }
+.reply-item.depth-2 { margin-left: 20px; }
+.reply-item.depth-3 { margin-left: 40px; }
+.reply-item.depth-2::after,
+.reply-item.depth-3::after {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  left: -11px;
+  border-left: 1px dashed var(--c-border-strong);
+  content: '';
 }
 
 .reply-content {
-  margin-bottom: 0;
+  margin: 7px 0 4px;
   color: var(--c-text-2);
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1.7;
   word-break: break-word;
 }
 
-.reply-to-text,
-.reply-colon {
-  color: var(--c-text-3);
-}
-
-.reply-to-name {
-  margin: 0 2px;
-  color: var(--c-primary);
-  font-weight: 600;
-}
+.reply-reference { display: flex; min-width: 0; align-items: center; gap: 8px; margin-top: 2px; color: var(--c-text-4); font-size: 10px; }
+.reply-reference > span { flex: 0 0 auto; }
+.reply-reference strong { color: var(--c-primary); font-weight: 700; }
+.reply-reference q { min-width: 0; overflow: hidden; padding-left: 8px; border-left: 2px solid var(--c-border-strong); color: var(--c-text-4); font-style: normal; text-overflow: ellipsis; white-space: nowrap; }
+.reply-reference q::before, .reply-reference q::after { content: ''; }
 
 .reply-more {
   margin-top: 12px;
@@ -517,7 +582,7 @@ function formatDate(time) {
   background: rgba(34, 34, 40, 0.82);
 }
 [data-theme="dark"] .reply-item {
-  background: rgba(34, 34, 40, 0.66);
+  background: var(--c-surface-2);
   border-color: var(--c-border);
 }
 
@@ -526,5 +591,10 @@ function formatDate(time) {
   .comment-avatar { width: 38px; height: 38px; }
   .comment-meta { align-items: flex-start; flex-direction: column; gap: 2px; }
   .reply-more { padding-left: 0; }
+  .reply-list { padding-left: 18px; }
+  .reply-list::before { left: 6px; }
+  .reply-item.depth-2 { margin-left: 10px; }
+  .reply-item.depth-3 { margin-left: 20px; }
+  .reply-reference q { display: none; }
 }
 </style>

@@ -16,6 +16,14 @@ export function getCommunityProfileService(userId) {
   return request({ url: `/community/profile/${userId}`, method: 'get' })
 }
 
+export function getCommunityProfileFollowersService(userId, params) {
+  return request({ url: `/community/profile/${userId}/followers`, method: 'get', params })
+}
+
+export function getCommunityProfileFollowingService(userId, params) {
+  return request({ url: `/community/profile/${userId}/following`, method: 'get', params })
+}
+
 export function getCommunityFollowStateService(userId) {
   return request({ url: `/community/follow/${userId}`, method: 'get' })
 }

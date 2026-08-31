@@ -171,7 +171,7 @@ watch(
 
     <main class="main-content" :class="{ 'main-content--admin': adminRoute, 'main-content--workspace': workspaceRoute }">
       <router-view v-slot="{ Component }">
-        <transition name="fade" mode="out-in"><component :is="Component" :key="route.fullPath" /></transition>
+        <transition name="fade" mode="out-in"><component :is="Component" :key="route.path" /></transition>
       </router-view>
     </main>
   </div>

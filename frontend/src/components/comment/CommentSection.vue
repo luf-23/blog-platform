@@ -164,9 +164,11 @@ onMounted(() => fetchComments())
 
 <style scoped>
 .comment-section {
-  padding: 28px 32px;
-  border: 1px solid rgba(226, 232, 240, 0.9);
-  box-shadow: 0 16px 42px rgba(15, 23, 42, 0.06);
+  padding: 24px 28px 28px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .comment-section.is-panel {
@@ -185,7 +187,7 @@ onMounted(() => fetchComments())
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 22px;
+  margin-bottom: 16px;
 }
 
 .is-panel .cs-header {
@@ -202,7 +204,7 @@ onMounted(() => fetchComments())
 }
 
 .cs-title {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 800;
   color: var(--c-text);
   letter-spacing: -0.02em;
@@ -228,13 +230,13 @@ onMounted(() => fetchComments())
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 36px;
-  height: 28px;
-  background: var(--c-primary-light);
+  min-width: 30px;
+  height: 23px;
+  background: var(--c-primary-soft);
   color: var(--c-primary);
   font-size: 13px;
   font-weight: 800;
-  padding: 0 10px;
+  padding: 0 8px;
   border-radius: var(--radius-full);
 }
 
@@ -269,11 +271,11 @@ onMounted(() => fetchComments())
   display: flex;
   gap: 14px;
   align-items: flex-start;
-  margin-bottom: 24px;
-  padding: 16px;
-  border: 1px solid rgba(226, 232, 240, 0.86);
-  border-radius: 18px;
-  background: linear-gradient(180deg, #fff, rgba(248, 250, 252, 0.68));
+  margin-bottom: 20px;
+  padding: 14px 15px;
+  border: 1px solid var(--c-border);
+  border-radius: 10px;
+  background: var(--c-surface-2);
 }
 
 .is-panel .cs-composer {
@@ -287,8 +289,8 @@ onMounted(() => fetchComments())
 }
 
 .composer-avatar {
-  width: 42px;
-  height: 42px;
+  width: 38px;
+  height: 38px;
   flex-shrink: 0;
 }
 
@@ -305,12 +307,12 @@ onMounted(() => fetchComments())
 }
 
 .cs-input-wrap :deep(.el-textarea__inner) {
-  min-height: 76px !important;
+  min-height: 62px !important;
   border: none;
   box-shadow: none;
   background: transparent;
-  padding: 6px 0;
-  font-size: 14px;
+  padding: 5px 2px;
+  font-size: 13px;
   line-height: 1.7;
 }
 
@@ -342,20 +344,19 @@ onMounted(() => fetchComments())
   gap: 6px;
   min-width: 86px;
   border: none;
-  border-radius: var(--radius-full);
-  padding: 8px 18px;
+  border-radius: 6px;
+  padding: 8px 15px;
   color: #fff;
-  background: linear-gradient(135deg, var(--c-primary), #6366f1);
+  background: var(--c-primary);
   font-size: 13px;
   font-weight: 700;
   text-decoration: none;
   cursor: pointer;
-  box-shadow: 0 10px 24px rgba(var(--c-primary-rgb), 0.24);
+  box-shadow: none;
   transition: all var(--transition);
 }
 .cs-submit:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 14px 30px rgba(var(--c-primary-rgb), 0.3);
+  background: var(--c-primary-hover);
 }
 .cs-submit:disabled {
   opacity: 0.55;
@@ -386,7 +387,7 @@ onMounted(() => fetchComments())
 .cs-list {
   display: flex;
   flex-direction: column;
-  border-top: 1px solid rgba(148, 163, 184, 0.16);
+  border-top: 1px solid var(--c-border);
 }
 
 .is-panel .cs-list {
@@ -488,11 +489,10 @@ onMounted(() => fetchComments())
 }
 
 [data-theme="dark"] .comment-section {
-  border-color: var(--c-border);
   box-shadow: none;
 }
 [data-theme="dark"] .cs-composer {
-  background: rgba(34, 34, 40, 0.66);
+  background: var(--c-surface-2);
   border-color: var(--c-border);
 }
 

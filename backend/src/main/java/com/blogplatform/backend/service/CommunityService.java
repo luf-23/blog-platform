@@ -2,14 +2,20 @@ package com.blogplatform.backend.service;
 
 import com.blogplatform.backend.entity.Result;
 
-public interface CommunityService {
-    Result feed(String sort, Integer tagId, String keyword, Integer page, Integer pageSize);
+import java.util.List;
 
-    Result followingFeed(Integer tagId, String keyword, Integer page, Integer pageSize);
+public interface CommunityService {
+    Result feed(String sort, List<Integer> tagIds, String keyword, Integer page, Integer pageSize);
+
+    Result followingFeed(List<Integer> tagIds, String keyword, Integer page, Integer pageSize);
 
     Result meta();
 
     Result profileMetrics(Integer userId);
+
+    Result profileFollowers(Integer userId, Integer page, Integer pageSize);
+
+    Result profileFollowing(Integer userId, Integer page, Integer pageSize);
 
     Result followState(Integer userId);
 

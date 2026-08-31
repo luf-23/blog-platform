@@ -8,6 +8,7 @@ import {
   getAdminStatsService,
   rejectArticleService
 } from '../../api/admin.js'
+import { useAdminPendingArticles } from '../../composables/useAdminPendingArticles.js'
 
 const statsData = ref({})
 const pendingArticles = ref([])
@@ -20,6 +21,7 @@ const annRules = {
   title: [{ required: true, message: '请填写标题', trigger: 'blur' }],
   content: [{ required: true, message: '请填写内容', trigger: 'blur' }]
 }
+const { refreshPendingArticles } = useAdminPendingArticles()
 const chartValues = [42, 49, 46, 58, 69, 61, 74]
 const kpis = computed(() => [
   { label: '总用户', value: statsData.value.totalUsers ?? '—', change: '+5.34%', icon: '♙', tone: 'blue' },
@@ -48,7 +50,7 @@ async function review(article, accepted) {
   if (accepted) await acceptArticleService(article.articleId)
   else await rejectArticleService(article.articleId)
   ElMessage.success(accepted ? '文章已通过审核' : '文章已驳回')
-  await loadDashboard()
+  await Promise.all([loadDashboard(), refreshPendingArticles()])
 }
 
 async function publishAnnouncement() {

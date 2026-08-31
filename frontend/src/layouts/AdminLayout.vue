@@ -1,17 +1,17 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import BrandMark from '../components/common/BrandMark.vue'
 import { useUserInfoStore } from '../store/userInfo.js'
-import { getAdminStatsService } from '../api/admin.js'
 import { DEFAULT_AVATAR_URL as defaultAvatar } from '../constants/assets.js'
 import { useAnnouncements } from '../composables/useAnnouncements.js'
+import { useAdminPendingArticles } from '../composables/useAdminPendingArticles.js'
 
 const route = useRoute()
 const router = useRouter()
 const userInfoStore = useUserInfoStore()
 const user = computed(() => userInfoStore.userInfo)
-const pendingArticles = ref(0)
+const { pendingArticles, refreshPendingArticles } = useAdminPendingArticles()
 const { hasNewAnnouncements, markAnnouncementsSeen } = useAnnouncements()
 const items = [
   { label: '概览', path: '/admin/home', icon: '⌂' },
@@ -21,12 +21,7 @@ const items = [
   { label: '用户管理', path: '/admin/users', icon: '♙' },
 ]
 
-onMounted(async () => {
-  try {
-    const res = await getAdminStatsService()
-    pendingArticles.value = Number(res.data?.pendingArticles || 0)
-  } catch {}
-})
+onMounted(() => refreshPendingArticles().catch(() => {}))
 </script>
 
 <template>

@@ -46,11 +46,14 @@ function remove(name) { emit('update:modelValue', props.modelValue.filter(item =
 
 <template>
   <div class="taxonomy-picker" :class="{ loading }">
-    <div v-if="selectedTags.length" class="selected-tags">
-      <span v-for="tag in selectedTags" :key="tag.tagId">
-        <small>{{ tag.parentName }}</small># {{ tag.tagName }}
-        <button type="button" :aria-label="`移除 ${tag.tagName}`" @click="remove(tag.tagName)">×</button>
-      </span>
+    <div v-if="selectedTags.length" class="selected-panel">
+      <div class="selected-heading"><span>已选标签</span><small>{{ modelValue.length }}/{{ limit }}</small></div>
+      <div class="selected-tags">
+        <span v-for="tag in selectedTags" :key="tag.tagId" :title="`${tag.parentName} / ${tag.tagName}`">
+          <i>#</i><strong>{{ tag.tagName }}</strong>
+          <button type="button" :aria-label="`移除 ${tag.tagName}`" @click="remove(tag.tagName)">×</button>
+        </span>
+      </div>
     </div>
 
     <label class="tag-search">
@@ -88,10 +91,14 @@ function remove(name) { emit('update:modelValue', props.modelValue.filter(item =
 
 <style scoped>
 .taxonomy-picker { overflow: hidden; border: 1px solid var(--c-border); border-radius: 7px; background: var(--c-surface); }
-.selected-tags { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px; border-bottom: 1px solid var(--c-border-light); background: var(--c-primary-soft); }
-.selected-tags > span { display: inline-flex; min-height: 27px; align-items: center; gap: 4px; padding: 4px 7px; border: 1px solid color-mix(in srgb, var(--c-primary) 26%, var(--c-border)); border-radius: 4px; background: var(--c-surface); color: var(--c-primary); font-size: 11px; font-weight: 650; }
-.selected-tags small { color: var(--c-text-4); font-size: 9px; font-weight: 500; }
-.selected-tags button { padding: 0 0 0 2px; border: 0; background: transparent; color: var(--c-text-4); font-size: 15px; line-height: 1; }
+.selected-panel { padding: 10px; border-bottom: 1px solid var(--c-border-light); background: var(--c-surface-2); }
+.selected-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 7px; color: var(--c-text-3); font-size: 10px; font-weight: 700; }
+.selected-heading small { color: var(--c-primary); font-size: 10px; }
+.selected-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.selected-tags > span { display: inline-flex; min-width: 0; min-height: 29px; align-items: center; gap: 5px; padding: 4px 6px 4px 8px; border: 1px solid color-mix(in srgb, var(--c-primary) 24%, var(--c-border)); border-radius: 6px; background: var(--c-surface); color: var(--c-text-2); font-size: 10px; box-shadow: var(--shadow-xs); }
+.selected-tags i { color: var(--c-primary); font-style: normal; font-weight: 800; }
+.selected-tags strong { max-width: 92px; overflow: hidden; font-size: 10px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+.selected-tags button { display: grid; width: 18px; height: 18px; padding: 0; place-items: center; border: 0; border-radius: 50%; background: var(--c-surface-2); color: var(--c-text-4); font-size: 13px; line-height: 1; }
 .selected-tags button:hover { color: var(--c-danger); }
 
 .tag-search { display: flex; height: 40px; align-items: center; gap: 8px; padding: 0 11px; border-bottom: 1px solid var(--c-border-light); }

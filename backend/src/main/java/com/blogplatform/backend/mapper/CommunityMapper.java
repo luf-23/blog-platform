@@ -19,9 +19,10 @@ public interface CommunityMapper {
             "<if test='followerId != null'>" +
             "AND EXISTS (SELECT 1 FROM user_follow f WHERE f.follower_id = #{followerId} AND f.following_id = a.user_id) " +
             "</if>" +
-            "<if test='tagId != null'>" +
-            "AND EXISTS (SELECT 1 FROM article_tag at WHERE at.article_id = a.article_id AND at.tag_id = #{tagId}) " +
-            "</if>" +
+            "<if test='tagIds != null and tagIds.size() > 0'>" +
+            "<foreach collection='tagIds' item='selectedTagId'>" +
+            "AND EXISTS (SELECT 1 FROM article_tag at WHERE at.article_id = a.article_id AND at.tag_id = #{selectedTagId}) " +
+            "</foreach></if>" +
             "<if test='keyword != null and keyword != \"\"'>" +
             "AND (a.title LIKE CONCAT('%', #{keyword}, '%') OR a.summary LIKE CONCAT('%', #{keyword}, '%') " +
             "OR u.username LIKE CONCAT('%', #{keyword}, '%') OR u.nickname LIKE CONCAT('%', #{keyword}, '%') " +
@@ -35,7 +36,7 @@ public interface CommunityMapper {
             "LIMIT #{offset}, #{pageSize}" +
             "</script>")
     List<ArticleVO> selectFeed(@Param("sort") String sort,
-                               @Param("tagId") Integer tagId,
+                               @Param("tagIds") List<Integer> tagIds,
                                @Param("keyword") String keyword,
                                @Param("followerId") Integer followerId,
                                @Param("offset") int offset,
@@ -45,16 +46,17 @@ public interface CommunityMapper {
             "<if test='followerId != null'>" +
             "AND EXISTS (SELECT 1 FROM user_follow f WHERE f.follower_id = #{followerId} AND f.following_id = a.user_id) " +
             "</if>" +
-            "<if test='tagId != null'>" +
-            "AND EXISTS (SELECT 1 FROM article_tag at WHERE at.article_id = a.article_id AND at.tag_id = #{tagId}) " +
-            "</if>" +
+            "<if test='tagIds != null and tagIds.size() > 0'>" +
+            "<foreach collection='tagIds' item='selectedTagId'>" +
+            "AND EXISTS (SELECT 1 FROM article_tag at WHERE at.article_id = a.article_id AND at.tag_id = #{selectedTagId}) " +
+            "</foreach></if>" +
             "<if test='keyword != null and keyword != \"\"'>" +
             "AND (a.title LIKE CONCAT('%', #{keyword}, '%') OR a.summary LIKE CONCAT('%', #{keyword}, '%') " +
             "OR u.username LIKE CONCAT('%', #{keyword}, '%') OR u.nickname LIKE CONCAT('%', #{keyword}, '%') " +
             "OR EXISTS (SELECT 1 FROM article_tag at2 JOIN tag t2 ON t2.tag_id = at2.tag_id " +
             "WHERE at2.article_id = a.article_id AND t2.tag_name LIKE CONCAT('%', #{keyword}, '%'))) " +
             "</if></script>")
-    int countFeed(@Param("tagId") Integer tagId,
+    int countFeed(@Param("tagIds") List<Integer> tagIds,
                   @Param("keyword") String keyword,
                   @Param("followerId") Integer followerId);
 
@@ -91,4 +93,34 @@ public interface CommunityMapper {
             "FROM user u LEFT JOIN article a ON a.user_id = u.user_id AND a.status = 'published' " +
             "WHERE u.user_id = #{userId} GROUP BY u.user_id")
     Map<String, Object> selectProfileMetrics(Integer userId);
+
+    @Select("SELECT u.user_id AS userId, u.username, u.nickname, u.avatar_image AS avatarImage, u.signature, " +
+            "(SELECT COUNT(*) FROM article a WHERE a.user_id = u.user_id AND a.status = 'published') AS articleCount, " +
+            "(SELECT COUNT(*) FROM user_follow uf WHERE uf.following_id = u.user_id) AS followerCount, " +
+            "CASE WHEN #{viewerId} IS NOT NULL AND EXISTS (SELECT 1 FROM user_follow vf " +
+            "WHERE vf.follower_id = #{viewerId} AND vf.following_id = u.user_id) THEN TRUE ELSE FALSE END AS following " +
+            "FROM user_follow f JOIN user u ON u.user_id = f.follower_id " +
+            "WHERE f.following_id = #{userId} ORDER BY f.create_time DESC LIMIT #{offset}, #{pageSize}")
+    List<Map<String, Object>> selectProfileFollowers(@Param("userId") Integer userId,
+                                                     @Param("viewerId") Integer viewerId,
+                                                     @Param("offset") int offset,
+                                                     @Param("pageSize") int pageSize);
+
+    @Select("SELECT COUNT(*) FROM user_follow WHERE following_id = #{userId}")
+    int countProfileFollowers(Integer userId);
+
+    @Select("SELECT u.user_id AS userId, u.username, u.nickname, u.avatar_image AS avatarImage, u.signature, " +
+            "(SELECT COUNT(*) FROM article a WHERE a.user_id = u.user_id AND a.status = 'published') AS articleCount, " +
+            "(SELECT COUNT(*) FROM user_follow uf WHERE uf.following_id = u.user_id) AS followerCount, " +
+            "CASE WHEN #{viewerId} IS NOT NULL AND EXISTS (SELECT 1 FROM user_follow vf " +
+            "WHERE vf.follower_id = #{viewerId} AND vf.following_id = u.user_id) THEN TRUE ELSE FALSE END AS following " +
+            "FROM user_follow f JOIN user u ON u.user_id = f.following_id " +
+            "WHERE f.follower_id = #{userId} ORDER BY f.create_time DESC LIMIT #{offset}, #{pageSize}")
+    List<Map<String, Object>> selectProfileFollowing(@Param("userId") Integer userId,
+                                                     @Param("viewerId") Integer viewerId,
+                                                     @Param("offset") int offset,
+                                                     @Param("pageSize") int pageSize);
+
+    @Select("SELECT COUNT(*) FROM user_follow WHERE follower_id = #{userId}")
+    int countProfileFollowing(Integer userId);
 }

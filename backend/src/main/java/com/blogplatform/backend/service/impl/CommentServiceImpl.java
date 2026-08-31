@@ -124,12 +124,15 @@ public class CommentServiceImpl implements CommentService {
 
         if (parentId == null) {
             comment.setParentId(null);
+            comment.setReplyToUserId(null);
             commentMapper.insert(comment);
         } else {
             Comment parent = commentMapper.selectById(parentId);
             if (parent == null) return Result.error("父评论不存在");
+            if (parent.getStatus() == null || parent.getStatus() != 1) return Result.error("父评论已删除");
             if (!articleId.equals(parent.getArticleId())) return Result.error("评论不属于该文章");
             comment.setParentId(parentId);
+            comment.setReplyToUserId(parent.getUserId());
             commentMapper.insert(comment);
         }
         articleMapper.incrementCommentCount(articleId);

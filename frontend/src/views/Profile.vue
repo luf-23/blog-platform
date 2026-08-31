@@ -42,27 +42,64 @@
       </div>
 
       <section class="profile-stats surface-card">
-        <p><i>▤</i><span>文章<strong>{{ profileStats.articleCount }}</strong></span></p>
+        <button type="button" :class="{ active: activeSection === 'articles' }" @click="selectSection('articles')"><i>▤</i><span>文章<strong>{{ profileStats.articleCount }}</strong></span></button>
         <p><i>◉</i><span>总阅读<strong>{{ formatCount(profileStats.views) }}</strong></span></p>
         <p><i>♡</i><span>获赞<strong>{{ formatCount(profileStats.likes) }}</strong></span></p>
         <p><i>▢</i><span>评论<strong>{{ formatCount(profileStats.comments) }}</strong></span></p>
-        <p><i>◎</i><span>关注者<strong>{{ formatCount(profileStats.followerCount) }}</strong></span></p>
-        <p><i>→</i><span>正在关注<strong>{{ formatCount(profileStats.followingCount) }}</strong></span></p>
+        <button type="button" :class="{ active: activeSection === 'followers' }" @click="selectSection('followers')"><i>◎</i><span>关注者<strong>{{ formatCount(profileStats.followerCount) }}</strong></span></button>
+        <button type="button" :class="{ active: activeSection === 'following' }" @click="selectSection('following')"><i>→</i><span>正在关注<strong>{{ formatCount(profileStats.followingCount) }}</strong></span></button>
       </section>
 
-      <div class="profile-layout">
+      <nav class="profile-tabs" aria-label="主页内容">
+        <button v-for="tab in profileTabs" :key="tab.value" type="button" :class="{ active: activeSection === tab.value }" @click="selectSection(tab.value)">
+          {{ tab.label }}<span>{{ tab.count }}</span>
+        </button>
+      </nav>
+
+      <div class="profile-layout" :class="{ 'profile-layout--wide': activeSection !== 'articles' }">
         <div class="profile-content">
           <div class="section-header">
-            <div><h2 class="section-title">发布的文章</h2><span class="section-count">{{ profileStats.articleCount }} 篇</span></div>
-            <el-input v-model="articleSearch" placeholder="搜索文章" style="width:220px" clearable />
+            <div><h2 class="section-title">{{ sectionTitle }}</h2><span class="section-count">{{ sectionCount }}</span></div>
+            <el-input v-if="activeSection === 'articles'" v-model="articleSearch" placeholder="搜索文章" style="width:220px" clearable />
           </div>
 
-          <div v-if="loading" class="loading-spinner"><el-icon class="is-loading" :size="20"><Loading /></el-icon></div>
-          <div v-else-if="filteredArticles.length === 0" class="empty-state surface-card"><p>{{ articleSearch ? '没有匹配的文章' : '还没有发布文章' }}</p></div>
-          <div v-else class="article-list"><ArticleCard v-for="a in filteredArticles" :key="a.articleId" :article="a"/></div>
+          <div v-if="loading || relationshipLoading" class="loading-spinner"><el-icon class="is-loading" :size="20"><Loading /></el-icon></div>
+          <template v-else-if="activeSection === 'articles'">
+            <div v-if="filteredArticles.length === 0" class="empty-state surface-card"><p>{{ articleSearch ? '没有匹配的文章' : '还没有发布文章' }}</p></div>
+            <div v-else class="article-list"><ArticleCard v-for="a in filteredArticles" :key="a.articleId" :article="a"/></div>
+          </template>
+          <template v-else>
+            <div v-if="!relationshipUsers.length" class="empty-state surface-card">
+              <p>{{ activeSection === 'followers' ? '暂时还没有关注者' : '暂时还没有关注任何人' }}</p>
+            </div>
+            <div v-else class="people-list">
+              <article v-for="person in relationshipUsers" :key="person.userId" class="person-card surface-card">
+                <button type="button" class="person-main" @click="openProfile(person.username)">
+                  <img :src="person.avatarImage || defaultAvatar" :alt="person.nickname || person.username" />
+                  <span class="person-copy">
+                    <strong>{{ person.nickname || person.username }}</strong>
+                    <small>@{{ person.username }}</small>
+                    <em>{{ person.signature || '这位用户还没有填写个人简介。' }}</em>
+                  </span>
+                </button>
+                <div class="person-meta">
+                  <span><strong>{{ person.articleCount || 0 }}</strong> 篇文章</span>
+                  <span><strong>{{ formatCount(person.followerCount) }}</strong> 位关注者</span>
+                </div>
+                <button
+                  v-if="Number(person.userId) !== Number(userInfoStore.userInfo?.userId)"
+                  type="button"
+                  class="person-follow"
+                  :class="{ following: person.following }"
+                  @click="togglePersonFollow(person)"
+                >{{ person.following ? '已关注' : '关注' }}</button>
+              </article>
+              <button v-if="relationshipHasMore" type="button" class="load-people" @click="loadMoreRelationships">加载更多</button>
+            </div>
+          </template>
         </div>
 
-        <aside class="profile-aside">
+        <aside v-if="activeSection === 'articles'" class="profile-aside">
           <section class="surface-card category-card">
             <header><h3>内容分类</h3><router-link v-if="isMe" to="/article/categories">管理分类</router-link></header>
             <p v-for="category in profileCategories" :key="category.name"><span>▱ {{ category.name }}</span><strong>{{ category.count }}</strong></p>
@@ -122,11 +159,17 @@
 <script setup>
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { Loading } from '@element-plus/icons-vue'
 import { getUserInfoByNameService, updateUserInfoService, getUserInfoService } from '../api/user.js'
 import { searchArticlesService } from '../api/article.js'
-import { getCommunityFollowStateService, getCommunityProfileService, toggleCommunityFollowService } from '../api/community.js'
+import {
+  getCommunityFollowStateService,
+  getCommunityProfileFollowersService,
+  getCommunityProfileFollowingService,
+  getCommunityProfileService,
+  toggleCommunityFollowService
+} from '../api/community.js'
 import { useUserInfoStore } from '../store/userInfo.js'
 import ArticleCard from '../components/article/ArticleCard.vue'
 import UploadImageDialog from '../components/common/UploadImageDialog.vue'
@@ -145,6 +188,11 @@ const savingEdit = ref(false)
 const editFormRef = ref()
 const articleSearch = ref('')
 const profileMetrics = ref({})
+const activeSection = ref('articles')
+const relationshipUsers = ref([])
+const relationshipLoading = ref(false)
+const relationshipPage = ref(1)
+const relationshipTotal = ref(0)
 const uploadDialogVisible = ref(false)
 const uploadingImage = ref(false)
 const uploadTarget = ref('avatar')
@@ -168,6 +216,25 @@ const profileStats = computed(() => ({
   followingCount: Number(profileMetrics.value.followingCount || 0),
   following: Boolean(profileMetrics.value.following)
 }))
+const profileTabs = computed(() => [
+  { label: '文章', value: 'articles', count: profileStats.value.articleCount },
+  { label: '关注者', value: 'followers', count: profileStats.value.followerCount },
+  { label: '正在关注', value: 'following', count: profileStats.value.followingCount }
+])
+const sectionTitle = computed(() => ({
+  articles: '发布的文章',
+  followers: '关注者',
+  following: '正在关注'
+}[activeSection.value]))
+const sectionCount = computed(() => {
+  const count = activeSection.value === 'articles'
+    ? profileStats.value.articleCount
+    : activeSection.value === 'followers'
+      ? profileStats.value.followerCount
+      : profileStats.value.followingCount
+  return `${formatCount(count)} ${activeSection.value === 'articles' ? '篇' : '人'}`
+})
+const relationshipHasMore = computed(() => relationshipUsers.value.length < relationshipTotal.value)
 const filteredArticles = computed(() => {
   const query = articleSearch.value.trim().toLowerCase()
   if (!query) return articles.value
@@ -204,6 +271,7 @@ async function loadProfile() {
     }
     if (profileUser.value) {
       await Promise.all([loadArticles(), loadProfileMetrics()])
+      if (activeSection.value !== 'articles') await loadRelationships(activeSection.value)
       if (isMe.value) {
         editForm.nickname = profileUser.value.nickname || ''
         editForm.signature = profileUser.value.signature || ''
@@ -232,11 +300,86 @@ async function loadProfileMetrics() {
   }
 }
 
+let relationshipRequestSequence = 0
+async function loadRelationships(section, append = false) {
+  if (!profileUser.value || section === 'articles') return
+  const requestSequence = ++relationshipRequestSequence
+  const nextPage = append ? relationshipPage.value + 1 : 1
+  relationshipLoading.value = true
+  try {
+    const service = section === 'followers'
+      ? getCommunityProfileFollowersService
+      : getCommunityProfileFollowingService
+    const result = await service(profileUser.value.userId, { page: nextPage, pageSize: 20 })
+    if (requestSequence !== relationshipRequestSequence || activeSection.value !== section) return
+    const list = result.data?.list || []
+    relationshipUsers.value = append ? relationshipUsers.value.concat(list) : list
+    relationshipPage.value = nextPage
+    relationshipTotal.value = Number(result.data?.total || 0)
+  } finally {
+    if (requestSequence === relationshipRequestSequence) relationshipLoading.value = false
+  }
+}
+
+async function selectSection(section) {
+  if (!['articles', 'followers', 'following'].includes(section)) section = 'articles'
+  if (activeSection.value === section && (section === 'articles' || relationshipUsers.value.length)) return
+  activeSection.value = section
+  relationshipUsers.value = []
+  relationshipTotal.value = section === 'articles' ? profileStats.value.articleCount : 0
+  if (section !== 'articles') await loadRelationships(section)
+}
+
+function loadMoreRelationships() {
+  return loadRelationships(activeSection.value, true)
+}
+
+function openProfile(username) {
+  if (username) router.push(`/profile/${username}`)
+}
+
+async function confirmUnfollow(name) {
+  try {
+    await ElMessageBox.confirm(
+      `确定取消关注“${name}”吗？取消后将不再优先看到对方的更新。`,
+      '取消关注',
+      {
+        confirmButtonText: '取消关注',
+        cancelButtonText: '保留关注',
+        type: 'warning'
+      }
+    )
+    return true
+  } catch {
+    return false
+  }
+}
+
+async function togglePersonFollow(person) {
+  if (!userInfoStore.userInfo) {
+    router.push({ path: '/login', query: { redirect: route.fullPath } })
+    return
+  }
+  if (person.following && !await confirmUnfollow(person.nickname || person.username)) return
+  try {
+    const result = await toggleCommunityFollowService(person.userId)
+    Object.assign(person, {
+      following: Boolean(result.data?.following),
+      followerCount: Number(result.data?.followerCount ?? person.followerCount ?? 0)
+    })
+    ElMessage.success(person.following ? '已关注' : '已取消关注')
+    if (isMe.value && activeSection.value === 'following' && !person.following) {
+      await Promise.all([loadRelationships('following'), loadProfileMetrics()])
+    }
+  } catch {}
+}
+
 async function toggleFollow() {
   if (!userInfoStore.userInfo) {
     router.push({ path: '/login', query: { redirect: route.fullPath } })
     return
   }
+  if (profileStats.value.following && !await confirmUnfollow(profileUser.value.nickname || profileUser.value.username)) return
   try {
     const result = await toggleCommunityFollowService(profileUser.value.userId)
     profileMetrics.value = { ...profileMetrics.value, ...(result.data || {}) }
@@ -304,7 +447,13 @@ async function shareProfile() {
 }
 
 onMounted(loadProfile)
-watch(() => route.params.username, loadProfile)
+watch(() => route.params.username, () => {
+  activeSection.value = 'articles'
+  relationshipUsers.value = []
+  relationshipTotal.value = 0
+  articleSearch.value = ''
+  loadProfile()
+})
 </script>
 
 <style scoped>
@@ -411,17 +560,23 @@ watch(() => route.params.username, loadProfile)
 
 /* Content */
 .profile-stats { display: grid; grid-template-columns: repeat(6, 1fr); margin-bottom: 18px; padding: 16px 18px; }
-.profile-stats p { display: flex; align-items: center; justify-content: center; gap: 12px; border-right: 1px solid var(--c-border); }
-.profile-stats p:last-child { border: 0; }
+.profile-stats p, .profile-stats button { display: flex; min-width: 0; align-items: center; justify-content: center; gap: 12px; padding: 5px 8px; border: 0; border-right: 1px solid var(--c-border); border-radius: 0; background: transparent; text-align: left; }
+.profile-stats > :last-child { border-right: 0; }
+.profile-stats button { cursor: pointer; transition: color var(--transition), background var(--transition); }
+.profile-stats button:hover, .profile-stats button.active { border-radius: 7px; background: var(--c-primary-soft); }
+.profile-stats button:hover i, .profile-stats button.active i, .profile-stats button.active strong { color: var(--c-primary); }
 .profile-stats i { color: var(--c-primary); font-size: 23px; font-style: normal; }
 .profile-stats span { display: flex; flex-direction: column; color: var(--c-text-3); font-size: 11px; }
 .profile-stats strong { color: var(--c-text); font-size: 21px; }
 .profile-card-right .following { border-color: var(--c-border-strong); background: var(--c-surface-2); color: var(--c-text-3); box-shadow: none; }
-.profile-tabs { display: flex; gap: 18px; margin-bottom: 18px; border-bottom: 1px solid var(--c-border); }
-.profile-tabs button { position: relative; padding: 11px 12px 13px; border: 0; background: transparent; color: var(--c-text-3); font-weight: 600; }
+.profile-tabs { display: flex; gap: 8px; margin-bottom: 18px; border-bottom: 1px solid var(--c-border); }
+.profile-tabs button { position: relative; display: inline-flex; align-items: center; gap: 7px; padding: 11px 12px 13px; border: 0; background: transparent; color: var(--c-text-3); font-weight: 600; }
+.profile-tabs button span { display: grid; min-width: 20px; height: 20px; padding: 0 5px; place-items: center; border-radius: 10px; background: var(--c-surface-2); color: var(--c-text-4); font-size: 10px; }
 .profile-tabs button.active { color: var(--c-primary); }
+.profile-tabs button.active span { background: var(--c-primary-soft); color: var(--c-primary); }
 .profile-tabs button.active::after { position: absolute; right: 8px; bottom: -1px; left: 8px; height: 3px; border-radius: 3px 3px 0 0; background: var(--c-primary); content: ''; }
 .profile-layout { display: grid; grid-template-columns: minmax(0, 1fr) 310px; gap: 18px; align-items: start; }
+.profile-layout--wide { grid-template-columns: minmax(0, 1fr); }
 .profile-content { min-width: 0; }
 
 .section-header {
@@ -450,6 +605,21 @@ watch(() => route.params.username, loadProfile)
 }
 
 .article-list { display: flex; flex-direction: column; gap: 12px; }
+.people-list { display: flex; flex-direction: column; border-top: 1px solid var(--c-border); }
+.person-card { position: relative; display: grid; min-height: 92px; grid-template-columns: minmax(260px, 1fr) auto auto; align-items: center; gap: 24px; padding: 14px 4px; border: 0; border-bottom: 1px solid var(--c-border); border-radius: 0; background: transparent; box-shadow: none; }
+.person-main { display: flex; min-width: 0; align-items: flex-start; gap: 12px; padding: 0; border: 0; background: transparent; text-align: left; }
+.person-main > img { width: 52px; height: 52px; flex: 0 0 auto; border: 1px solid var(--c-border); border-radius: 50%; object-fit: cover; }
+.person-copy { display: flex; min-width: 0; flex-direction: column; }
+.person-copy strong { overflow: hidden; color: var(--c-text); font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
+.person-copy small { margin-top: 1px; color: var(--c-text-4); font-size: 10px; }
+.person-copy em { max-width: 520px; margin-top: 5px; overflow: hidden; color: var(--c-text-3); font-size: 11px; font-style: normal; line-height: 1.55; text-overflow: ellipsis; white-space: nowrap; }
+.person-main:hover strong { color: var(--c-primary); }
+.person-meta { display: flex; align-items: center; gap: 16px; color: var(--c-text-4); font-size: 10px; white-space: nowrap; }
+.person-meta strong { color: var(--c-text-2); font-size: 11px; }
+.person-follow { min-width: 58px; height: 30px; padding: 0 10px; border: 1px solid var(--c-primary); border-radius: 6px; background: var(--c-primary); color: #fff; font-size: 10px; font-weight: 700; }
+.person-follow.following { border-color: var(--c-border); background: var(--c-surface-2); color: var(--c-text-3); }
+.load-people { height: 40px; margin-top: 12px; border: 1px solid var(--c-border); border-radius: 7px; background: var(--c-surface); color: var(--c-text-3); font-size: 12px; font-weight: 700; }
+.load-people:hover { border-color: var(--c-primary); color: var(--c-primary); }
 .profile-aside { position: sticky; top: 18px; display: flex; max-height: calc(100dvh - var(--nav-height) - 36px); flex-direction: column; gap: 12px; padding-right: 2px; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
 .profile-aside section { padding: 17px; }
 .profile-aside header { display: flex; align-items: center; justify-content: space-between; }
@@ -484,16 +654,21 @@ watch(() => route.params.username, loadProfile)
   .profile-banner { height: 180px; }
   .profile-stats { grid-template-columns: repeat(3, 1fr); }
   .profile-stats p:nth-child(3) { border-right: 0; }
+  .person-card { grid-template-columns: minmax(0, 1fr) auto; gap: 12px; }
+  .person-meta { grid-column: 1; padding-left: 64px; }
+  .person-follow { grid-column: 2; grid-row: 1 / span 2; }
 }
 @media (max-width: 680px) {
   .profile-card, .profile-card-left { align-items: flex-start; flex-direction: column; }
   .profile-card-right { width: 100%; }
   .profile-stats { grid-template-columns: repeat(2, 1fr); gap: 12px; }
-  .profile-stats p:nth-child(2n) { border-right: 0; }
+  .profile-stats > :nth-child(2n) { border-right: 0; }
   .profile-tabs { overflow-x: auto; }
   .section-header { align-items: flex-start; flex-direction: column; }
   .section-header :deep(.el-input) { width: 100% !important; }
   .profile-aside { grid-template-columns: 1fr; }
   .quick-card { grid-column: auto; }
+  .person-card { align-items: start; }
+  .person-meta { flex-direction: column; align-items: flex-start; gap: 2px; }
 }
 </style>

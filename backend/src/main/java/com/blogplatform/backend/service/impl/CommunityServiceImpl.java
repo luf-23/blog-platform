@@ -24,18 +24,18 @@ public class CommunityServiceImpl implements CommunityService {
     private TagMapper tagMapper;
 
     @Override
-    public Result feed(String sort, Integer tagId, String keyword, Integer page, Integer pageSize) {
-        return feedData(sort, tagId, keyword, page, pageSize, null);
+    public Result feed(String sort, List<Integer> tagIds, String keyword, Integer page, Integer pageSize) {
+        return feedData(sort, tagIds, keyword, page, pageSize, null);
     }
 
     @Override
-    public Result followingFeed(Integer tagId, String keyword, Integer page, Integer pageSize) {
+    public Result followingFeed(List<Integer> tagIds, String keyword, Integer page, Integer pageSize) {
         Integer userId = currentUserId();
         if (userId == null) return Result.error("请先登录");
-        return feedData("latest", tagId, keyword, page, pageSize, userId);
+        return feedData("latest", tagIds, keyword, page, pageSize, userId);
     }
 
-    private Result feedData(String sort, Integer tagId, String keyword, Integer page,
+    private Result feedData(String sort, List<Integer> tagIds, String keyword, Integer page,
                             Integer pageSize, Integer followerId) {
         int safePage = page == null || page < 1 ? 1 : page;
         int safeSize = pageSize == null ? 12 : Math.min(Math.max(pageSize, 1), 30);
@@ -43,14 +43,14 @@ public class CommunityServiceImpl implements CommunityService {
         String safeKeyword = keyword == null ? null : keyword.trim();
 
         List<ArticleVO> list = communityMapper.selectFeed(
-                safeSort, tagId, safeKeyword, followerId, (safePage - 1) * safeSize, safeSize);
+                safeSort, tagIds, safeKeyword, followerId, (safePage - 1) * safeSize, safeSize);
         for (ArticleVO article : list) {
             article.setTags(tagMapper.selectByArticleId(article.getArticleId()));
         }
 
         Map<String, Object> data = new HashMap<>();
         data.put("list", list);
-        data.put("total", communityMapper.countFeed(tagId, safeKeyword, followerId));
+        data.put("total", communityMapper.countFeed(tagIds, safeKeyword, followerId));
         data.put("page", safePage);
         data.put("pageSize", safeSize);
         return Result.success(data);
@@ -81,6 +81,16 @@ public class CommunityServiceImpl implements CommunityService {
     }
 
     @Override
+    public Result profileFollowers(Integer userId, Integer page, Integer pageSize) {
+        return profileRelationships(userId, page, pageSize, true);
+    }
+
+    @Override
+    public Result profileFollowing(Integer userId, Integer page, Integer pageSize) {
+        return profileRelationships(userId, page, pageSize, false);
+    }
+
+    @Override
     public Result followState(Integer userId) {
         Integer currentUserId = currentUserId();
         if (currentUserId == null) return Result.error("请先登录");
@@ -105,6 +115,30 @@ public class CommunityServiceImpl implements CommunityService {
         return Result.success(metrics);
     }
 
+    private Result profileRelationships(Integer userId, Integer page, Integer pageSize, boolean followers) {
+        if (communityMapper.selectProfileMetrics(userId) == null) return Result.error("用户不存在");
+        int safePage = page == null || page < 1 ? 1 : page;
+        int safeSize = pageSize == null ? 20 : Math.min(Math.max(pageSize, 1), 50);
+        int offset = (safePage - 1) * safeSize;
+        Integer viewerId = currentUserId();
+        List<Map<String, Object>> list = followers
+                ? communityMapper.selectProfileFollowers(userId, viewerId, offset, safeSize)
+                : communityMapper.selectProfileFollowing(userId, viewerId, offset, safeSize);
+        for (Map<String, Object> person : list) {
+            person.put("following", booleanValue(person.get("following")));
+        }
+        int total = followers
+                ? communityMapper.countProfileFollowers(userId)
+                : communityMapper.countProfileFollowing(userId);
+
+        Map<String, Object> data = new HashMap<>();
+        data.put("list", list);
+        data.put("total", total);
+        data.put("page", safePage);
+        data.put("pageSize", safeSize);
+        return Result.success(data);
+    }
+
     private Integer currentUserId() {
         try {
             Map<String, Object> claims = ThreadLocalUtil.get();
@@ -116,5 +150,11 @@ public class CommunityServiceImpl implements CommunityService {
 
     private Integer numberValue(Object value) {
         return value instanceof Number number ? number.intValue() : null;
+    }
+
+    private boolean booleanValue(Object value) {
+        if (value instanceof Boolean bool) return bool;
+        if (value instanceof Number number) return number.intValue() != 0;
+        return value != null && Boolean.parseBoolean(value.toString());
     }
 }
