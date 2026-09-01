@@ -120,7 +120,7 @@ onMounted(fetchTags)
 <template>
   <div class="admin-page tag-manager page-container">
     <header class="admin-page__head">
-      <div><span>CONTENT TAXONOMY</span><h1>标签体系</h1><p>一级标签组织内容领域，二级标签用于文章标注与检索。</p></div>
+      <div><h1>标签体系</h1><p>一级标签组织内容领域，二级标签用于文章标注与检索。</p></div>
       <button class="primary-action" @click="openCreate(null)">＋ 新建一级标签</button>
     </header>
 

@@ -19,7 +19,13 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(optionalLoginInterceptor)
-                .addPathPatterns("/community/profile/**")
+                .addPathPatterns(
+                        "/article/search",
+                        "/article/detail/**",
+                        "/comment/list",
+                        "/comment/replies",
+                        "/community/profile/**"
+                )
                 .order(0);
 
         registry.addInterceptor(loginInterceptor)

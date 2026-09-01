@@ -74,7 +74,7 @@
           :toolbars="toolbars"
           :footers="[]"
           :preview="false"
-          placeholder="开始你的创作..."
+          placeholder="输入文章正文"
           @on-upload-img="uploadContentImages"
         />
         <footer class="editor-status"><span>Markdown</span><span>字数：{{ wordCount }}</span><span>预计阅读：{{ readingMinutes }} 分钟</span><b>{{ lastSavedAt ? '全部更改已保存' : '正在编辑' }}</b></footer>

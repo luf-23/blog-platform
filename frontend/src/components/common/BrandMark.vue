@@ -6,13 +6,17 @@ defineProps({
 </script>
 
 <template>
-  <span class="brand-mark" :class="{ 'brand-mark--compact': compact }">
+  <span
+    class="brand-mark"
+    :class="{ 'brand-mark--compact': compact }"
+    role="img"
+    :aria-label="admin ? 'Blog-Platform 管理后台' : 'Blog-Platform'"
+  >
     <span class="brand-mark__icon" aria-hidden="true">
-      <span>B</span>
+      <span>BP</span>
     </span>
-    <span v-if="!compact" class="brand-mark__text">
-      <strong>BYTE</strong>
-      <small v-if="admin">ADMIN</small>
+    <span v-if="admin && !compact" class="brand-mark__text">
+      <small>ADMIN</small>
     </span>
   </span>
 </template>
@@ -39,11 +43,10 @@ defineProps({
 
 .brand-mark__icon span {
   font-family: Inter, ui-sans-serif, sans-serif;
-  font-size: 18px;
+  font-size: 13px;
   font-weight: 900;
   line-height: 1;
-  letter-spacing: -.06em;
-  transform: translateX(-1px);
+  letter-spacing: -.08em;
 }
 
 .brand-mark__text {
@@ -51,13 +54,6 @@ defineProps({
   align-items: baseline;
   gap: 7px;
   white-space: nowrap;
-}
-
-.brand-mark__text strong {
-  font-size: 19px;
-  font-weight: 850;
-  line-height: 1;
-  letter-spacing: .04em;
 }
 
 .brand-mark__text small {
@@ -73,5 +69,5 @@ defineProps({
   box-shadow: none;
 }
 
-.brand-mark--compact .brand-mark__icon span { font-size: 15px; }
+.brand-mark--compact .brand-mark__icon span { font-size: 11px; }
 </style>

@@ -8,8 +8,8 @@ INSERT INTO user (username, password, nickname, email, role)
 VALUES (
     'admin',
     '$2a$10$QUy17DlLViblocZSivLXdemuDqPQC2oGW6r0mCiKihUpx/H13aGDy',
-    'BYTE Admin',
-    'admin@byte.local',
+    'Blog-Platform Admin',
+    'admin@blog-platform.local',
     'admin'
 );
 

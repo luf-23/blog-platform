@@ -66,7 +66,7 @@ onMounted(fetchAnnouncements)
 <template>
   <div class="admin-page announcement-manager page-container">
     <header class="admin-page__head">
-      <div><span>COMMUNICATION</span><h1>公告管理</h1><p>发布平台通知，并维护用户可见的公告记录。</p></div>
+      <div><h1>公告管理</h1><p>发布平台通知，并维护用户可见的公告记录。</p></div>
       <button class="primary-action" @click="openCreate">＋ 发布公告</button>
     </header>
 
@@ -84,7 +84,7 @@ onMounted(fetchAnnouncements)
         <button @click="remove(item)">删除</button>
       </article>
     </section>
-    <div v-else class="manager-state"><strong>还没有公告</strong><span>发布第一条平台通知，让用户及时了解变化。</span></div>
+    <div v-else class="manager-state"><strong>暂无公告</strong></div>
 
     <el-dialog v-model="dialogOpen" title="发布公告" width="560px" destroy-on-close>
       <div class="announcement-form">

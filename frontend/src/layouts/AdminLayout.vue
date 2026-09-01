@@ -38,7 +38,7 @@ onMounted(() => refreshPendingArticles().catch(() => {}))
       </nav>
       <div class="admin-user">
         <img :src="user?.avatarImage || defaultAvatar" alt="" />
-        <div><strong>{{ user?.nickname || 'BYTE 运营' }}</strong><span>超级管理员</span></div>
+        <div><strong>{{ user?.nickname || '平台运营' }}</strong><span>超级管理员</span></div>
         <button @click="router.push('/home')">↗</button>
       </div>
     </aside>

@@ -7,26 +7,26 @@ import BrandMark from '../components/common/BrandMark.vue'
     <section class="auth-story">
       <router-link to="/home" class="auth-story__brand"><BrandMark /></router-link>
       <div class="auth-story__copy">
-        <p class="eyebrow">WRITE · CONNECT · GROW</p>
-        <h1>记录思考，<br />分享见解</h1>
-        <p>与创作者一起，构建有价值的知识社区</p>
+        <p class="eyebrow">BLOG PLATFORM</p>
+        <h1>写作、发布<br />与交流</h1>
+        <p>支持 Markdown 文章、分类、标签、评论和作者关注。</p>
       </div>
       <div class="story-canvas" aria-hidden="true">
         <span class="ink-line ink-line--one"></span>
         <span class="ink-line ink-line--two"></span>
         <article class="story-card story-card--main">
           <div class="story-image"><i></i><b></b></div>
-          <div><small>工程实践</small><strong>一次真实的系统重构复盘</strong><p>记录问题、取舍与可复现的解决方案。</p><footer>真实经验 · 清晰上下文 · 可复现细节</footer></div>
+          <div><small>Markdown</small><strong>文章编辑与预览</strong><p>支持代码块、图片和常用 Markdown 格式。</p><footer>草稿 · 审核 · 发布</footer></div>
         </article>
-        <article class="story-card story-card--quote"><b>“</b><span>这段话很有启发，受益匪浅！</span><small>思考者 · ♡</small></article>
-        <article class="story-card story-card--saved"><b>✎</b><span>持续创作<small>草稿自动保存在本地</small></span></article>
-        <article class="story-card story-card--topic"><b>#</b><span>标签筛选<small>快速找到相关技术内容</small></span><em>›</em></article>
+        <article class="story-card story-card--quote"><b>↩</b><span>评论与回复</span><small>文章讨论</small></article>
+        <article class="story-card story-card--saved"><b>✎</b><span>自动保存<small>新文章草稿保存在本地</small></span></article>
+        <article class="story-card story-card--topic"><b>#</b><span>分类与标签<small>用于整理和筛选文章</small></span><em>›</em></article>
         <svg class="story-feather" viewBox="0 0 170 250" fill="none">
           <path d="M28 233C52 163 84 94 151 16M45 189c25-2 52-14 79-39M64 146c-17-3-30-10-42-21M85 105c18-2 36-10 53-25M109 66c-11-3-20-8-29-17" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
           <path d="M151 16c-41 16-65 45-72 85 30-8 53-27 72-85ZM76 108c-31 4-48 18-54 42 25 3 43-11 54-42ZM65 151c-29 12-41 30-36 54 24-4 37-22 36-54Z" fill="currentColor" opacity=".78"/>
         </svg>
       </div>
-      <p class="auth-story__foot">© 2026 BYTE · Build in public.</p>
+      <p class="auth-story__foot">© 2026 Blog-Platform</p>
     </section>
 
     <section class="auth-panel">

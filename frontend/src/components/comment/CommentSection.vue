@@ -40,7 +40,7 @@
       <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--c-text-4)" stroke-width="1.5">
         <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
       </svg>
-      <p>还没有评论，来发表第一条吧！</p>
+      <p>暂无评论</p>
     </div>
 
     <div v-else class="cs-list">

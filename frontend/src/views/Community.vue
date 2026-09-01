@@ -185,8 +185,8 @@ onMounted(() => {
       <div class="page-container feed-layout workspace-frame">
         <aside class="left-sidebar workspace-scroll">
           <section v-if="!tokenStore.token" class="join-card">
-            <h2><strong>BYTE</strong> 是面向开发者的技术社区</h2>
-            <p>分享实践、记录问题，与认真写代码的人一起成长。</p>
+            <h2><strong>Blog-Platform</strong></h2>
+            <p>浏览公开文章；登录后可以发布文章、评论和关注作者。</p>
             <router-link to="/login" class="join-primary">创建账户</router-link>
             <router-link to="/login" class="join-login">登录</router-link>
           </section>
@@ -223,12 +223,12 @@ onMounted(() => {
               </button>
             </div>
           </section>
-          <footer class="side-footer"><strong>BYTE</strong><span>© 2026 · 为认真创作的人而建</span></footer>
+          <footer class="side-footer">© 2026 Blog-Platform</footer>
         </aside>
 
         <main class="feed-main workspace-scroll">
           <header class="feed-tabs">
-            <button :class="{ active: mode === 'hot' }" @click="setMode('hot')">推荐</button>
+            <button :class="{ active: mode === 'hot' }" @click="setMode('hot')">热门</button>
             <button :class="{ active: mode === 'latest' }" @click="setMode('latest')">最新</button>
             <button :class="{ active: mode === 'following' }" @click="setMode('following')">关注</button>
             <span class="feed-count"><i v-if="refreshing" class="feed-spinner" aria-label="正在加载"></i>{{ total }} 篇文章</span>
@@ -279,7 +279,7 @@ onMounted(() => {
 
         <aside class="right-sidebar workspace-scroll">
           <section class="right-card creators">
-            <header><div><span>社区成员</span><h2>值得关注的作者</h2></div><small>持续输出</small></header>
+            <header><h2>热门作者</h2><small>按文章数和获赞数排序</small></header>
             <div class="creator-list">
               <article v-for="creator in meta.recommendedCreators" :key="valueOf(creator, 'userId', 'user_id')">
                 <button class="creator-info" @click="router.push(`/profile/${valueOf(creator, 'username', 'username')}`)">

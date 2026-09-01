@@ -29,42 +29,42 @@ const routes = [
         path: "home",
         name: "Home",
         component: () => import("../views/Community.vue"),
-        meta: { title: "首页" }
+        meta: { title: "首页", headerMode: "discovery" }
       },
       {
         path: "community",
         name: "Community",
         component: () => import("../views/Community.vue"),
-        meta: { title: "社区" }
+        meta: { title: "社区", headerMode: "discovery" }
       },
       {
         path: "article/:id",
         name: "ArticleDetail",
         component: () => import("../views/article/Article.vue"),
-        meta: { title: "文章详情" }
+        meta: { title: "文章详情", headerMode: "discovery" }
       },
       {
         path: "announcement",
         name: "Announcement",
         component: () => import("../views/Announcement.vue"),
-        meta: { title: "系统公告" }
+        meta: { title: "系统公告", headerMode: "compact" }
       },
       {
         path: "profile/:username?",
         name: "Profile",
         component: () => import("../views/Profile.vue"),
-        meta: { title: "个人主页" }
+        meta: { title: "个人主页", headerMode: "compact" }
       },
       {
         path: "ai/chat",
         name: "Chat",
         component: () => import("../views/ai/Chat.vue"),
-        meta: { title: "AI 助手", requireAuth: true }
+        meta: { title: "AI 助手", requireAuth: true, headerMode: "compact" }
       },
       // Auth-required routes
       {
         path: "article",
-        meta: { requireAuth: true },
+        meta: { requireAuth: true, headerMode: "compact" },
         children: [
           { path: "", redirect: { name: "MyArticles" } },
           {
@@ -83,13 +83,13 @@ const routes = [
             path: "write",
             name: "ArticleWrite",
             component: () => import("../views/article/SaveArticle.vue"),
-            meta: { title: "写文章" }
+            meta: { title: "写文章", headerMode: "hidden" }
           },
           {
             path: "edit/:id",
             name: "ArticleEdit",
             component: () => import("../views/article/SaveArticle.vue"),
-            meta: { title: "编辑文章" }
+            meta: { title: "编辑文章", headerMode: "hidden" }
           }
         ]
       },
@@ -154,7 +154,7 @@ router.beforeEach((to, _from, next) => {
   const token = tokenStore.token;
 
   if (to.meta.title) {
-    document.title = `${to.meta.title} · BYTE`;
+    document.title = `${to.meta.title} · Blog-Platform`;
   }
 
   if (to.meta.guest && token) { next("/home"); return; }

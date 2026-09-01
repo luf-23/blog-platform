@@ -36,8 +36,8 @@ function markRule(state, silent) {
 }
 
 export function applyMarkdownCompatibility(md) {
-  if (md.__byteCompatibilityInstalled) return md
-  md.__byteCompatibilityInstalled = true
+  if (md.__blogPlatformCompatibilityInstalled) return md
+  md.__blogPlatformCompatibilityInstalled = true
   md.block.ruler.before('hr', 'typora_plus_divider', plusDividerRule)
   md.inline.ruler.before('emphasis', 'typora_mark', markRule)
   return md

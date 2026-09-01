@@ -9,8 +9,8 @@
     <!-- Login Form -->
     <transition name="fade" mode="out-in">
       <div v-if="mode === 'login'" key="login">
-        <h2 class="auth-title">欢迎回来</h2>
-        <p class="auth-subtitle">登录你的账户继续探索</p>
+        <h2 class="auth-title">账户登录</h2>
+        <p class="auth-subtitle">使用用户名或邮箱登录</p>
         <el-form ref="loginFormRef" :model="loginForm" :rules="loginRules" @submit.prevent="handleLogin">
           <el-form-item prop="usernameOrEmail">
             <el-input v-model="loginForm.usernameOrEmail" placeholder="用户名或邮箱" size="large" clearable>
@@ -41,7 +41,7 @@
       <!-- Register Form -->
       <div v-else-if="mode === 'register'" key="register">
         <h2 class="auth-title">创建账户</h2>
-        <p class="auth-subtitle">加入我们，开始你的创作之旅</p>
+        <p class="auth-subtitle">注册后可以发布文章、评论和关注作者</p>
         <el-form ref="regFormRef" :model="regForm" :rules="regRules" @submit.prevent="handleRegister">
           <el-form-item prop="username">
             <el-input v-model="regForm.username" placeholder="用户名（5-16位字母数字）" size="large" clearable>

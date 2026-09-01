@@ -46,7 +46,7 @@ function formatCount(value) {
       <div class="article-card__topline">
         <button class="article-card__author" @click.stop="$emit('author-click', { userId: article.userId, username: article.authorUsername })">
           <img :src="article.authorAvatar || defaultAvatar" :alt="article.authorNickname || article.authorUsername" />
-          <span>{{ article.authorNickname || article.authorUsername || 'BYTE 作者' }}</span>
+          <span>{{ article.authorNickname || article.authorUsername || '平台作者' }}</span>
         </button>
         <span>·</span>
         <time>{{ formatDate(article.createTime || article.updateTime) }}</time>

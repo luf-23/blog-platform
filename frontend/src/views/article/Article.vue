@@ -4,7 +4,7 @@
     <div class="article-shell page-container workspace-frame">
       <div class="article-layout">
         <aside v-if="article" class="article-actions">
-          <button :class="{ active: article.isLiked }" @click="toggleLike"><svg viewBox="0 0 24 24" :fill="article.isLiked ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2"><path d="m12 21-1.5-1.3C5.1 15 2 12.2 2 8.8A4.8 4.8 0 0 1 6.9 4 5.3 5.3 0 0 1 12 7a5.3 5.3 0 0 1 5.1-3A4.8 4.8 0 0 1 22 8.8c0 3.4-3.1 6.2-8.5 10.9Z"/></svg><span>点赞</span><b>{{ article.likeCount }}</b></button>
+          <button :class="{ active: article.isLiked }" :disabled="likeUpdating" @click="toggleLike"><svg viewBox="0 0 24 24" :fill="article.isLiked ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2"><path d="m12 21-1.5-1.3C5.1 15 2 12.2 2 8.8A4.8 4.8 0 0 1 6.9 4 5.3 5.3 0 0 1 12 7a5.3 5.3 0 0 1 5.1-3A4.8 4.8 0 0 1 22 8.8c0 3.4-3.1 6.2-8.5 10.9Z"/></svg><span>点赞</span><b>{{ article.likeCount }}</b></button>
           <button @click="scrollToComments"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a3 3 0 0 1-3 3H8l-5 3V6a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3Z"/></svg><span>评论</span><b>{{ article.commentCount }}</b></button>
           <button @click="shareArticle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"/></svg><span>分享</span></button>
         </aside>
@@ -114,6 +114,7 @@ const userInfoStore = useUserInfoStore()
 
 const article = ref(null)
 const loadingArticle = ref(false)
+const likeUpdating = ref(false)
 const toc = ref([])
 const activeTocId = ref('')
 const readingProgress = ref(0)
@@ -290,17 +291,18 @@ async function shareArticle() {
 
 async function toggleLike() {
   if (!userInfoStore.userInfo) { ElMessage.warning('请先登录'); return }
+  if (likeUpdating.value || !article.value) return
+  const wasLiked = Boolean(article.value.isLiked)
+  likeUpdating.value = true
   try {
-    if (article.value.isLiked) {
-      await unlikeArticleService(article.value.articleId)
-      article.value.isLiked = false
-      article.value.likeCount--
-    } else {
-      await likeArticleService(article.value.articleId)
-      article.value.isLiked = true
-      article.value.likeCount++
-    }
+    const result = wasLiked
+      ? await unlikeArticleService(article.value.articleId)
+      : await likeArticleService(article.value.articleId)
+    article.value.isLiked = result.data?.isLiked ?? !wasLiked
+    article.value.likeCount = result.data?.likeCount
+      ?? Math.max(0, (article.value.likeCount || 0) + (wasLiked ? -1 : 1))
   } catch {}
+  finally { likeUpdating.value = false }
 }
 
 async function toggleFollowAuthor(event) {
@@ -493,6 +495,8 @@ onUnmounted(() => {
 .article-actions button { border: 1px solid var(--c-border); border-radius: var(--radius-sm); background: var(--c-surface); }
 .article-actions button:first-child { border-top: 1px solid var(--c-border); }
 .article-actions button:hover, .article-actions button.active { border-color: #93c5fd; background: var(--c-primary-soft); color: var(--c-primary); }
+.article-actions button:first-child.active { border-color: color-mix(in srgb, var(--c-danger) 42%, var(--c-border)); background: var(--c-danger-soft); color: var(--c-danger); }
+.article-actions button:disabled { cursor: wait; opacity: .7; }
 .article-sidebar { gap: 14px; }
 .toc-card, .author-card { padding: 18px; border: 1px solid var(--c-border); border-radius: var(--radius-lg); background: var(--c-surface); box-shadow: var(--shadow-xs); }
 .toc-card h2, .author-card h2 { font-family: Inter, "PingFang SC", sans-serif; font-size: 16px; }

@@ -25,9 +25,9 @@ const filters = reactive({
   sort: 'hot'
 })
 const sortOptions = [
-  { label: '推荐', value: 'hot' },
+  { label: '阅读最多', value: 'hot' },
   { label: '最新', value: 'latest' },
-  { label: '热门', value: 'liked' }
+  { label: '获赞最多', value: 'liked' }
 ]
 
 const hasMore = computed(() => articles.value.length < total.value)
@@ -132,10 +132,10 @@ onMounted(async () => {
         <main class="feed-column workspace-scroll">
           <section class="discovery-heading">
             <div>
-              <span>DISCOVER / 技术发现</span>
-              <h1>发现值得阅读的技术内容</h1>
+              <span>公开文章</span>
+              <h1>文章列表</h1>
             </div>
-            <p>来自开发者社区的实践、教程与工程经验</p>
+            <p>按时间、热度和标签浏览已发布文章。</p>
           </section>
 
           <section class="discovery-tools">
@@ -171,7 +171,7 @@ onMounted(async () => {
 
         <aside class="discovery-aside workspace-scroll">
           <section class="aside-block curated-block">
-            <header><h2>今日精选</h2><button>查看更多 ›</button></header>
+            <header><h2>本页阅读最多</h2></header>
             <router-link v-for="(item, index) in featured" :key="item.articleId" :to="'/article/' + item.articleId" class="featured-item">
               <span>{{ String(index + 1).padStart(2, '0') }}</span>
               <div><strong>{{ item.title }}</strong><small>{{ item.authorNickname || item.authorUsername }} · {{ formatCount(item.viewCount) }} 阅读</small></div>
@@ -179,7 +179,7 @@ onMounted(async () => {
           </section>
 
           <section class="aside-block">
-            <header><h2>热门标签</h2><button>全部 ›</button></header>
+            <header><h2>热门标签</h2></header>
             <div class="tag-grid">
               <button v-for="tag in popularTags.slice(0, 12)" :key="tag.tagId" :class="{ active: filters.tagId === tag.tagId }" @click="toggleTag(tag)">
                 <span>{{ tag.tagName }}</span><em>{{ tag.articleCount }}</em>
@@ -194,7 +194,7 @@ onMounted(async () => {
               <p><i class="like">♡</i><span>获赞数<strong>{{ formatCount(totals.likes) }}</strong></span></p>
               <p><i class="comment">▢</i><span>评论数<strong>{{ formatCount(totals.comments) }}</strong></span></p>
             </div>
-            <router-link to="/article/write" class="btn btn-primary">开始创作</router-link>
+            <router-link to="/article/write" class="btn btn-primary">写文章</router-link>
           </section>
         </aside>
       </div>

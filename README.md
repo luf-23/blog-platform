@@ -1,4 +1,4 @@
-# Blog Platform
+# Blog-Platform
 
 个人博客平台 — Vue 3 全新设计前端 + Spring Boot 后端。
 
@@ -72,7 +72,8 @@ npm run dev
 ```
 
 默认开发地址：`http://localhost:5173`
-后端地址在 `frontend/src/utils/request.js` 的 `baseURL` 中配置（默认 `http://localhost:8080/`）。
+
+浏览器统一通过同源路径 `/api/` 访问后端。开发服务器会由 Vite 将该路径代理到 `http://localhost:8080`；如需修改代理目标，可设置 `VITE_API_PROXY_TARGET`。
 
 ### 构建
 
@@ -81,6 +82,8 @@ cd frontend
 npm run build      # 产物输出到 dist/
 npm run preview    # 本地预览生产构建
 ```
+
+生产环境使用 `frontend/nginx.conf`：Nginx 托管 `dist/`，并将 `/api/` 反向代理到后端。部署到不同主机或容器时，请按实际网络拓扑调整其中的 `proxy_pass`。后端不配置 CORS，必须只通过上述同源代理对浏览器提供服务。
 
 ## 配置说明
 

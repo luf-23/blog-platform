@@ -7,6 +7,7 @@ import com.blogplatform.backend.entity.Result;
 import com.blogplatform.backend.utils.ThreadLocalUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Map;
 
@@ -25,23 +26,29 @@ public class ArticleLikeServiceImpl implements ArticleLikeService {
     }
 
     @Override
+    @Transactional
     public Result like(Integer articleId) {
         Map<String, Object> claims = ThreadLocalUtil.get();
         Integer userId = (Integer) claims.get("id");
-        if (articleLikeMapper.exists(articleId, userId) > 0) return Result.error("已点赞");
-        articleLikeMapper.add(articleId, userId);
-        articleMapper.incrementLikeCount(articleId);
-        return Result.success();
+        int inserted = articleLikeMapper.add(articleId, userId);
+        if (inserted > 0) articleMapper.incrementLikeCount(articleId);
+        return Result.success(Map.of(
+                "isLiked", true,
+                "likeCount", articleLikeMapper.count(articleId)
+        ));
     }
 
     @Override
+    @Transactional
     public Result unlike(Integer articleId) {
         Map<String, Object> claims = ThreadLocalUtil.get();
         Integer userId = (Integer) claims.get("id");
-        if (articleLikeMapper.exists(articleId, userId) == 0) return Result.error("未点赞");
-        articleLikeMapper.delete(articleId, userId);
-        articleMapper.decrementLikeCount(articleId);
-        return Result.success();
+        int deleted = articleLikeMapper.delete(articleId, userId);
+        if (deleted > 0) articleMapper.decrementLikeCount(articleId);
+        return Result.success(Map.of(
+                "isLiked", false,
+                "likeCount", articleLikeMapper.count(articleId)
+        ));
     }
 
     @Override

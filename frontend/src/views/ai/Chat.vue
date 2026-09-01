@@ -182,15 +182,15 @@ onUnmounted(() => {
 const SUGGESTIONS = [
   "为一篇 Vue 3 最佳实践文章生成清晰的大纲",
   "把这段技术说明改写得更适合初学者阅读",
-  "给我的博客文章提供 8 个有吸引力的标题",
+  "根据文章内容生成 8 个标题",
   "从文章草稿中提炼摘要、关键词和结尾观点"
 ];
 
 const QUICK_ACTIONS = [
   { label: "生成大纲", prompt: "请根据我的博客主题生成一份结构清晰、层次完整的文章大纲。" },
-  { label: "润色文字", prompt: "请润色我接下来提供的文字，保留原意，让表达更自然有力量。" },
+  { label: "修改文字", prompt: "请修改我接下来提供的文字，保留原意，修正语病并精简重复表达。" },
   { label: "提炼摘要", prompt: "请从我接下来提供的文章中提炼一段不超过 150 字的摘要。" },
-  { label: "标题灵感", prompt: "请为我的博客文章提供 8 个兼顾信息量和吸引力的标题。" }
+  { label: "生成标题", prompt: "请根据我接下来提供的文章生成 8 个准确概括内容、避免夸张的标题。" }
 ];
 </script>
 
@@ -302,8 +302,8 @@ const QUICK_ACTIONS = [
             <span class="chat-welcome__icon">
               <el-icon size="32"><ChatLineRound /></el-icon>
             </span>
-            <h2>你好，我是 BYTE 写作助手</h2>
-            <p>从选题、大纲到润色发布，陪你把想法变成一篇好文章</p>
+            <h2>写作助手</h2>
+            <p>可以生成大纲、修改文字、提取摘要和拟定标题。</p>
           </div>
           <div class="chat-welcome__suggestions">
             <button
@@ -370,35 +370,10 @@ const QUICK_ACTIONS = [
 
     <aside class="chat-context">
       <header class="context-head">
-        <div>
-          <span class="context-kicker">WRITING CONTEXT</span>
-          <h3>创作上下文</h3>
-        </div>
-        <span class="context-status">已同步</span>
+        <div><h3>快捷操作</h3></div>
       </header>
 
-      <section class="context-card context-draft">
-        <span class="context-label">当前草稿</span>
-        <strong>从零设计博客系统</strong>
-        <p>草稿中的标题、分类与选中文字会成为 AI 的回答背景。</p>
-        <div class="draft-progress"><span /></div>
-        <div class="context-metrics">
-          <span><b>3,842</b> 字</span>
-          <span><b>约 9</b> 分钟</span>
-        </div>
-      </section>
-
       <section class="context-section">
-        <span class="context-label">文章信息</span>
-        <dl class="context-list">
-          <div><dt>状态</dt><dd><i class="status-dot" />草稿中</dd></div>
-          <div><dt>分类</dt><dd>技术分享</dd></div>
-          <div><dt>选中文字</dt><dd>326 字</dd></div>
-        </dl>
-      </section>
-
-      <section class="context-section">
-        <span class="context-label">快捷能力</span>
         <div class="context-actions">
           <button
             v-for="action in QUICK_ACTIONS"
@@ -411,8 +386,8 @@ const QUICK_ACTIONS = [
       </section>
 
       <div class="context-tip">
-        <strong>小提示</strong>
-        <p>描述目标读者和文章语气，AI 会给出更贴合的内容。</p>
+        <strong>不会自动读取文章</strong>
+        <p>需要处理的文章或段落，请直接粘贴到对话中。</p>
       </div>
     </aside>
 
@@ -691,38 +666,6 @@ const QUICK_ACTIONS = [
   font-size: 18px;
 }
 
-.context-kicker,
-.context-label {
-  color: var(--bp-color-text-tertiary);
-  font-size: 10px;
-  font-weight: 750;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
-.context-status {
-  padding: 4px 8px;
-  border-radius: 999px;
-  color: #0b8f73;
-  background: #e9f9f4;
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.context-card {
-  padding: 16px;
-  border: 1px solid var(--bp-color-border);
-  border-radius: 14px;
-  background: linear-gradient(145deg, #fafaff, #f5f3ff);
-}
-
-.context-draft strong {
-  display: block;
-  margin: 8px 0 5px;
-  font-size: 14px;
-}
-
-.context-draft p,
 .context-tip p {
   margin: 0;
   color: var(--bp-color-text-tertiary);
@@ -730,59 +673,9 @@ const QUICK_ACTIONS = [
   line-height: 1.65;
 }
 
-.draft-progress {
-  height: 5px;
-  margin: 14px 0 9px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: #e4e2f5;
-}
-
-.draft-progress span {
-  display: block;
-  width: 68%;
-  height: 100%;
-  border-radius: inherit;
-  background: var(--bp-gradient-hero);
-}
-
-.context-metrics {
-  display: flex;
-  justify-content: space-between;
-  color: var(--bp-color-text-tertiary);
-  font-size: 11px;
-}
-
-.context-metrics b { color: var(--bp-color-text-primary); }
-
 .context-section {
   padding: 19px 2px;
   border-bottom: 1px solid var(--bp-color-divider);
-}
-
-.context-list {
-  display: grid;
-  gap: 12px;
-  margin: 13px 0 0;
-}
-
-.context-list div {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  font-size: 12px;
-}
-
-.context-list dt { color: var(--bp-color-text-tertiary); }
-.context-list dd { margin: 0; color: var(--bp-color-text-secondary); font-weight: 650; }
-
-.status-dot {
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  margin-right: 5px;
-  border-radius: 50%;
-  background: #f59e0b;
 }
 
 .context-actions {

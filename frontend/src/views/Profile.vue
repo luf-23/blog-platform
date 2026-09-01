@@ -136,7 +136,7 @@
         <el-form-item label="背景图">
           <div class="image-field image-field--wide">
             <button type="button" class="btn btn-secondary btn-sm" @click="beginImageUpload('background')">更换背景图</button>
-            <small>建议选择横向图片，效果更自然</small>
+            <small>建议使用横向图片</small>
           </div>
         </el-form-item>
       </el-form>

@@ -2,9 +2,8 @@
   <div class="categories-page page-container">
     <header class="categories-head">
       <div class="categories-heading">
-        <span>CREATOR LIBRARY</span>
         <h1>文章分组</h1>
-        <p>建立稳定的内容脉络，让每一篇文章都更容易被找到。</p>
+        <p>创建和管理个人文章分组。</p>
       </div>
       <div class="head-actions">
         <router-link to="/article/my" class="secondary-action">
@@ -22,7 +21,7 @@
       <article class="overview-card">
         <span>分组数量</span>
         <strong>{{ categories.length }}</strong>
-        <p>个长期内容主题</p>
+        <p>个文章分组</p>
         <i class="tone-blue"></i>
       </article>
       <article class="overview-card">
@@ -35,24 +34,24 @@
         <div class="note-icon">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H10l2 2h5.5A2.5 2.5 0 0 1 20 7.5v9a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 16.5Z"/><path d="M8 10h8M8 14h5"/></svg>
         </div>
-        <div><span>ORGANIZE YOUR WORK</span><strong>用主题沉淀内容，而不是堆叠临时关键词</strong><p>分组属于你的个人创作空间，不会影响平台公共标签。</p></div>
+        <div><strong>个人分组</strong><p>只用于整理自己的文章，不影响平台公共标签。</p></div>
       </aside>
     </section>
 
     <section class="category-panel">
       <header class="panel-head">
         <div><h2>我的分组</h2><span>{{ categories.length }} 个分组</span></div>
-        <p>按长期创作方向组织内容</p>
+        <p>用于文章筛选和归类</p>
       </header>
 
       <div v-if="loading" class="panel-state">
         <span class="category-spinner" aria-hidden="true"></span>
-        <span>正在整理你的分组…</span>
+        <span>正在加载分组…</span>
       </div>
 
       <div v-else-if="categories.length === 0" class="panel-state empty-state">
-        <div class="empty-visual"><span>01</span><i></i><b>GROUP</b></div>
-        <div><span>BUILD YOUR LIBRARY</span><strong>从第一个长期主题开始</strong><p>比如“前端工程化”“系统设计”或“读书笔记”，之后写作时就能快速归档。</p><button @click="openCreate">创建第一个分组 →</button></div>
+        <div class="empty-visual" aria-hidden="true"><i></i></div>
+        <div><strong>还没有文章分组</strong><p>创建分组后，写文章时可以选择它。</p><button @click="openCreate">新建分组</button></div>
       </div>
 
       <div v-else class="category-list">
@@ -63,7 +62,7 @@
           </div>
           <div class="cat-copy">
             <h3>{{ cat.categoryName }}</h3>
-            <p>{{ cat.categoryDescription || '还没有描述，补充一句说明会让内容结构更清晰。' }}</p>
+            <p>{{ cat.categoryDescription || '未填写描述' }}</p>
             <small>更新于 {{ formatDate(cat.updateTime || cat.createTime) }}</small>
           </div>
           <div class="cat-count"><strong>{{ cat.articleCount || 0 }}</strong><span>篇文章</span></div>
@@ -90,7 +89,7 @@
           <el-input v-model="form.categoryName" placeholder="如：前端开发" maxlength="50" show-word-limit/>
         </el-form-item>
         <el-form-item label="分组描述" prop="categoryDescription">
-          <el-input v-model="form.categoryDescription" type="textarea" :rows="3" placeholder="简单描述一下这个分组..." maxlength="200" show-word-limit/>
+          <el-input v-model="form.categoryDescription" type="textarea" :rows="3" placeholder="分组描述（可选）" maxlength="200" show-word-limit/>
         </el-form-item>
         <el-form-item label="分组封面（可选）" prop="coverImage">
           <div class="cover-field">

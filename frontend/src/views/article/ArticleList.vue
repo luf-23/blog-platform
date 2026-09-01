@@ -98,9 +98,8 @@ onMounted(() => Promise.all([fetchArticles(), fetchCategories()]))
   <div class="content-page page-container">
     <header class="content-head">
       <div class="content-heading">
-        <span>CREATOR STUDIO</span>
         <h1>内容管理</h1>
-        <p>从草稿到发布，在一个清晰的工作流里管理你的技术文章。</p>
+        <p>查看和管理草稿、待审核及已发布文章。</p>
       </div>
       <div class="head-actions">
         <router-link to="/article/categories" class="secondary-action">
@@ -142,7 +141,7 @@ onMounted(() => Promise.all([fetchArticles(), fetchCategories()]))
 
       <div v-if="loading" class="panel-state loading-state">
         <span class="content-spinner" aria-hidden="true"></span>
-        <span>正在整理你的内容…</span>
+        <span>正在加载文章…</span>
       </div>
 
       <div v-else-if="visibleArticles.length" class="article-list">
@@ -157,7 +156,7 @@ onMounted(() => Promise.all([fetchArticles(), fetchCategories()]))
               <span class="status-badge" :class="`status-${article.status}`"><i></i>{{ statusLabel(article.status) }}</span>
               <button class="article-title" @click="openArticle(article)">{{ article.title }}</button>
             </div>
-            <p>{{ article.summary || '还没有填写摘要，补充一句清晰的介绍会让文章更容易被读者理解。' }}</p>
+            <p>{{ article.summary || '未填写摘要' }}</p>
             <div v-if="article.tags?.length" class="article-tags">
               <span v-for="tag in article.tags.slice(0, 4)" :key="tag.tagId"><small>{{ tag.parentName }}</small>#{{ tag.tagName }}</span>
               <em v-if="article.tags.length > 4">+{{ article.tags.length - 4 }}</em>
@@ -186,8 +185,8 @@ onMounted(() => Promise.all([fetchArticles(), fetchCategories()]))
       </div>
 
       <div v-else class="panel-state empty-library">
-        <div class="empty-visual"><span>01</span><i></i><b>WRITE</b></div>
-        <div><span>START YOUR FIRST DRAFT</span><strong>从一个真实的问题开始写</strong><p>记录背景、选择与结果。第一篇文章不必完美，只需要足够真实。</p><router-link to="/article/write">开始第一篇文章 →</router-link></div>
+        <div class="empty-visual" aria-hidden="true"><i></i></div>
+        <div><strong>还没有文章</strong><p>新建的草稿和已发布文章会显示在这里。</p><router-link to="/article/write">新建文章</router-link></div>
       </div>
     </section>
   </div>
