@@ -7,6 +7,7 @@ import com.blogplatform.backend.mapper.UserMapper;
 import com.blogplatform.backend.service.CommentService;
 import com.blogplatform.backend.entity.Comment;
 import com.blogplatform.backend.entity.CommentLikeCount;
+import com.blogplatform.backend.entity.CommentReplyCount;
 import com.blogplatform.backend.entity.CommentVO;
 import com.blogplatform.backend.entity.Result;
 import com.blogplatform.backend.entity.User;
@@ -29,8 +30,6 @@ public class CommentServiceImpl implements CommentService {
     @Autowired
     private ArticleMapper articleMapper;
 
-    private static final int REPLY_PREVIEW_SIZE = 2;
-
     @Override
     public Result<Map<String, Object>> list(Integer articleId, Integer page, Integer pageSize) {
         if (page == null || page < 1) page = 1;
@@ -51,28 +50,16 @@ public class CommentServiceImpl implements CommentService {
         }
 
         List<Integer> rootIds = roots.stream().map(Comment::getCommentId).toList();
-        List<Comment> replies = commentMapper.selectRepliesByRootIds(articleId, rootIds);
-
-        List<Comment> all = new ArrayList<>(roots.size() + replies.size());
-        all.addAll(roots);
-        all.addAll(replies);
-        Map<Integer, CommentVO> voMap = enrichToVoMap(all);
-
-        Map<Integer, List<CommentVO>> repliesByRoot = new HashMap<>();
-        for (Comment reply : replies) {
-            CommentVO vo = voMap.get(reply.getCommentId());
-            if (vo != null) {
-                repliesByRoot.computeIfAbsent(reply.getRootId(), k -> new ArrayList<>()).add(vo);
-            }
-        }
+        Map<Integer, Integer> replyCountMap = commentMapper.countRepliesByRootIds(articleId, rootIds)
+                .stream()
+                .collect(Collectors.toMap(CommentReplyCount::getRootId, CommentReplyCount::getReplyCount));
+        Map<Integer, CommentVO> voMap = enrichToVoMap(roots);
 
         List<CommentVO> voList = new ArrayList<>(roots.size());
         for (Comment root : roots) {
             CommentVO rootVo = voMap.get(root.getCommentId());
-            List<CommentVO> rootReplies = repliesByRoot.getOrDefault(root.getCommentId(), List.of());
-            rootVo.setReplyCount(rootReplies.size());
-            rootVo.setChildren(new ArrayList<>(
-                    rootReplies.subList(0, Math.min(REPLY_PREVIEW_SIZE, rootReplies.size()))));
+            rootVo.setReplyCount(replyCountMap.getOrDefault(root.getCommentId(), 0));
+            rootVo.setChildren(new ArrayList<>());
             voList.add(rootVo);
         }
 

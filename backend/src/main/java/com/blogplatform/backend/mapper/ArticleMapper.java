@@ -1,6 +1,7 @@
 package com.blogplatform.backend.mapper;
 
 import com.blogplatform.backend.entity.Article;
+import com.blogplatform.backend.entity.ArticleViewDelta;
 import com.blogplatform.backend.entity.ArticleVO;
 import org.apache.ibatis.annotations.*;
 
@@ -136,7 +137,19 @@ public interface ArticleMapper {
     void updateCoverImage(@Param("articleId") Integer articleId, @Param("coverImage") String coverImage);
 
     @Update("UPDATE article SET view_count = view_count + 1 WHERE article_id=#{articleId}")
-    void incrementViewCount(Integer articleId);
+    int incrementViewCount(Integer articleId);
+
+    @Update("<script>" +
+            "UPDATE article SET view_count = COALESCE(view_count, 0) + CASE article_id " +
+            "<foreach collection='deltas' item='delta'>" +
+            "WHEN #{delta.articleId} THEN #{delta.increment} " +
+            "</foreach>" +
+            "ELSE 0 END WHERE article_id IN " +
+            "<foreach collection='deltas' item='delta' open='(' separator=',' close=')'>" +
+            "#{delta.articleId}" +
+            "</foreach>" +
+            "</script>")
+    int incrementViewCounts(@Param("deltas") List<ArticleViewDelta> deltas);
 
     @Update("UPDATE article SET like_count = like_count + 1 WHERE article_id=#{articleId}")
     void incrementLikeCount(Integer articleId);

@@ -149,6 +149,7 @@
     <UploadImageDialog
       v-model:visible="uploadDialogVisible"
       :title="uploadTarget === 'avatar' ? '选择头像' : '选择背景图'"
+      :default-ratio="uploadTarget === 'avatar' ? '1:1' : '3:1'"
       :loading="uploadingImage"
       hint="支持 JPG、PNG、WEBP，图片大小不超过 5MB"
       @confirm="uploadProfileImage"

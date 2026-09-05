@@ -27,6 +27,8 @@ public class ArticleServiceImpl implements ArticleService {
     private TagMapper tagMapper;
     @Autowired
     private ArticleLikeMapper articleLikeMapper;
+    @Autowired
+    private ArticleViewCountService articleViewCountService;
 
     // ── Public discovery ──────────────────────────────────────────────────────
 
@@ -66,7 +68,7 @@ public class ArticleServiceImpl implements ArticleService {
         }
         vo.setTags(tagMapper.selectByArticleId(articleId));
         vo.setIsLiked(isArticleLiked(articleId));
-        articleMapper.incrementViewCount(articleId);
+        articleViewCountService.recordView(articleId);
         vo.setViewCount((vo.getViewCount() == null ? 0 : vo.getViewCount()) + 1);
         return Result.success(vo);
     }

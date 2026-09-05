@@ -63,7 +63,8 @@ export class OSSClient {
       throw new Error("Invalid image type");
     }
     const timestamp = Date.now();
-    return `${type}/${id}_${timestamp}.${fileExtension}`;
+    const uniqueId = Array.from(crypto.getRandomValues(new Uint8Array(12)), byte => byte.toString(16).padStart(2, "0")).join("");
+    return `${type}/${id}_${timestamp}_${uniqueId}.${fileExtension}`;
   }
 
   async uploadFile(fileName, file) {

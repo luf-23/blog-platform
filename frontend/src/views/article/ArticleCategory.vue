@@ -111,6 +111,7 @@
     <UploadImageDialog
       v-model:visible="coverUploadVisible"
       title="选择分组封面"
+      default-ratio="16:9"
       :loading="uploadingCover"
       hint="支持 JPG、PNG、WEBP，图片大小不超过 5MB"
       @confirm="uploadCategoryCover"
@@ -319,7 +320,7 @@ onMounted(fetchCategories)
 .empty-state strong { display: block; margin: 7px 0; color: var(--c-text); font-size: 20px; }
 .empty-state p { color: var(--c-text-3); font-size: 11px; line-height: 1.75; }
 .empty-state button { padding: 0; border: 0; margin-top: 16px; background: transparent; color: var(--c-primary); font-size: 11px; font-weight: 800; }
-.cover-field { width: 100%; }.cover-field > small { display: block; margin-top: 7px; color: var(--c-text-4); font-size: 10px; }.cover-field-actions { display: flex; gap: 8px; }.cover-form-preview { width: 100%; aspect-ratio: 16 / 6; overflow: hidden; border: 1px solid var(--c-border); border-radius: 7px; margin-bottom: 8px; background: var(--c-surface-2); }.cover-form-preview img { width: 100%; height: 100%; object-fit: cover; }
+.cover-field { width: 100%; }.cover-field > small { display: block; margin-top: 7px; color: var(--c-text-4); font-size: 10px; }.cover-field-actions { display: flex; gap: 8px; }.cover-form-preview { width: 100%; aspect-ratio: 16 / 9; overflow: hidden; border: 1px solid var(--c-border); border-radius: 7px; margin-bottom: 8px; background: var(--c-surface-2); }.cover-form-preview img { width: 100%; height: 100%; object-fit: contain; }
 @keyframes category-spin { to { transform: rotate(360deg); } }
 
 @media (max-width: 900px) {

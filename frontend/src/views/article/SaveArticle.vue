@@ -130,9 +130,17 @@
     <UploadImageDialog
       v-model:visible="coverDialogVisible"
       title="选择文章封面"
+      default-ratio="16:9"
       :loading="uploadingImage"
       hint="支持 JPG、PNG、WEBP，图片大小不超过 5MB"
       @confirm="uploadCover"
+    />
+    <UploadImageDialog
+      :visible="contentCropVisible"
+      :initial-file="contentCropFile"
+      :title="contentCropTitle"
+      @update:visible="visible => { if (!visible) finishContentCrop(null) }"
+      @confirm="finishContentCrop"
     />
   </div>
 </template>
@@ -170,6 +178,12 @@ const settingsCollapsed = ref(false)
 const activeOutlineIndex = ref(-1)
 const lastSavedAt = ref('')
 const coverDialogVisible = ref(false)
+const contentCropVisible = ref(false)
+const contentCropFile = ref(null)
+const contentCropTitle = ref('裁剪正文图片')
+let resolveContentCrop = null
+let contentUploadQueue = Promise.resolve()
+let editorDisposed = false
 const uploadingImage = ref(false)
 let autosaveTimer = null
 let localPersistenceEnabled = true
@@ -367,20 +381,46 @@ async function uploadCover(file) {
   }
 }
 
-async function uploadContentImages(files, callback) {
-  uploadingImage.value = true
-  try {
-    const urls = await Promise.all(files.map(file => uploadImageToOss(
-      file,
-      OSSClient.IMAGE_TYPE.ARTICLE_CONTENT,
-      userInfoStore.userInfo?.userId
-    )))
-    callback(urls)
-  } catch (error) {
-    ElMessage.error(error?.message || '正文图片上传失败')
-  } finally {
-    uploadingImage.value = false
-  }
+function finishContentCrop(file) {
+  const resolve = resolveContentCrop
+  resolveContentCrop = null
+  contentCropVisible.value = false
+  contentCropFile.value = null
+  resolve?.(file)
+}
+
+function uploadContentImages(files, callback) {
+  // Serialize paste/drop batches so only one crop dialog is active at a time.
+  contentUploadQueue = contentUploadQueue.then(async () => {
+    if (editorDisposed) return
+    uploadingImage.value = true
+    try {
+      const croppedFiles = []
+      for (const [index, file] of Array.from(files).entries()) {
+        contentCropTitle.value = `裁剪正文图片（${index + 1}/${files.length}）`
+        const croppedFile = await new Promise(resolve => {
+          resolveContentCrop = resolve
+          contentCropFile.value = file
+          contentCropVisible.value = true
+        })
+        if (!croppedFile || editorDisposed) return
+        croppedFiles.push(croppedFile)
+        // Let the previous dialog state close before loading the next image.
+        await nextTick()
+      }
+      const urls = await Promise.all(croppedFiles.map(file => uploadImageToOss(
+        file,
+        OSSClient.IMAGE_TYPE.ARTICLE_CONTENT,
+        userInfoStore.userInfo?.userId
+      )))
+      if (!editorDisposed) callback(urls)
+    } catch (error) {
+      if (!editorDisposed) ElMessage.error(error?.message || '正文图片上传失败')
+    } finally {
+      uploadingImage.value = false
+    }
+  })
+  return contentUploadQueue
 }
 
 async function loadAvailableTags() {
@@ -404,7 +444,11 @@ onMounted(async () => {
   await categoryTask
   autosaveTimer = window.setInterval(saveLocalDraft, 12000)
 })
-onUnmounted(() => window.clearInterval(autosaveTimer))
+onUnmounted(() => {
+  window.clearInterval(autosaveTimer)
+  editorDisposed = true
+  finishContentCrop(null)
+})
 watch(() => [form.title, form.summary, form.content, form.categoryId, form.coverImage, form.tagNames.join(',')], () => {
   lastSavedAt.value = ''
 })
@@ -565,7 +609,7 @@ watch(() => [form.title, form.summary, form.content, form.categoryId, form.cover
   overflow: hidden;
   aspect-ratio: 16/9;
 }
-.cover-preview img { width: 100%; height: 100%; object-fit: cover; }
+.cover-preview img { width: 100%; height: 100%; object-fit: contain; background: var(--c-surface-2); }
 .cover-upload { width: 100%; margin-top: 9px; }
 .cover-remove {
   position: absolute;

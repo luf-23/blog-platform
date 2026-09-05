@@ -63,6 +63,8 @@ mvn spring-boot:run
 
 默认 API：`http://localhost:8080`
 
+IDEA 的 Project SDK、Maven Runner JRE 请统一使用 JDK 21，并重新加载 Maven 项目以同步 Lombok 注解处理器配置。若运行时报 `NoSuchMethodError`（例如 `OssConfig.getPolicyFile()`），停止旧后端进程，执行 `mvn clean test` 后重新启动，确保加载的是本次构建的类。
+
 ### 4. 前端
 
 ```bash

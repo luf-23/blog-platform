@@ -1,11 +1,18 @@
 <template>
-  <div class="article-page workspace-page">
+  <div class="article-page workspace-page" :class="{ 'has-comments': commentsOpen }">
     <div class="reading-progress"><i :style="{ width: readingProgress + '%' }"></i></div>
     <div class="article-shell page-container workspace-frame">
       <div class="article-layout">
         <aside v-if="article" class="article-actions">
           <button :class="{ active: article.isLiked }" :disabled="likeUpdating" @click="toggleLike"><svg viewBox="0 0 24 24" :fill="article.isLiked ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2"><path d="m12 21-1.5-1.3C5.1 15 2 12.2 2 8.8A4.8 4.8 0 0 1 6.9 4 5.3 5.3 0 0 1 12 7a5.3 5.3 0 0 1 5.1-3A4.8 4.8 0 0 1 22 8.8c0 3.4-3.1 6.2-8.5 10.9Z"/></svg><span>点赞</span><b>{{ article.likeCount }}</b></button>
-          <button @click="scrollToComments"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a3 3 0 0 1-3 3H8l-5 3V6a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3Z"/></svg><span>评论</span><b>{{ article.commentCount }}</b></button>
+          <button
+            ref="commentToggleButton"
+            :class="{ active: commentsOpen }"
+            :aria-expanded="commentsOpen"
+            :aria-label="commentsOpen ? '收起评论' : '展开评论'"
+            aria-controls="article-comment-drawer"
+            @click="toggleComments"
+          ><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a3 3 0 0 1-3 3H8l-5 3V6a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3Z"/></svg><span>评论</span><b>{{ article.commentCount }}</b></button>
           <button @click="shareArticle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"/></svg><span>分享</span></button>
         </aside>
 
@@ -53,14 +60,6 @@
               </div>
             </article>
 
-            <section id="comments" class="article-comments surface-card">
-              <CommentSection
-                :article-id="article.articleId"
-                :author-id="article.userId"
-                :total-count="article.commentCount"
-                @count-change="(n) => article.commentCount = n"
-              />
-            </section>
           </template>
 
           <div v-else class="empty-feed" style="margin-top:60px">
@@ -91,6 +90,34 @@
         </aside>
       </div>
     </div>
+
+    <Transition name="comment-backdrop">
+      <button
+        v-if="commentsOpen"
+        type="button"
+        class="comment-drawer-backdrop"
+        aria-label="关闭评论"
+        @click="closeComments"
+      ></button>
+    </Transition>
+    <aside
+      v-if="article && commentsMounted"
+      id="article-comment-drawer"
+      class="comment-drawer"
+      :class="{ 'is-open': commentsOpen }"
+      :aria-hidden="!commentsOpen"
+      :inert="!commentsOpen"
+      aria-label="文章评论"
+    >
+      <CommentSection
+        panel
+        :article-id="article.articleId"
+        :author-id="article.userId"
+        :total-count="article.commentCount"
+        @count-change="(n) => article.commentCount = n"
+        @close="closeComments"
+      />
+    </aside>
   </div>
 </template>
 
@@ -119,10 +146,15 @@ const toc = ref([])
 const activeTocId = ref('')
 const readingProgress = ref(0)
 const coverFailed = ref(false)
+const commentsOpen = ref(false)
+const commentsMounted = ref(false)
+const commentsOpening = ref(false)
 const authorMetrics = ref({ following: false, followerCount: 0 })
+const commentToggleButton = ref(null)
 const articleScroller = ref(null)
 const articleBody = ref(null)
 let headingObserver = null
+let commentOpenFrame = 0
 
 const readingMinutes = computed(() => Math.max(3, Math.ceil((article.value?.content?.length || 800) / 400)))
 const isAuthor = computed(() => Boolean(
@@ -184,9 +216,26 @@ function setupCodeBlocks() {
   blocks.forEach(pre => {
     if (pre.parentElement?.classList.contains('article-code-block')) return
 
+    const code = pre.querySelector('code')
+    const rawCode = code?.textContent || ''
+    const normalizedCode = rawCode.replace(/\r\n?/g, '\n').replace(/\n$/, '')
+    const lineCount = Math.max(1, normalizedCode.split('\n').length)
+
     const wrapper = document.createElement('div')
     wrapper.className = 'article-code-block'
     pre.parentNode?.insertBefore(wrapper, pre)
+
+    const lineNumbers = document.createElement('div')
+    lineNumbers.className = 'article-code-lines'
+    lineNumbers.setAttribute('aria-hidden', 'true')
+    const lineFragment = document.createDocumentFragment()
+    for (let line = 1; line <= lineCount; line += 1) {
+      const number = document.createElement('span')
+      number.textContent = String(line)
+      lineFragment.appendChild(number)
+    }
+    lineNumbers.appendChild(lineFragment)
+    wrapper.appendChild(lineNumbers)
     wrapper.appendChild(pre)
 
     const button = document.createElement('button')
@@ -260,15 +309,32 @@ function scrollTo(id, smooth = true) {
   window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}#${id}`)
 }
 
-function scrollToComments() {
-  const scroller = articleScroller.value
-  const target = document.getElementById('comments')
-  if (!scroller || !target) return
-  const top = target.getBoundingClientRect().top
-    - scroller.getBoundingClientRect().top
-    + scroller.scrollTop
-    - 16
-  scroller.scrollTo({ top, behavior: 'smooth' })
+function toggleComments() {
+  if (commentsOpen.value || commentsOpening.value) closeComments()
+  else openComments()
+}
+
+async function openComments() {
+  if (commentsOpen.value || commentsOpening.value) return
+  commentsOpening.value = true
+  commentsMounted.value = true
+  await nextTick()
+  cancelAnimationFrame(commentOpenFrame)
+  commentOpenFrame = requestAnimationFrame(() => {
+    commentsOpen.value = true
+    commentsOpening.value = false
+  })
+}
+
+function closeComments() {
+  cancelAnimationFrame(commentOpenFrame)
+  commentsOpening.value = false
+  commentsOpen.value = false
+  requestAnimationFrame(() => commentToggleButton.value?.focus({ preventScroll: true }))
+}
+
+function handlePageKeydown(event) {
+  if (event.key === 'Escape' && commentsOpen.value) closeComments()
 }
 
 function updateReadingProgress() {
@@ -331,21 +397,69 @@ function formatDate(time) {
 onMounted(async () => {
   await loadArticle()
   articleScroller.value?.addEventListener('scroll', updateReadingProgress, { passive: true })
+  window.addEventListener('keydown', handlePageKeydown)
 })
 onUnmounted(() => {
+  cancelAnimationFrame(commentOpenFrame)
   headingObserver?.disconnect()
   articleScroller.value?.removeEventListener('scroll', updateReadingProgress)
+  window.removeEventListener('keydown', handlePageKeydown)
 })
 </script>
 
 <style scoped>
 .article-page {
+  --comment-drawer-width: clamp(400px, 31vw, 468px);
+  --comment-content-shift: clamp(200px, 15.5vw, 234px);
+  --comment-motion-duration: .32s;
+  --comment-motion-ease: cubic-bezier(.2, .75, .25, 1);
   position: relative;
 }
 
 .article-shell {
   margin: 0 auto;
+  transform: translate3d(0, 0, 0);
+  transition: transform var(--comment-motion-duration) var(--comment-motion-ease);
+  will-change: transform;
 }
+
+@media (min-width: 1100px) {
+  .article-page.has-comments .article-shell {
+    transform: translate3d(calc(0px - var(--comment-content-shift)), 0, 0);
+  }
+  .article-page.has-comments .article-sidebar {
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+    transform: translate3d(-24px, 0, 0);
+    transition:
+      opacity .15s ease,
+      transform .22s var(--comment-motion-ease),
+      visibility 0s linear .22s;
+  }
+}
+
+.comment-drawer {
+  position: fixed;
+  z-index: 140;
+  top: var(--nav-height);
+  right: 0;
+  bottom: 0;
+  width: var(--comment-drawer-width);
+  overflow: hidden;
+  border-left: 1px solid var(--c-border);
+  background: var(--c-surface);
+  box-shadow: -14px 0 36px rgba(15, 23, 42, .1);
+  pointer-events: none;
+  transform: translate3d(100%, 0, 0);
+  transition: transform var(--comment-motion-duration) var(--comment-motion-ease);
+  will-change: transform;
+}
+.comment-drawer.is-open {
+  pointer-events: auto;
+  transform: translate3d(0, 0, 0);
+}
+.comment-drawer-backdrop { display: none; }
 
 .article-layout {
   display: grid;
@@ -467,11 +581,19 @@ onUnmounted(() => {
 .article-actions { position: sticky; top: 24px; display: flex; align-items: center; flex-direction: column; gap: 0; padding-top: 42px; }.article-actions button { display: flex; width: 58px; align-items: center; justify-content: center; flex-direction: column; gap: 2px; padding: 11px 4px; border: 0; border-bottom: 1px solid var(--c-border-strong); border-radius: 0; background: transparent; color: var(--c-text-3); font-size: 10px; transition: all var(--transition); }.article-actions button:first-child { border-top: 2px solid var(--c-text); }.article-actions button:hover, .article-actions button.active { color: var(--c-primary); }.article-actions svg { width: 19px; height: 19px; }.article-actions b { font-family: Georgia, serif; font-size: 10px; }
 .article-sidebar { position: sticky; top: 20px; display: flex; flex-direction: column; gap: 14px; }.toc-card, .author-card { padding: 18px; }.toc-card h2, .author-card h2 { margin-bottom: 14px; font-size: 16px; }.toc-card button { position: relative; display: block; width: 100%; padding: 6px 8px 6px 14px; overflow: hidden; border: 0; background: transparent; color: var(--c-text-3); font-size: 12px; text-align: left; text-overflow: ellipsis; white-space: nowrap; }.toc-card button::before { position: absolute; top: 7px; bottom: 7px; left: 0; width: 2px; border-radius: 2px; background: var(--c-border); content: ''; }.toc-card button:hover, .toc-card button.active { color: var(--c-primary); }.toc-card button.active::before { background: var(--c-primary); }.toc-card .toc-level-3 { padding-left: 26px; }
 .author-card__profile { display: flex; align-items: center; gap: 10px; cursor: pointer; }.author-card__profile img { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; }.author-card__profile div { display: flex; flex-direction: column; }.author-card__profile span { color: var(--c-text-4); font-size: 11px; }.author-card > p { margin: 13px 0; color: var(--c-text-3); font-size: 12px; line-height: 1.7; }.author-card > .btn { width: 100%; }.author-card footer { display: grid; grid-template-columns: repeat(2, 1fr); margin-top: 14px; border-top: 1px solid var(--c-border); padding-top: 13px; }.author-card footer span { display: flex; align-items: center; flex-direction: column; color: var(--c-text-4); font-size: 9px; }.author-card footer strong { color: var(--c-text); font-size: 12px; }
-.article-comments { margin-top: 16px; padding: 4px; overflow: hidden; }
-
 /* Side rails belong to the viewport; only the article column scrolls. */
 .article-actions { position: static; padding-top: 66px; }
-.article-sidebar { position: static; padding: 24px 3px 48px; }
+.article-sidebar {
+  position: static;
+  min-width: 0;
+  padding: 24px 3px 48px;
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
+  transition:
+    opacity .16s ease .08s,
+    transform .24s var(--comment-motion-ease) .04s,
+    visibility 0s linear;
+}
 
 @media (max-width: 1080px) { .article-layout { grid-template-columns: 64px minmax(0, 880px); }.article-sidebar { display: none; } }
 @media (max-width: 720px) { .article-page { overflow-y: auto; }.article-shell, .article-layout { height: auto; }.article-layout { grid-template-columns: 1fr; }.article-col { overflow: visible; padding-top: 12px; }.article-actions { z-index: 2; align-items: stretch; flex-direction: row; padding: 12px 0 0; overflow-x: auto; }.article-actions button { min-width: 58px; flex: 1; }.article-inner { padding: 24px 20px 36px; }.article-title { font-size: 28px; }.article-meta { align-items: flex-start; flex-direction: column; gap: 12px; } }
@@ -516,6 +638,48 @@ onUnmounted(() => {
   .article-layout { grid-template-areas: "article actions"; grid-template-columns: minmax(0, 880px) 64px; }
 }
 @media (max-width: 720px) {
+  .article-page { --comment-drawer-width: 100%; }
   .article-layout { grid-template-areas: "actions" "article"; grid-template-columns: 1fr; }
+  .comment-drawer {
+    top: auto;
+    width: 100%;
+    height: min(84dvh, 760px);
+    border-top: 1px solid var(--c-border);
+    border-left: 0;
+    border-radius: 18px 18px 0 0;
+    box-shadow: 0 -16px 36px rgba(15, 23, 42, .14);
+    transform: translate3d(0, 100%, 0);
+  }
+  .comment-drawer::after {
+    position: absolute;
+    z-index: 5;
+    top: 7px;
+    left: 50%;
+    width: 38px;
+    height: 4px;
+    border-radius: 4px;
+    background: var(--c-border-strong);
+    content: '';
+    opacity: .75;
+    transform: translateX(-50%);
+  }
+  .comment-drawer.is-open { transform: translate3d(0, 0, 0); }
+  .comment-drawer-backdrop {
+    position: fixed;
+    z-index: 139;
+    inset: var(--nav-height) 0 0;
+    display: block;
+    border: 0;
+    background: rgba(15, 23, 42, .34);
+  }
+  .comment-backdrop-enter-active, .comment-backdrop-leave-active { transition: opacity .22s ease; }
+  .comment-backdrop-enter-from, .comment-backdrop-leave-to { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .article-shell,
+  .article-sidebar,
+  .comment-drawer,
+  .comment-drawer-backdrop { transition-duration: .01ms !important; transition-delay: 0s !important; }
 }
 </style>
