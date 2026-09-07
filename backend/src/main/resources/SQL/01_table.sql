@@ -83,6 +83,7 @@ CREATE TABLE comment (
     article_id       INT NOT NULL COMMENT '文章 ID',
     user_id          INT NULL COMMENT '评论者 ID',
     parent_id        INT NULL COMMENT '父评论 ID，NULL 为一级评论',
+    root_comment_id  INT NULL COMMENT '所属一级评论 ID，一级评论为 NULL',
     reply_to_user_id INT NULL COMMENT '回复目标用户 ID',
     content          TEXT NOT NULL COMMENT '评论内容',
     like_count       INT DEFAULT 0 COMMENT '点赞数',
@@ -92,7 +93,8 @@ CREATE TABLE comment (
     FOREIGN KEY (user_id) REFERENCES user (user_id) ON DELETE SET NULL,
     FOREIGN KEY (parent_id) REFERENCES comment (comment_id) ON DELETE CASCADE,
     FOREIGN KEY (reply_to_user_id) REFERENCES user (user_id) ON DELETE SET NULL,
-    INDEX idx_article_parent (article_id, parent_id)
+    INDEX idx_comment_root_page (article_id, parent_id, status, create_time, comment_id),
+    INDEX idx_comment_reply_page (article_id, root_comment_id, status, create_time, comment_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 AUTO_INCREMENT = 100001;
 
 CREATE TABLE announcement (

@@ -10,60 +10,43 @@ import java.util.List;
 public interface CommentMapper {
 
     @Select("SELECT * FROM comment WHERE article_id = #{articleId} AND parent_id IS NULL AND status = 1 " +
-            "ORDER BY create_time DESC LIMIT #{offset}, #{pageSize}")
+            "ORDER BY create_time DESC, comment_id DESC LIMIT #{offset}, #{pageSize}")
     List<Comment> selectRootList(@Param("articleId") Integer articleId,
-                                  @Param("offset") Integer offset,
-                                  @Param("pageSize") Integer pageSize);
+                                @Param("offset") Integer offset,
+                                @Param("pageSize") Integer pageSize);
 
     @Select("SELECT COUNT(*) FROM comment WHERE article_id = #{articleId} AND parent_id IS NULL AND status = 1")
     int countRoots(Integer articleId);
 
-    @Select("SELECT COUNT(*) FROM comment WHERE article_id = #{articleId} AND status = 1")
+    @Select("SELECT COUNT(*) FROM comment c WHERE c.article_id = #{articleId} AND c.status = 1 " +
+            "AND (c.parent_id IS NULL OR EXISTS (SELECT 1 FROM comment root " +
+            "WHERE root.comment_id = c.root_comment_id AND root.article_id = c.article_id " +
+            "AND root.parent_id IS NULL AND root.status = 1))")
     int countAll(Integer articleId);
 
     @Select("<script>" +
-            "WITH RECURSIVE comment_tree AS (" +
-            "SELECT c.comment_id, c.comment_id AS root_id FROM comment c " +
-            "WHERE c.article_id = #{articleId} AND c.status = 1 AND c.comment_id IN " +
+            "SELECT root_comment_id AS rootId, COUNT(*) AS replyCount FROM comment " +
+            "WHERE article_id = #{articleId} AND status = 1 AND root_comment_id IN " +
             "<foreach collection='rootIds' item='id' open='(' separator=',' close=')'>#{id}</foreach> " +
-            "UNION ALL " +
-            "SELECT child.comment_id, tree.root_id FROM comment child " +
-            "JOIN comment_tree tree ON child.parent_id = tree.comment_id " +
-            "WHERE child.article_id = #{articleId} AND child.status = 1" +
-            ") " +
-            "SELECT root_id AS rootId, COUNT(*) - 1 AS replyCount " +
-            "FROM comment_tree GROUP BY root_id" +
+            "GROUP BY root_comment_id" +
             "</script>")
     List<CommentReplyCount> countRepliesByRootIds(@Param("articleId") Integer articleId,
-                                                    @Param("rootIds") List<Integer> rootIds);
+                                                @Param("rootIds") List<Integer> rootIds);
 
-    @Select("WITH RECURSIVE comment_tree AS (" +
-            "SELECT c.*, c.comment_id AS resolved_root_id FROM comment c " +
-            "WHERE c.article_id = #{articleId} AND c.comment_id = #{rootId} AND c.status = 1 " +
-            "UNION ALL " +
-            "SELECT child.*, tree.resolved_root_id FROM comment child " +
-            "JOIN comment_tree tree ON child.parent_id = tree.comment_id " +
-            "WHERE child.article_id = #{articleId} AND child.status = 1" +
-            ") " +
-            "SELECT comment_id, article_id, user_id, parent_id, reply_to_user_id, content, " +
-            "like_count, status, create_time, resolved_root_id AS root_id " +
-            "FROM comment_tree WHERE comment_id != resolved_root_id " +
-            "ORDER BY create_time DESC LIMIT #{offset}, #{pageSize}")
+    @Select("SELECT * FROM comment WHERE article_id = #{articleId} " +
+            "AND root_comment_id = #{rootId} AND status = 1 " +
+            "ORDER BY create_time DESC, comment_id DESC LIMIT #{offset}, #{pageSize}")
     List<Comment> selectRepliesByRoot(@Param("articleId") Integer articleId,
-                                       @Param("rootId") Integer rootId,
-                                       @Param("offset") Integer offset,
-                                       @Param("pageSize") Integer pageSize);
+                                     @Param("rootId") Integer rootId,
+                                     @Param("offset") Integer offset,
+                                     @Param("pageSize") Integer pageSize);
 
-    @Select("WITH RECURSIVE comment_tree AS (" +
-            "SELECT comment_id FROM comment WHERE article_id = #{articleId} AND comment_id = #{rootId} AND status = 1 " +
-            "UNION ALL " +
-            "SELECT child.comment_id FROM comment child JOIN comment_tree tree ON child.parent_id = tree.comment_id " +
-            "WHERE child.article_id = #{articleId} AND child.status = 1" +
-            ") SELECT GREATEST(COUNT(*) - 1, 0) FROM comment_tree")
+    @Select("SELECT COUNT(*) FROM comment WHERE article_id = #{articleId} " +
+            "AND root_comment_id = #{rootId} AND status = 1")
     int countRepliesByRoot(@Param("articleId") Integer articleId, @Param("rootId") Integer rootId);
 
-    @Insert("INSERT INTO comment (article_id, user_id, parent_id, reply_to_user_id, content) " +
-            "VALUES (#{articleId}, #{userId}, #{parentId}, #{replyToUserId}, #{content})")
+    @Insert("INSERT INTO comment (article_id, user_id, parent_id, root_comment_id, reply_to_user_id, content) " +
+            "VALUES (#{articleId}, #{userId}, #{parentId}, #{rootCommentId}, #{replyToUserId}, #{content})")
     @Options(useGeneratedKeys = true, keyProperty = "commentId")
     void insert(Comment comment);
 

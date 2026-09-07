@@ -14,6 +14,7 @@ import com.blogplatform.backend.entity.User;
 import com.blogplatform.backend.utils.ThreadLocalUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -75,6 +76,9 @@ public class CommentServiceImpl implements CommentService {
 
     @Override
     public Result<Map<String, Object>> replies(Integer articleId, Integer rootId, Integer page, Integer pageSize) {
+        Comment root = rootId == null ? null : commentMapper.selectById(rootId);
+        if (!isVisibleRoot(root, articleId)) return Result.error("一级评论不存在或已删除");
+
         if (page == null || page < 1) page = 1;
         if (pageSize == null || pageSize < 1) pageSize = 10;
 
@@ -99,6 +103,7 @@ public class CommentServiceImpl implements CommentService {
     }
 
     @Override
+    @Transactional
     public Result add(Integer articleId, String content, Integer parentId, Integer replyToUserId) {
         Map<String, Object> claims = ThreadLocalUtil.get();
         Integer userId = (Integer) claims.get("id");
@@ -119,6 +124,11 @@ public class CommentServiceImpl implements CommentService {
             if (parent.getStatus() == null || parent.getStatus() != 1) return Result.error("父评论已删除");
             if (!articleId.equals(parent.getArticleId())) return Result.error("评论不属于该文章");
             comment.setParentId(parentId);
+            Integer rootId = parent.getParentId() == null ? parent.getCommentId() : parent.getRootCommentId();
+            Comment root = parent.getParentId() == null ? parent
+                    : (rootId == null ? null : commentMapper.selectById(rootId));
+            if (!isVisibleRoot(root, articleId)) return Result.error("一级评论不存在或已删除");
+            comment.setRootCommentId(rootId);
             comment.setReplyToUserId(parent.getUserId());
             commentMapper.insert(comment);
         }
@@ -166,7 +176,8 @@ public class CommentServiceImpl implements CommentService {
         vo.setArticleId(c.getArticleId());
         vo.setUserId(c.getUserId());
         vo.setParentId(c.getParentId());
-        vo.setRootId(c.getRootId() != null ? c.getRootId() : c.getCommentId());
+        // Keep the existing rootId API field used by the two-level UI.
+        vo.setRootId(c.getRootCommentId() != null ? c.getRootCommentId() : c.getCommentId());
         vo.setReplyToUserId(c.getReplyToUserId());
         vo.setContent(c.getContent());
         vo.setCreateTime(c.getCreateTime());
@@ -205,6 +216,11 @@ public class CommentServiceImpl implements CommentService {
             }
         }
         return map;
+    }
+
+    private boolean isVisibleRoot(Comment root, Integer articleId) {
+        return root != null && Objects.equals(articleId, root.getArticleId())
+                && root.getParentId() == null && Integer.valueOf(1).equals(root.getStatus());
     }
 
     private Integer resolveCurrentUserId() {
