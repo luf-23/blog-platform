@@ -1,0 +1,5 @@
+# Runtime data and deployment secrets
+/mysql_data/
+/redis_data/
+/backend-conf/
+/.env

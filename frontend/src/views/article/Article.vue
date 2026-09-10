@@ -410,32 +410,27 @@ onUnmounted(() => {
 <style scoped>
 .article-page {
   --comment-drawer-width: clamp(400px, 31vw, 468px);
-  --comment-content-shift: clamp(200px, 15.5vw, 234px);
   --comment-motion-duration: .32s;
   --comment-motion-ease: cubic-bezier(.2, .75, .25, 1);
   position: relative;
 }
 
 .article-shell {
+  width: calc(100% - 48px);
   margin: 0 auto;
-  transform: translate3d(0, 0, 0);
-  transition: transform var(--comment-motion-duration) var(--comment-motion-ease);
-  will-change: transform;
 }
 
 @media (min-width: 1100px) {
   .article-page.has-comments .article-shell {
-    transform: translate3d(calc(0px - var(--comment-content-shift)), 0, 0);
+    width: calc(100% - var(--comment-drawer-width) - 48px);
+    margin-left: 24px;
+  }
+  .article-page.has-comments .article-layout {
+    grid-template-areas: "article actions";
+    grid-template-columns: minmax(0, 1fr) 72px;
   }
   .article-page.has-comments .article-sidebar {
-    visibility: hidden;
-    opacity: 0;
-    pointer-events: none;
-    transform: translate3d(-24px, 0, 0);
-    transition:
-      opacity .15s ease,
-      transform .22s var(--comment-motion-ease),
-      visibility 0s linear .22s;
+    display: none;
   }
 }
 
@@ -466,7 +461,7 @@ onUnmounted(() => {
   height: 100%;
   min-height: 0;
   grid-template-areas: "toc article actions";
-  grid-template-columns: 270px minmax(0, 880px) 72px;
+  grid-template-columns: clamp(220px, 14vw, 280px) minmax(0, 1fr) 72px;
   gap: 20px;
   align-items: stretch;
   justify-content: center;
@@ -488,7 +483,7 @@ onUnmounted(() => {
 }
 
 .article-cover {
-  height: clamp(190px, 28vw, 320px);
+  height: clamp(190px, 25vw, 400px);
   margin: 6px 0 30px;
   overflow: hidden;
   border-radius: 2px;
@@ -595,7 +590,7 @@ onUnmounted(() => {
     visibility 0s linear;
 }
 
-@media (max-width: 1080px) { .article-layout { grid-template-columns: 64px minmax(0, 880px); }.article-sidebar { display: none; } }
+@media (max-width: 1080px) { .article-sidebar { display: none; } }
 @media (max-width: 720px) { .article-page { overflow-y: auto; }.article-shell, .article-layout { height: auto; }.article-layout { grid-template-columns: 1fr; }.article-col { overflow: visible; padding-top: 12px; }.article-actions { z-index: 2; align-items: stretch; flex-direction: row; padding: 12px 0 0; overflow-x: auto; }.article-actions button { min-width: 58px; flex: 1; }.article-inner { padding: 24px 20px 36px; }.article-title { font-size: 28px; }.article-meta { align-items: flex-start; flex-direction: column; gap: 12px; } }
 
 /* Technical reading workspace */
@@ -632,13 +627,14 @@ onUnmounted(() => {
 .author-follow.active { background: var(--c-surface-2); color: var(--c-text-3); }
 
 @media (max-width: 1240px) {
-  .article-layout { grid-template-columns: 230px minmax(0, 820px) 64px; gap: 14px; }
+  .article-layout { grid-template-columns: 220px minmax(0, 1fr) 64px; gap: 14px; }
 }
 @media (max-width: 1080px) {
-  .article-layout { grid-template-areas: "article actions"; grid-template-columns: minmax(0, 880px) 64px; }
+  .article-layout { grid-template-areas: "article actions"; grid-template-columns: minmax(0, 1fr) 64px; }
 }
 @media (max-width: 720px) {
   .article-page { --comment-drawer-width: 100%; }
+  .article-shell { width: calc(100% - 24px); }
   .article-layout { grid-template-areas: "actions" "article"; grid-template-columns: 1fr; }
   .comment-drawer {
     top: auto;

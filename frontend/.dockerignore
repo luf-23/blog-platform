@@ -1,0 +1,13 @@
+.git
+.idea
+.vscode
+.VSCodeCounter
+Microsoft
+node_modules
+dist
+dist-ssr
+*.log
+*.local
+.env
+.env.*
+!.env.example

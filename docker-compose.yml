@@ -1,6 +1,46 @@
 name: blog-platform
 
 services:
+  frontend:
+    container_name: blog-platform-frontend
+    image: luf23/blog-platform-frontend:latest
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-80}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1/"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  backend:
+    container_name: blog-platform-backend
+    image: luf23/blog-platform-backend:latest
+    restart: unless-stopped
+    expose:
+      - "8080"
+    volumes:
+      - type: bind
+        source: ./backend-conf/application.properties
+        target: /app/config/application.properties
+        read_only: true
+        bind:
+          create_host_path: false
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:8081/actuator/health/readiness"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
   mysql:
     image: mysql:8.4
     container_name: blog-platform-mysql
@@ -11,11 +51,9 @@ services:
       MYSQL_USER: blog_user
       MYSQL_PASSWORD: blog_password
       TZ: Asia/Shanghai
-    ports:
-      - "3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
-      - ./backend/src/main/resources/SQL/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+      - ./mysql-init:/docker-entrypoint-initdb.d:ro
     command:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
@@ -30,8 +68,6 @@ services:
     image: redis:7.4-alpine
     container_name: blog-platform-redis
     restart: unless-stopped
-    ports:
-      - "6379:6379"
     volumes:
       - redis_data:/data
     command: ["redis-server", "--appendonly", "yes"]

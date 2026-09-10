@@ -47,7 +47,6 @@
           ><i></i><span>{{ item.text }}</span></button>
         </nav>
         <div v-else class="outline-empty">使用 Markdown 标题后，将在这里生成文章大纲。</div>
-        <footer><span>字数 {{ wordCount }}</span><span>约 {{ readingMinutes }} 分钟</span></footer>
       </aside>
 
       <!-- Main editor -->
@@ -503,7 +502,6 @@ watch(() => [form.title, form.summary, form.content, form.categoryId, form.cover
 .outline-panel nav .level-3 { padding-left: 48px; }
 .outline-panel nav .level-3 i { left: 33px; width: 6px; height: 6px; }
 .outline-empty { padding: 22px 9px; color: var(--c-text-4); font-size: 12px; line-height: 1.7; }
-.outline-panel footer { display: flex; justify-content: space-between; padding: 11px 8px 0; border-top: 1px solid var(--c-border); color: var(--c-text-4); font-size: 11px; }
 
 .title-input {
   width: 100%;
