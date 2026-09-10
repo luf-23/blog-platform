@@ -128,9 +128,20 @@ luf23/blog-platform-backend:latest
 luf23/blog-platform-frontend:latest
 ```
 
-工作流使用 GitHub Actions Secret `DOCKERHUB_TOKEN` 登录 Docker Hub。镜像发布后，在服务器的 `deploy/` 目录执行：
+镜像发布工作流使用 GitHub Actions Secret `DOCKERHUB_TOKEN` 登录 Docker Hub。独立的 `.github/workflows/cd.yml` 会在前后端镜像均发布成功后自动触发，也支持手动运行；它通过 SSH 登录生产服务器并执行：
 
 ```bash
-docker compose pull
-docker compose up -d
+cd /home/ubuntu/blog-platform/deploy && docker compose pull && docker compose up -d
 ```
+
+需要在仓库的 `Settings > Secrets and variables > Actions` 中配置：
+
+| Secret | 内容 |
+| --- | --- |
+| `SSH_HOST` | Linux 服务器 IP 或域名 |
+| `SSH_PORT` | SSH 端口；可不配置，默认使用 `22` |
+| `SSH_USER` | SSH 用户名，当前部署目录通常对应 `ubuntu` |
+| `SSH_PRIVATE_KEY` | 未设置口令的 SSH 私钥完整内容 |
+| `SSH_KNOWN_HOSTS` | 服务器 SSH 主机公钥记录，即 `known_hosts` 格式内容（可多行） |
+
+将与 `SSH_PRIVATE_KEY` 配对的公钥加入服务器登录用户的 `~/.ssh/authorized_keys`。`SSH_KNOWN_HOSTS` 应在可信环境中获取；默认端口可执行 `ssh-keyscan -H SERVER_IP`，自定义端口可执行 `ssh-keyscan -p SSH_PORT -H SERVER_IP`。服务器上的 SSH 用户还需要有权执行 Docker，并能够访问 `/home/ubuntu/blog-platform/deploy`。

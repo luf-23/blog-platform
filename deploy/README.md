@@ -33,23 +33,23 @@ Compose 使用以下镜像：
 在本地项目根目录执行（将用户名和地址替换为服务器实际值）。为避免误上传本地密钥，首次部署请上传以下部署文件；数据备份 `02_export_data.sql.raw` 不纳入版本控制，需要自行准备并上传：
 
 ```bash
-ssh user@SERVER_IP "mkdir -p /opt/blog-platform"
-ssh user@SERVER_IP "mkdir -p /opt/blog-platform/deploy/backend-conf /opt/blog-platform/deploy/mysql-init"
-scp deploy/docker-compose.yml user@SERVER_IP:/opt/blog-platform/deploy/
-scp deploy/backend-conf/application.template user@SERVER_IP:/opt/blog-platform/deploy/backend-conf/
-scp deploy/mysql-init/01_table.sql deploy/mysql-init/02_export_data.sql.raw deploy/mysql-init/02_import.sh deploy/mysql-init/03_data.sql.disabled user@SERVER_IP:/opt/blog-platform/deploy/mysql-init/
+ssh ubuntu@SERVER_IP "mkdir -p /home/ubuntu/blog-platform"
+ssh ubuntu@SERVER_IP "mkdir -p /home/ubuntu/blog-platform/deploy/backend-conf /home/ubuntu/blog-platform/deploy/mysql-init"
+scp deploy/docker-compose.yml ubuntu@SERVER_IP:/home/ubuntu/blog-platform/deploy/
+scp deploy/backend-conf/application.template ubuntu@SERVER_IP:/home/ubuntu/blog-platform/deploy/backend-conf/
+scp deploy/mysql-init/01_table.sql deploy/mysql-init/02_export_data.sql.raw deploy/mysql-init/02_import.sh deploy/mysql-init/03_data.sql.disabled ubuntu@SERVER_IP:/home/ubuntu/blog-platform/deploy/mysql-init/
 ```
 
-如果本地不存在 `deploy/backend-conf/application.properties`，也可以直接执行 `scp -r deploy user@SERVER_IP:/opt/blog-platform/` 上传整个目录；不要把含有真实密钥的本地配置文件上传到公共位置。
+如果本地不存在 `deploy/backend-conf/application.properties`，也可以直接执行 `scp -r deploy ubuntu@SERVER_IP:/home/ubuntu/blog-platform/` 上传整个目录；不要把含有真实密钥的本地配置文件上传到公共位置。
 
 登录服务器并进入目录：
 
 ```bash
-ssh user@SERVER_IP
-cd /opt/blog-platform/deploy
+ssh ubuntu@SERVER_IP
+cd /home/ubuntu/blog-platform/deploy
 ```
 
-服务器最终只需要维护 `/opt/blog-platform/deploy`，后续更新镜像时也只在此目录执行 Docker Compose 命令。
+服务器最终只需要维护 `/home/ubuntu/blog-platform/deploy`，后续更新镜像时也只在此目录执行 Docker Compose 命令。
 
 ## 配置后端密钥
 
@@ -94,14 +94,13 @@ docker compose ps
 
 ## 更新服务
 
-GitHub Actions 将新镜像推送到 Docker Hub 后，在服务器执行：
+GitHub Actions 将新镜像推送到 Docker Hub 后，会自动通过 SSH 在服务器执行：
 
 ```bash
-cd /opt/blog-platform/deploy
-docker compose pull
-docker compose up -d
-docker compose ps
+cd /home/ubuntu/blog-platform/deploy && docker compose pull && docker compose up -d
 ```
+
+SSH 公钥和 GitHub Actions Secrets 的配置方式见项目根目录 `README.md` 的“CI/CD”章节。
 
 配置文件或配置值变更后，只需重启后端：
 
