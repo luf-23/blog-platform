@@ -3,3 +3,4 @@
 /redis_data/
 /backend-conf/
 /.env
+/deploy/backend-conf/application.properties

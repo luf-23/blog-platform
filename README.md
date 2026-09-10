@@ -1,164 +1,136 @@
-# Blog-Platform
+# Blog Platform
 
-个人博客平台 — Vue 3 全新设计前端 + Spring Boot 后端。
+[![Docker images](https://github.com/luf-23/blog-platform/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/luf-23/blog-platform/actions/workflows/docker-publish.yml)
+[![Backend image pulls](https://img.shields.io/docker/pulls/luf23/blog-platform-backend)](https://hub.docker.com/r/luf23/blog-platform-backend)
+[![Frontend image pulls](https://img.shields.io/docker/pulls/luf23/blog-platform-frontend)](https://hub.docker.com/r/luf23/blog-platform-frontend)
 
-> 本仓库的前端在 2026 年完成了一次完整的 UI/UX 重构：现代化设计语言、深/浅色主题、可折叠侧边栏、统一的布局系统与组件库。
+Blog Platform 是一个前后端分离的个人博客与社区平台，支持文章创作、内容管理、评论互动、文件存储和 AI 助手。
 
-## 项目结构
+## 功能特性
 
-```text
-blog-platform/
-├── frontend/    # Vue 3 + Vite 前端（重新设计）
-├── backend/     # Spring Boot 后端
-├── backend-conf/ # 服务器上的 Docker 后端配置（不提交）
-├── mysql-init/   # MySQL 首次启动初始化脚本
-├── docker-compose.yml  # 前后端 + MySQL + Redis 完整编排
-└── README.md
-```
+- 用户注册、登录、邮箱验证码和找回密码
+- Markdown 文章编辑、草稿、审核和发布
+- 文章分类、二级标签、封面和图片上传
+- 社区动态、文章评论、回复和点赞
+- AI 助手多模型流式对话
+- 管理后台：用户、文章、公告和标签管理
+- 深色 / 浅色主题和响应式布局
+- Redis 缓存与文章浏览量异步刷新
 
 ## 技术栈
 
-| 层 | 主要技术 |
-|----|----------|
-| 前端 | Vue 3、Vite 6、Element Plus、Pinia 3、Vue Router 4、@vueuse/core、md-editor-v3 |
-| 后端 | Java 21、Spring Boot 3、MyBatis、MySQL、Redis、Aliyun OSS、JWT |
-
-### 前端架构亮点
-
-- **统一布局**：`layouts/AppLayout.vue` 与 `layouts/AuthLayout.vue` 提供主应用壳与登录壳。
-- **CSS 变量主题**：`src/styles/theme.css` 定义浅色 / 深色两套语义化色板，配合 `data-theme` 切换。
-- **持久化偏好**：主题、侧边栏折叠状态、登录态等通过 `pinia-plugin-persistedstate` 持久化。
-- **响应式适配**：通过 `@vueuse/core` 的 `useBreakpoints` 实现桌面 / 平板 / 移动端一致体验。
-- **路由懒加载 + 转场**：路由级 `import()` 懒加载，路由切换带淡入动画。
-- **干净的组件分层**：`components/common`、`components/article`、`components/chat` 等按域归类。
-
-## 环境要求
-
-- Node.js 18+
-- JDK 21
-- Maven 3.8+
-- MySQL 8+
-- Redis（按功能需要）
+| 模块 | 技术 |
+| --- | --- |
+| 前端 | Vue 3、Vite、Element Plus、Pinia、Vue Router、Axios |
+| 后端 | Java 21、Spring Boot 3.4、MyBatis、JWT |
+| 数据存储 | MySQL 8.4、Redis 7.4 |
+| 外部服务 | 阿里云 OSS、AI API、高德地图、SMTP |
+| 部署 | Docker、Docker Compose、Nginx、GitHub Actions |
 
 ## 快速开始
 
-### Docker 启动整个项目
+### Docker 部署
 
-安装 Docker 和 Docker Compose，在项目根目录执行：
+项目已经将前后端镜像发布到 Docker Hub，镜像仓库是公开的。生产部署只需要使用 `deploy/` 目录，不需要在服务器上安装 JDK、Maven 或 Node.js。
+
+详细的服务器上传、配置、启动和更新步骤见 [`deploy/README.md`](deploy/README.md)。本地使用 Docker Compose 启动时：
 
 ```bash
-# 将服务器上的敏感配置写入该文件（不要提交到 Git）
-nano backend-conf/application.properties
-docker login
+cd deploy
+cp backend-conf/application.template backend-conf/application.properties
+# 编辑 application.properties，填写数据库和第三方服务配置
 docker compose pull
 docker compose up -d
 ```
 
-前后端使用 Docker Hub 用户 `luf23` 下的 `latest` 镜像；服务器不需要项目源码或前后端 Dockerfile。Docker 镜像不包含应用配置文件。启动时 Compose 将服务器上的 `backend-conf/application.properties` 只读挂载到 `/app/config/application.properties`，Spring Boot 会读取该外部配置，因此真实密钥只保留在服务器文件中，不进入镜像。该配置使用容器服务名 `mysql` 和 `redis`。
-
-修改服务器配置后只需重启后端：`docker compose restart backend`，无需重新构建镜像。
-
-启动后访问 `http://localhost`，可通过环境变量 `FRONTEND_PORT` 修改网页端口。前端由 Nginx 托管并将 `/api/` 转发给后端；完整编排只向宿主机发布前端端口。MySQL 和 Redis 健康后启动后端，后端健康后启动前端。
-
-Compose 为四个服务设置了固定容器名：`blog-platform-frontend`、`blog-platform-backend`、`blog-platform-mysql`、`blog-platform-redis`。因此同一台服务器上不能同时运行两套同名项目，也不适合通过 Compose 扩容同一服务。
-
-Compose 只保留 MySQL 镜像初始化所需的数据库、账号、密码和时区环境变量。首次部署前修改 Compose 中的默认密码，并同步修改服务器上的 `backend-conf/application.properties` 中的数据库密码；MySQL 不读取 Spring 配置。已有数据库修改密码需要在数据库内执行，修改初始化环境变量不会更新已有账号。
+启动后访问 `http://localhost/`。如果 80 端口已被占用，可以设置其他端口：
 
 ```bash
-docker compose logs -f          # 查看日志
-docker compose down            # 停止服务，保留命名卷
+FRONTEND_PORT=8088 docker compose up -d
 ```
 
-MySQL 和 Redis 分别使用 Docker 管理的命名卷 `mysql_data`、`redis_data`，首次启动自动创建，无需准备宿主机数据目录。默认实际卷名为 `blog-platform_mysql_data`、`blog-platform_redis_data`。`docker compose down` 会保留数据，`docker compose down -v` 会删除数据卷；部署更新时不要使用 `-v`，并定期备份数据库。
+### 本地开发
 
-`mysql-init/` 继续只读挂载为初始化目录，空数据库首次启动时依次执行 `01_table.sql` 和 `02_data.sql`。已有数据卷不会重复初始化；升级已有数据库请按下文执行迁移，不要把 `03_comment_root.sql` 放入初始化目录。初始化账号见 SQL 脚本注释，部署前应修改默认密码。
+环境要求：Node.js 18+、JDK 21、Maven 3.8+、Docker Engine 和 Docker Compose v2。
 
-若原先的 `mysql_data/`、`redis_data/` 宿主机目录已有数据，切换前先备份并恢复到命名卷；Docker 不会自动迁移绑定目录的数据。命名卷保存在当前 Docker 主机，迁移服务器时仍需备份和恢复。
-
-更新服务时执行 `docker compose pull && docker compose up -d`，Compose 会拉取最新的 `latest` 镜像。
-
-### 1. 克隆仓库
+先启动 MySQL 和 Redis：
 
 ```bash
-git clone https://github.com/luf-23/blog-platform.git
-cd blog-platform
+docker compose up -d mysql redis
 ```
 
-### 2. 数据库
-
-依次执行 `mysql-init/01_table.sql` 和 `mysql-init/02_data.sql`。`01_table.sql` 会删除并重建 `blog_platform`，`02_data.sql` 写入本地开发账号与初始两级标签。
-
-初始化脚本只提供本地开发账号和平台标签体系；账号信息见脚本注释，部署前必须修改或移除。
-
-已有数据库升级评论分页逻辑：停止后端后，仅执行一次 `backend/src/main/resources/SQL/03_comment_root.sql`，为历史回复回填 `root_comment_id` 并创建分页索引；确认脚本最后的检查没有返回记录，再启动新版后端。迁移包含已软删除的中间评论，保留原有 `parent_id` 直接回复关系。请使用遇错即停的 SQL 执行方式；脚本不是重复执行脚本，新建数据库无需执行。
-
-评论按两层展示：一级评论按文章分页，全部层级的回复按 `root_comment_id` 分页，均以创建时间和评论 ID 倒序排列。接口继续返回 `rootId`，前端用 `parentId` 与回复对象信息显示具体回复关系，无需取得完整父链。删除中间回复不会隐藏其后续回复；删除一级评论会隐藏整组回复，并禁止在该组下继续回复。
-
-### 3. 后端
+启动后端：
 
 ```bash
 cd backend
 cp src/main/resources/application.template src/main/resources/application.properties
-# 编辑 application.properties 填入数据库 / Redis / OSS / 邮件配置
+# 编辑 application.properties
 mvn spring-boot:run
 ```
 
-默认 API：`http://localhost:8080`
+后端默认运行在 `http://localhost:8080`。
 
-IDEA 的 Project SDK、Maven Runner JRE 请统一使用 JDK 21，并重新加载 Maven 项目以同步 Lombok 注解处理器配置。若运行时报 `NoSuchMethodError`（例如 `OssConfig.getPolicyFile()`），停止旧后端进程，执行 `mvn clean test` 后重新启动，确保加载的是本次构建的类。
-
-### 4. 前端
+启动前端：
 
 ```bash
 cd frontend
-npm install
+npm ci
 npm run dev
 ```
 
-默认开发地址：`http://localhost:5173`
+前端默认运行在 `http://localhost:5173`，开发服务器会将 `/api` 请求代理到后端。如需修改代理地址，可设置 `VITE_API_PROXY_TARGET`。
 
-浏览器统一通过同源路径 `/api/` 访问后端。开发服务器会由 Vite 将该路径代理到 `http://localhost:8080`；如需修改代理目标，可设置 `VITE_API_PROXY_TARGET`。
+## 配置
 
-### 构建
+- `backend/src/main/resources/application.template`：本地开发配置模板
+- `backend/src/main/resources/application.properties`：本地开发实际配置
+- `deploy/backend-conf/application.template`：Docker 部署配置模板
+- `deploy/backend-conf/application.properties`：Docker 部署实际配置
+- `FRONTEND_PORT`：Docker Compose 发布的前端端口，默认 `80`
+- `VITE_API_PROXY_TARGET`：前端开发服务器的后端代理地址
+
+Docker 部署时，后端配置文件会以只读方式挂载到容器中。容器内的数据库和 Redis 地址分别使用 `mysql` 和 `redis`。
+
+## 数据库
+
+首次启动空的 MySQL 数据卷时，Compose 会依次执行：
+
+1. `mysql-init/01_table.sql`：创建数据库和表结构
+2. `mysql-init/02_data.sql`：写入开发账号和初始标签
+
+已有数据卷不会重复执行初始化脚本。已有数据库升级评论分页结构时，按需执行 `backend/src/main/resources/SQL/03_comment_root.sql` 一次。
+
+## 构建与测试
+
+后端：
+
+```bash
+cd backend
+mvn test
+mvn -DskipTests package
+```
+
+前端：
 
 ```bash
 cd frontend
-npm run build      # 产物输出到 dist/
-npm run preview    # 本地预览生产构建
+npm run test:images
+npm run build
+npm run preview
 ```
 
-生产环境使用 `frontend/nginx.conf`：Nginx 托管 `dist/`，并将 `/api/` 反向代理到 Compose 服务 `backend:8080`。部署到不同主机或容器时，请按实际网络拓扑调整其中的 `proxy_pass`。后端不配置 CORS，必须只通过上述同源代理对浏览器提供服务。
+## CI/CD
 
-## 配置说明
-
-- 后端配置：`backend/src/main/resources/application.properties`（已加入 `.gitignore`，请勿提交密钥）
-- 配置模板：`backend/src/main/resources/application.template`
-- Docker 服务器配置：`backend-conf/application.properties`（只读挂载，已加入 `.gitignore`）
-
-## GitHub Actions 发布 Docker 镜像
-
-`.github/workflows/docker-publish.yml` 会在 `main` 或 `master` 分支收到提交后，分别构建 `backend/Dockerfile` 和 `frontend/Dockerfile`，并推送到 Docker Hub。镜像名称为：
+`.github/workflows/docker-publish.yml` 会在 `main` 或 `master` 分支提交后构建并推送镜像，也支持手动触发：
 
 ```text
-luf23/blog-platform-backend
-luf23/blog-platform-frontend
+luf23/blog-platform-backend:latest
+luf23/blog-platform-frontend:latest
 ```
 
-在 GitHub 仓库的 `Settings → Secrets and variables → Actions` 中添加：
+工作流使用 GitHub Actions Secret `DOCKERHUB_TOKEN` 登录 Docker Hub。镜像发布后，在服务器的 `deploy/` 目录执行：
 
-- `DOCKERHUB_TOKEN`：Docker Hub Access Token（需要推送权限）
-
-每次发布会生成 `latest`、分支名和提交 SHA 标签。工作流只构建并推送镜像，不会读取 `backend-conf/`；敏感配置仍只放在部署服务器上。根目录 Compose 已使用对应的 `image`，服务器只需准备 `backend-conf/application.properties` 和 `mysql-init/`，再执行 `docker compose pull && docker compose up -d`。如需修改前端宿主机端口，可额外在 `.env` 中设置 `FRONTEND_PORT`。
-
-## 主要功能
-
-- 用户注册 / 登录 / 邮箱验证码 / 找回密码
-- 分类化的文章管理（草稿、待审核、已发布）
-- 一级/二级平台标签体系，文章仅选择二级标签
-- 分类封面、文章封面与无图回退展示
-- Markdown 编辑器，支持图片粘贴上传到 OSS
-- 社区广场与文章评论 / 点赞
-- AI 助手：多模型流式对话
-- 管理后台：用户管理、文章审核、系统公告
-- 深色 / 浅色主题切换
-- 响应式设计，适配桌面与移动端
+```bash
+docker compose pull
+docker compose up -d
+```
