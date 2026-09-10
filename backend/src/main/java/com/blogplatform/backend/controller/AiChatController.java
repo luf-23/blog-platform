@@ -1,7 +1,7 @@
 package com.blogplatform.backend.controller;
 
 import jakarta.validation.Valid;
-import com.blogplatform.backend.Service.AiChatService;
+import com.blogplatform.backend.service.AiChatService;
 import com.blogplatform.backend.entity.AIRequest;
 import com.blogplatform.backend.entity.Result;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -9,7 +9,6 @@ import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-import java.util.Map;
 import java.util.Set;
 
 @RestController

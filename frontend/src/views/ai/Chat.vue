@@ -19,6 +19,7 @@ import { getUserInfoService } from "../../api/user.js";
 import { renderAssistantMessage } from "../../utils/markdown/chat/assistant.js";
 import { renderUserMessage } from "../../utils/markdown/chat/user.js";
 import EmptyState from "../../components/common/EmptyState.vue";
+import { DEFAULT_AVATAR_URL as defaultAvatar } from "../../constants/assets.js";
 
 const chatStore = useChatStore();
 const userInfoStore = useUserInfoStore();
@@ -179,10 +180,17 @@ onUnmounted(() => {
 });
 
 const SUGGESTIONS = [
-  "帮我写一篇关于 Vue 3 Composition API 的简短介绍",
-  "用通俗的语言解释什么是 RESTful API",
-  "给我推荐一些学习设计的资源",
-  "整理一下 Markdown 常用语法"
+  "为一篇 Vue 3 最佳实践文章生成清晰的大纲",
+  "把这段技术说明改写得更适合初学者阅读",
+  "根据文章内容生成 8 个标题",
+  "从文章草稿中提炼摘要、关键词和结尾观点"
+];
+
+const QUICK_ACTIONS = [
+  { label: "生成大纲", prompt: "请根据我的博客主题生成一份结构清晰、层次完整的文章大纲。" },
+  { label: "修改文字", prompt: "请修改我接下来提供的文字，保留原意，修正语病并精简重复表达。" },
+  { label: "提炼摘要", prompt: "请从我接下来提供的文章中提炼一段不超过 150 字的摘要。" },
+  { label: "生成标题", prompt: "请根据我接下来提供的文章生成 8 个准确概括内容、避免夸张的标题。" }
 ];
 </script>
 
@@ -294,8 +302,8 @@ const SUGGESTIONS = [
             <span class="chat-welcome__icon">
               <el-icon size="32"><ChatLineRound /></el-icon>
             </span>
-            <h2>有什么想问的？</h2>
-            <p>试试下面的提示，或者直接输入你的问题</p>
+            <h2>写作助手</h2>
+            <p>可以生成大纲、修改文字、提取摘要和拟定标题。</p>
           </div>
           <div class="chat-welcome__suggestions">
             <button
@@ -320,8 +328,8 @@ const SUGGESTIONS = [
               :size="36"
               :src="
                 msg.role === 'assistant'
-                  ? '/avatar/avatar2.png'
-                  : userInfo?.avatarImage || '/avatar/avatar1.png'
+                  ? defaultAvatar
+                  : userInfo?.avatarImage || defaultAvatar
               "
               class="message-row__avatar"
             />
@@ -360,6 +368,29 @@ const SUGGESTIONS = [
       </footer>
     </section>
 
+    <aside class="chat-context">
+      <header class="context-head">
+        <div><h3>快捷操作</h3></div>
+      </header>
+
+      <section class="context-section">
+        <div class="context-actions">
+          <button
+            v-for="action in QUICK_ACTIONS"
+            :key="action.label"
+            @click="inputMessage = action.prompt"
+          >
+            <span>✦</span>{{ action.label }}
+          </button>
+        </div>
+      </section>
+
+      <div class="context-tip">
+        <strong>不会自动读取文章</strong>
+        <p>需要处理的文章或段落，请直接粘贴到对话中。</p>
+      </div>
+    </aside>
+
     <transition name="fade">
       <div
         v-if="sessionsOpen"
@@ -372,11 +403,27 @@ const SUGGESTIONS = [
 
 <style scoped>
 .chat-shell {
+  --bp-color-bg: var(--c-bg);
+  --bp-color-bg-elevated: var(--c-surface);
+  --bp-color-bg-soft: var(--c-surface-muted);
+  --bp-color-bg-hover: #f0efff;
+  --bp-color-border: var(--c-border);
+  --bp-color-divider: var(--c-border-light);
+  --bp-color-text-primary: var(--c-text);
+  --bp-color-text-secondary: var(--c-text-2);
+  --bp-color-text-tertiary: var(--c-text-3);
+  --bp-color-primary: var(--c-primary);
+  --bp-color-primary-soft: rgba(81, 70, 229, 0.09);
+  --bp-color-primary-soft-strong: rgba(81, 70, 229, 0.28);
+  --bp-gradient-hero: linear-gradient(135deg, #5146e5, #7768ee);
   display: grid;
-  grid-template-columns: 280px 1fr;
+  grid-template-columns: 250px minmax(0, 1fr) 286px;
   height: 100%;
   min-height: 0;
   background: var(--bp-color-bg);
+  border: 1px solid var(--bp-color-border);
+  border-radius: 18px;
+  overflow: hidden;
 }
 
 .chat-sessions {
@@ -452,6 +499,7 @@ const SUGGESTIONS = [
   display: flex;
   flex-direction: column;
   min-height: 0;
+  position: relative;
 }
 
 .chat-toolbar {
@@ -485,16 +533,25 @@ const SUGGESTIONS = [
 }
 
 .chat-settings {
-  margin: 12px 16px 0;
-  padding: 12px 16px;
+  position: absolute;
+  top: 64px;
+  right: 16px;
+  z-index: 5;
+  width: 270px;
+  padding: 18px;
   display: flex;
+  flex-direction: column;
   gap: 16px;
-  flex-wrap: wrap;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.98);
+  border: 1px solid var(--bp-color-border);
+  box-shadow: var(--c-shadow-lg);
 }
 
 .setting-row {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: stretch;
   gap: 8px;
   font-size: 12px;
   color: var(--bp-color-text-tertiary);
@@ -588,6 +645,82 @@ const SUGGESTIONS = [
   border-color: transparent;
 }
 
+.chat-context {
+  min-width: 0;
+  padding: 22px 18px;
+  border-left: 1px solid var(--bp-color-border);
+  background: var(--bp-color-bg-elevated);
+  overflow-y: auto;
+}
+
+.context-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.context-head h3 {
+  margin: 3px 0 0;
+  font-size: 18px;
+}
+
+.context-tip p {
+  margin: 0;
+  color: var(--bp-color-text-tertiary);
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.context-section {
+  padding: 19px 2px;
+  border-bottom: 1px solid var(--bp-color-divider);
+}
+
+.context-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.context-actions button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px;
+  border: 1px solid var(--bp-color-border);
+  border-radius: 10px;
+  color: var(--bp-color-text-secondary);
+  background: var(--bp-color-bg-elevated);
+  font-size: 12px;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.context-actions button:hover {
+  color: var(--bp-color-primary);
+  border-color: var(--bp-color-primary-soft-strong);
+  background: var(--bp-color-primary-soft);
+}
+
+.context-actions span { color: var(--bp-color-primary); }
+
+.context-tip {
+  margin-top: 18px;
+  padding: 13px 14px;
+  border-radius: 12px;
+  background: #fff8e8;
+}
+
+.context-tip strong {
+  display: block;
+  margin-bottom: 4px;
+  color: #9a6200;
+  font-size: 12px;
+}
+
 .message-bubble--assistant {
   background: var(--bp-color-bg-elevated);
 }
@@ -641,6 +774,21 @@ const SUGGESTIONS = [
 
 .chat-mobile-mask {
   display: none;
+}
+
+.bp-card {
+  background: var(--bp-color-bg-elevated);
+  border: 1px solid var(--bp-color-border);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+}
+
+.bp-card-hover {
+  transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+}
+.bp-card-hover:hover {
+  transform: translateY(-1px);
+  border-color: var(--bp-color-primary-soft-strong);
+  background: var(--bp-color-bg-soft);
 }
 
 .settings-enter-active,
@@ -704,5 +852,14 @@ const SUGGESTIONS = [
   .message-bubble {
     max-width: 88%;
   }
+}
+
+@media (max-width: 1180px) {
+  .chat-shell { grid-template-columns: 250px minmax(0, 1fr); }
+  .chat-context { display: none; }
+}
+
+@media (max-width: 900px) {
+  .chat-shell { grid-template-columns: 1fr; }
 }
 </style>

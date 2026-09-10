@@ -1,43 +1,21 @@
 import request from "../utils/request";
+
 export function getCategoryListService() {
-  return request({
-    url: "/category/list",
-    method: "get",
-    headers: {
-      //Authorization: token
-    }
-  });
+  return request({ url: "/category/list", method: "get" });
+}
+
+export function getCategoriesByUserService(userId) {
+  return request({ url: `/category/byUser/${userId}`, method: "get" });
 }
 
 export function addCategoryService(data) {
-  return request({
-    url: "/category/add",
-    method: "post",
-    data,
-    headers: {
-      "Content-Type": "application/json"
-    }
-  });
+  return request({ url: "/category/add", method: "post", data });
 }
 
-export function deleteCategoryService(params) {
-  return request({
-    url: "/category/delete",
-    method: "post",
-    params,
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded"
-    }
-  });
+export function deleteCategoryService(id) {
+  return request({ url: `/category/delete/${id}`, method: "delete" });
 }
 
 export function updateCategoryService(data) {
-  return request({
-    url: "/category/update",
-    method: "post",
-    data,
-    headers: {
-      "Content-Type": "application/json"
-    }
-  });
+  return request({ url: "/category/update", method: "put", data });
 }

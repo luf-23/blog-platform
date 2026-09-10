@@ -1,8 +1,8 @@
-# Blog Platform
+# Blog-Platform
 
 个人博客平台 — Vue 3 全新设计前端 + Spring Boot 后端。
 
-> 本仓库的前端在 2026 年完成了一次完整的 UI/UX 重构：现代化设计语言、深/浅色主题、可折叠侧边栏、统一的布局系统与组件库。后端 API 保持不变。
+> 本仓库的前端在 2026 年完成了一次完整的 UI/UX 重构：现代化设计语言、深/浅色主题、可折叠侧边栏、统一的布局系统与组件库。
 
 ## 项目结构
 
@@ -48,7 +48,13 @@ cd blog-platform
 
 ### 2. 数据库
 
-执行 `backend/src/main/resources/SQL/init.sql` 初始化 MySQL（建库、表结构、演示数据；演示账号密码均为 `123456`）。
+依次执行 `backend/src/main/resources/SQL/01_table.sql` 和 `backend/src/main/resources/SQL/02_data.sql`。`01_table.sql` 会删除并重建 `blog_platform`，`02_data.sql` 写入本地开发账号与初始两级标签。
+
+初始化脚本只提供本地开发账号和平台标签体系；账号信息见脚本注释，部署前必须修改或移除。
+
+已有数据库升级评论分页逻辑：停止后端后，仅执行一次 `backend/src/main/resources/SQL/03_comment_root.sql`，为历史回复回填 `root_comment_id` 并创建分页索引；确认脚本最后的检查没有返回记录，再启动新版后端。迁移包含已软删除的中间评论，保留原有 `parent_id` 直接回复关系。请使用遇错即停的 SQL 执行方式；脚本不是重复执行脚本，新建数据库无需执行。
+
+评论按两层展示：一级评论按文章分页，全部层级的回复按 `root_comment_id` 分页，均以创建时间和评论 ID 倒序排列。接口继续返回 `rootId`，前端用 `parentId` 与回复对象信息显示具体回复关系，无需取得完整父链。删除中间回复不会隐藏其后续回复；删除一级评论会隐藏整组回复，并禁止在该组下继续回复。
 
 ### 3. 后端
 
@@ -61,6 +67,8 @@ mvn spring-boot:run
 
 默认 API：`http://localhost:8080`
 
+IDEA 的 Project SDK、Maven Runner JRE 请统一使用 JDK 21，并重新加载 Maven 项目以同步 Lombok 注解处理器配置。若运行时报 `NoSuchMethodError`（例如 `OssConfig.getPolicyFile()`），停止旧后端进程，执行 `mvn clean test` 后重新启动，确保加载的是本次构建的类。
+
 ### 4. 前端
 
 ```bash
@@ -70,7 +78,8 @@ npm run dev
 ```
 
 默认开发地址：`http://localhost:5173`
-后端地址在 `frontend/src/utils/request.js` 的 `baseURL` 中配置（默认 `http://localhost:8080/`）。
+
+浏览器统一通过同源路径 `/api/` 访问后端。开发服务器会由 Vite 将该路径代理到 `http://localhost:8080`；如需修改代理目标，可设置 `VITE_API_PROXY_TARGET`。
 
 ### 构建
 
@@ -79,6 +88,8 @@ cd frontend
 npm run build      # 产物输出到 dist/
 npm run preview    # 本地预览生产构建
 ```
+
+生产环境使用 `frontend/nginx.conf`：Nginx 托管 `dist/`，并将 `/api/` 反向代理到后端。部署到不同主机或容器时，请按实际网络拓扑调整其中的 `proxy_pass`。后端不配置 CORS，必须只通过上述同源代理对浏览器提供服务。
 
 ## 配置说明
 
@@ -89,6 +100,8 @@ npm run preview    # 本地预览生产构建
 
 - 用户注册 / 登录 / 邮箱验证码 / 找回密码
 - 分类化的文章管理（草稿、待审核、已发布）
+- 一级/二级平台标签体系，文章仅选择二级标签
+- 分类封面、文章封面与无图回退展示
 - Markdown 编辑器，支持图片粘贴上传到 OSS
 - 社区广场与文章评论 / 点赞
 - AI 助手：多模型流式对话

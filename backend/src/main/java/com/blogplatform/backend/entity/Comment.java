@@ -10,7 +10,10 @@ public class Comment {
     private Integer articleId;
     private Integer userId;
     private Integer parentId;
-    private Integer rootId;
+    private Integer rootCommentId;
+    private Integer replyToUserId;
     private String content;
+    private Integer likeCount;
+    private Integer status;
     private LocalDateTime createTime;
 }

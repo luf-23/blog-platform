@@ -1,33 +1,33 @@
-import request from "../utils/request";
-export function getCommunityListService() {
-  return request({
-    url: "/community/list",
-    method: "get",
-    headers: {
-      ContentType: "application/xxx-www-form-urlencoded"
-    }
-  });
+import request from '../utils/request.js'
+
+export function getCommunityFeedService(params) {
+  return request({ url: '/community/feed', method: 'get', params })
 }
 
-export function getSelectedCommunityListService(params) {
-  return request({
-    url: "/community/selectedList",
-    method: "get",
-    params,
-    headers: {
-      ContentType: "application/xxx-www-form-urlencoded"
-    }
-  });
+export function getFollowingCommunityFeedService(params) {
+  return request({ url: '/community/feed/following', method: 'get', params })
 }
 
-//根据categoryId获取作者名字
-export function getAuthorNameService(params) {
-  return request({
-    url: "/community/author",
-    method: "get",
-    params,
-    headers: {
-      ContentType: "application/xxx-www-form-urlencoded"
-    }
-  });
+export function getCommunityMetaService(personalized = false) {
+  return request({ url: personalized ? '/community/meta/personalized' : '/community/meta', method: 'get' })
+}
+
+export function getCommunityProfileService(userId) {
+  return request({ url: `/community/profile/${userId}`, method: 'get' })
+}
+
+export function getCommunityProfileFollowersService(userId, params) {
+  return request({ url: `/community/profile/${userId}/followers`, method: 'get', params })
+}
+
+export function getCommunityProfileFollowingService(userId, params) {
+  return request({ url: `/community/profile/${userId}/following`, method: 'get', params })
+}
+
+export function getCommunityFollowStateService(userId) {
+  return request({ url: `/community/follow/${userId}`, method: 'get' })
+}
+
+export function toggleCommunityFollowService(userId) {
+  return request({ url: `/community/follow/${userId}`, method: 'post' })
 }

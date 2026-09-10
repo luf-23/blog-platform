@@ -1,6 +1,6 @@
 package com.blogplatform.backend.controller;
 
-import com.blogplatform.backend.Service.CommentLikeService;
+import com.blogplatform.backend.service.CommentLikeService;
 import com.blogplatform.backend.entity.Result;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;

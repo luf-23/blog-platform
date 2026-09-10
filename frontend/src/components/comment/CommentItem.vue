@@ -1,382 +1,274 @@
-<script setup>
-import { inject, computed, ref } from "vue";
-import {
-  StarFilled,
-  Star,
-  Delete,
-  ChatDotRound,
-  ArrowDown,
-  ArrowUp
-} from "@element-plus/icons-vue";
+<template>
+  <article class="comment-item">
+    <img :src="comment.avatar || defaultAvatar" class="comment-avatar avatar" alt="" />
+    <div class="comment-main">
+      <div class="comment-author-line">
+        <span class="comment-author">{{ displayName(comment) }}</span>
+        <span v-if="isAuthor(comment)" class="author-badge">作者</span>
+      </div>
+      <p class="comment-content">{{ comment.content }}</p>
+      <div class="comment-footer">
+        <time :datetime="comment.createTime" :title="formatExactDate(comment.createTime)">{{ formatRelativeTime(comment.createTime) }}</time>
+        <CommentActions
+          :comment="comment"
+          :can-delete="canDelete(comment)"
+          @like="toggleLike(comment)"
+          @reply="openReply(comment)"
+          @delete="deleteComment(comment)"
+        />
+      </div>
 
-defineOptions({ name: "CommentItem" });
+      <button v-if="!expanded && totalReplies > 0" type="button" class="reply-toggle" :disabled="loadingReplies" @click="expandReplies">
+        <i></i>
+        <el-icon v-if="loadingReplies" class="is-loading"><Loading /></el-icon>
+        <span>{{ loadingReplies ? '正在加载回复' : `展开 ${totalReplies} 条回复` }}</span>
+        <svg v-if="!loadingReplies" viewBox="0 0 24 24"><path d="m7 10 5 5 5-5" /></svg>
+      </button>
+
+      <div v-if="expanded" class="reply-group">
+        <div v-if="loadingReplies && replies.length === 0" class="reply-loading">
+          <el-icon class="is-loading"><Loading /></el-icon> 正在加载回复
+        </div>
+        <div v-for="reply in replies" :key="reply.commentId" class="reply-item">
+          <img :src="reply.avatar || defaultAvatar" class="reply-avatar avatar" alt="" />
+          <div class="reply-main">
+            <div class="reply-heading">
+              <span class="reply-author">{{ displayName(reply) }}</span>
+              <span v-if="isAuthor(reply)" class="author-badge compact">作者</span>
+              <template v-if="shouldShowReplyTarget(reply)">
+                <span class="reply-word">回复</span>
+                <strong class="reply-target">@{{ replyToName(reply) }}</strong>
+              </template>
+            </div>
+            <p class="reply-content">{{ reply.content }}</p>
+            <div class="comment-footer compact-footer">
+              <time :datetime="reply.createTime" :title="formatExactDate(reply.createTime)">{{ formatRelativeTime(reply.createTime) }}</time>
+              <CommentActions
+                :comment="reply"
+                :can-delete="canDelete(reply)"
+                compact
+                @like="toggleLike(reply)"
+                @reply="openReply(reply)"
+                @delete="deleteComment(reply)"
+              />
+            </div>
+          </div>
+        </div>
+        <div class="reply-pagination">
+          <button v-if="hasMoreReplies" type="button" :disabled="loadingReplies" @click="loadReplies()">
+            <el-icon v-if="loadingReplies" class="is-loading"><Loading /></el-icon>
+            {{ loadingReplies ? '加载中' : `展开更多（剩余 ${remainingReplyCount} 条）` }}
+          </button>
+          <button type="button" class="collapse" @click="collapseReplies">
+            收起 <svg viewBox="0 0 24 24"><path d="m7 14 5-5 5 5" /></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </article>
+</template>
+
+<script setup>
+import { computed, h, ref, watch } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { Loading } from '@element-plus/icons-vue'
+import { deleteCommentService, getCommentRepliesService } from '../../api/comment.js'
+import { likeCommentService, unlikeCommentService } from '../../api/commentLike.js'
+import { useUserInfoStore } from '../../store/userInfo.js'
+import { DEFAULT_AVATAR_URL as defaultAvatar } from '../../constants/assets.js'
 
 const props = defineProps({
   comment: { type: Object, required: true },
-  depth: { type: Number, default: 0 },
-  variant: { type: String, default: "default" },
-  currentUsername: { type: String, default: "" },
-  isArticleAuthor: { type: Boolean, default: false }
-});
+  articleId: { type: Number, required: true },
+  authorId: { type: Number, default: null },
+  refreshKey: { type: Number, default: 0 }
+})
+const emit = defineEmits(['reply', 'deleted'])
+const userInfoStore = useUserInfoStore()
+const currentUser = computed(() => userInfoStore.userInfo)
+const REPLY_PAGE_SIZE = 5
 
-const isPanel = computed(() => props.variant === "panel");
-const isRoot = computed(() => props.depth === 0);
+const replies = ref([])
+const totalReplies = ref(Number(props.comment.replyCount || 0))
+const repliesPage = ref(0)
+const expanded = ref(false)
+const loadingReplies = ref(false)
+const serverHasMore = ref(totalReplies.value > 0)
+const hasMoreReplies = computed(() => serverHasMore.value && replies.value.length < totalReplies.value)
+const remainingReplyCount = computed(() => Math.max(0, totalReplies.value - replies.value.length))
 
-const emit = defineEmits(["delete", "toggle-like", "view-author"]);
+watch(() => props.comment.replyCount, value => { if (value != null) totalReplies.value = Number(value) })
+watch(() => props.refreshKey, () => {
+  serverHasMore.value = true
+  if (expanded.value) loadReplies(true)
+})
 
-const commentActions = inject("commentActions", null);
-
-const isReplying = computed(
-  () => commentActions?.replyingId?.value === props.comment.commentId
-);
-
-const replyDraft = computed({
-  get: () => commentActions?.replyDraft.value ?? "",
-  set: (v) => {
-    if (commentActions?.replyDraft) commentActions.replyDraft.value = v;
+const CommentActions = {
+  props: {
+    comment: { type: Object, required: true },
+    canDelete: { type: Boolean, default: false },
+    compact: { type: Boolean, default: false }
+  },
+  emits: ['like', 'reply', 'delete'],
+  setup(actionProps, { emit: actionEmit }) {
+    return () => h('div', { class: ['comment-actions', { compact: actionProps.compact }] }, [
+      currentUser.value ? h('button', { type: 'button', class: 'comment-action', onClick: () => actionEmit('reply') }, '回复') : null,
+      actionProps.canDelete ? h('button', { type: 'button', class: 'comment-action delete-action', onClick: () => actionEmit('delete') }, '删除') : null,
+      h('button', {
+        type: 'button',
+        class: ['comment-action', 'like-action', { liked: actionProps.comment.isLiked }],
+        'aria-label': actionProps.comment.isLiked ? '取消点赞' : '点赞',
+        onClick: () => actionEmit('like')
+      }, [
+        h('span', { class: 'heart-icon' }, actionProps.comment.isLiked ? '♥' : '♡'),
+        h('span', actionProps.comment.likeCount || '赞')
+      ])
+    ])
   }
-});
-
-const replyCount = computed(() => countDescendants(props.comment.children));
-
-const repliesOpen = ref(true);
-
-const likeCount = computed(() => Number(props.comment.likeCount) || 0);
-
-function countDescendants(children) {
-  if (!children?.length) return 0;
-  return children.reduce(
-    (n, c) => n + 1 + countDescendants(c.children),
-    0
-  );
 }
 
-function formatDate(value) {
-  if (!value) return "";
-  return new Date(value).toLocaleString("zh-CN", { hour12: false });
+function displayName(item) { return item.nickname || item.username || '匿名用户' }
+function replyToName(reply) { return reply.replyToNickname || reply.replyToUsername || '该用户' }
+function shouldShowReplyTarget(reply) {
+  const rootId = reply.rootId ?? props.comment.commentId
+  return Number(reply.parentId) !== Number(rootId)
+}
+function isAuthor(item) { return props.authorId != null && Number(item.userId) === Number(props.authorId) }
+function canDelete(item) {
+  if (!currentUser.value) return false
+  return Number(currentUser.value.userId) === Number(item.userId)
+    || currentUser.value.username === 'admin'
+    || currentUser.value.role === 'admin'
 }
 
-function canDelete() {
-  return (
-    props.currentUsername === props.comment.username || props.isArticleAuthor
-  );
+function openReply(item) {
+  if (!currentUser.value) { ElMessage.warning('请先登录'); return }
+  emit('reply', { target: item, rootId: props.comment.commentId })
 }
 
-function onReplyClick() {
-  commentActions?.startReply(props.comment);
+async function deleteComment(item) {
+  try {
+    await ElMessageBox.confirm('删除后将无法恢复，确定继续吗？', '删除评论', {
+      confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning', confirmButtonClass: 'el-button--danger'
+    })
+    await deleteCommentService(item.commentId)
+    const isRoot = Number(item.commentId) === Number(props.comment.commentId)
+    if (!isRoot) {
+      replies.value = replies.value.filter(reply => reply.commentId !== item.commentId)
+      totalReplies.value = Math.max(0, totalReplies.value - 1)
+    }
+    emit('deleted', { commentId: item.commentId, isRoot, rootId: props.comment.commentId })
+    ElMessage.success('评论已删除')
+  } catch (_) {}
 }
 
-function onSubmitReply() {
-  commentActions?.submitReply();
+async function toggleLike(item) {
+  if (!currentUser.value) { ElMessage.warning('请先登录'); return }
+  try {
+    if (item.isLiked) {
+      await unlikeCommentService(item.commentId)
+      item.isLiked = false
+      item.likeCount = Math.max(0, Number(item.likeCount || 1) - 1)
+    } else {
+      await likeCommentService(item.commentId)
+      item.isLiked = true
+      item.likeCount = Number(item.likeCount || 0) + 1
+    }
+  } catch (_) {}
 }
 
-function onCancelReply() {
-  commentActions?.cancelReply();
+function expandReplies() { expanded.value = true; loadReplies(true) }
+async function loadReplies(reset = false) {
+  if (loadingReplies.value || (!reset && !hasMoreReplies.value)) return
+  loadingReplies.value = true
+  const page = reset ? 1 : repliesPage.value + 1
+  try {
+    const res = await getCommentRepliesService({ articleId: props.articleId, rootId: props.comment.commentId, page, pageSize: REPLY_PAGE_SIZE })
+    const data = res.data || {}
+    const incoming = data.list || []
+    if (reset) replies.value = incoming
+    else {
+      const existingIds = new Set(replies.value.map(item => item.commentId))
+      replies.value.push(...incoming.filter(item => !existingIds.has(item.commentId)))
+    }
+    repliesPage.value = page
+    totalReplies.value = Number(data.total ?? totalReplies.value)
+    serverHasMore.value = Boolean(data.hasMore)
+  } catch (_) {
+    if (reset) expanded.value = false
+    ElMessage.error('回复加载失败，请稍后重试')
+  } finally { loadingReplies.value = false }
+}
+function collapseReplies() {
+  expanded.value = false
+  replies.value = []
+  repliesPage.value = 0
+  serverHasMore.value = totalReplies.value > 0
 }
 
-function toggleReplies() {
-  repliesOpen.value = !repliesOpen.value;
+function parseTime(time) {
+  if (!time) return null
+  const date = new Date(time)
+  return Number.isNaN(date.getTime()) ? null : date
+}
+function formatRelativeTime(time) {
+  const date = parseTime(time)
+  if (!date) return ''
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const thatDay = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+  const dayDiff = Math.floor((today - thatDay) / 86400000)
+  if (dayDiff === 1) return '昨天'
+  if (dayDiff === 2) return '前天'
+  if (dayDiff > 2 && dayDiff < 7) return `${dayDiff}天前`
+  if (dayDiff === 0) {
+    const diff = Math.max(0, now - date)
+    if (diff < 60000) return '刚刚'
+    if (diff < 3600000) return `${Math.floor(diff / 60000)}分钟前`
+    return `${Math.floor(diff / 3600000)}小时前`
+  }
+  if (date.getFullYear() === now.getFullYear()) return `${date.getMonth() + 1}月${date.getDate()}日`
+  return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`
+}
+function formatExactDate(time) {
+  const date = parseTime(time)
+  if (!date) return ''
+  return new Intl.DateTimeFormat('zh-CN', {
+    year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'
+  }).format(date)
 }
 </script>
 
-<template>
-  <article
-    class="comment"
-    :class="{
-      'comment--nested': depth > 0,
-      'comment--panel': isPanel,
-      'comment--panel-nested': isPanel && depth > 0,
-      'comment--root': isRoot
-    }"
-  >
-    <el-avatar
-      :size="isPanel ? (depth > 0 ? 28 : 32) : depth > 0 ? 32 : 40"
-      :src="comment.avatar || '/avatar/avatar1.png'"
-      class="comment__avatar"
-      @click="emit('view-author', comment.username)"
-    />
-    <div class="comment__body">
-      <header class="comment__head">
-        <div class="comment__meta">
-          <strong
-            class="comment__name"
-            @click="emit('view-author', comment.username)"
-          >
-            {{ comment.nickname || comment.username }}
-          </strong>
-          <template v-if="comment.parentId && comment.replyToUsername">
-            <span class="comment__reply-label">回复</span>
-            <strong
-              class="comment__name comment__name--target"
-              @click="emit('view-author', comment.replyToUsername)"
-            >
-              {{ comment.replyToNickname || comment.replyToUsername }}
-            </strong>
-          </template>
-        </div>
-        <span class="comment__time">{{ formatDate(comment.createTime) }}</span>
-      </header>
-      <p class="comment__content">{{ comment.content }}</p>
-      <div class="comment__actions">
-        <button
-          type="button"
-          class="action-btn action-btn--like"
-          :class="{ 'action-btn--liked': comment.isLiked }"
-          @click="emit('toggle-like', comment)"
-        >
-          <el-icon>
-            <StarFilled v-if="comment.isLiked" />
-            <Star v-else />
-          </el-icon>
-          <span class="action-btn__text">赞</span>
-          <span class="action-btn__count">{{ likeCount }}</span>
-        </button>
-        <button type="button" class="action-btn" @click="onReplyClick">
-          <el-icon><ChatDotRound /></el-icon>
-          回复
-        </button>
-        <button
-          v-if="canDelete()"
-          type="button"
-          class="action-btn action-btn--danger"
-          @click="emit('delete', comment.commentId)"
-        >
-          <el-icon><Delete /></el-icon>
-          删除
-        </button>
-      </div>
-
-      <div v-if="isReplying" class="comment__reply-box">
-        <el-input
-          v-model="replyDraft"
-          type="textarea"
-          :rows="2"
-          :placeholder="`回复 ${comment.nickname || comment.username}...`"
-          resize="none"
-        />
-        <div class="comment__reply-actions">
-          <el-button size="small" @click="onCancelReply">取消</el-button>
-          <el-button
-            type="primary"
-            size="small"
-            :loading="commentActions?.submitting?.value"
-            @click="onSubmitReply"
-          >
-            发表回复
-          </el-button>
-        </div>
-      </div>
-
-      <button
-        v-if="isRoot && replyCount > 0"
-        type="button"
-        class="comment__replies-toggle"
-        @click="toggleReplies"
-      >
-        <el-icon>
-          <ArrowUp v-if="repliesOpen" />
-          <ArrowDown v-else />
-        </el-icon>
-        {{ repliesOpen ? "收起" : "展开" }} {{ replyCount }} 条回复
-      </button>
-    </div>
-  </article>
-
-  <div
-    v-if="comment.children?.length && (!isRoot || repliesOpen)"
-    class="comment__children"
-  >
-    <CommentItem
-      v-for="child in comment.children"
-      :key="child.commentId"
-      :comment="child"
-      :depth="depth + 1"
-      :variant="variant"
-      :current-username="currentUsername"
-      :is-article-author="isArticleAuthor"
-      @delete="emit('delete', $event)"
-      @toggle-like="emit('toggle-like', $event)"
-      @view-author="emit('view-author', $event)"
-    />
-  </div>
-</template>
-
 <style scoped>
-.comment {
-  display: flex;
-  gap: 12px;
-  padding: 14px;
-  border-radius: 14px;
-  background: var(--bp-color-bg-soft);
-  border: 1px solid var(--bp-color-border);
-}
-
-.comment--panel {
-  padding: 12px 4px;
-  margin: 0;
-  border: none;
-  border-radius: 0;
-  background: transparent;
-  border-bottom: 1px solid var(--bp-color-divider);
-}
-
-.comment--panel-nested {
-  padding: 8px 4px 8px 10px;
-  border-bottom: none;
-  border-left: 2px solid var(--bp-color-border);
-  margin-left: 6px;
-}
-
-.comment__avatar {
-  cursor: pointer;
-  flex-shrink: 0;
-}
-
-.comment__body {
-  flex: 1;
-  min-width: 0;
-}
-
-.comment__head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.comment__meta {
-  display: inline-flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.comment__reply-label {
-  font-size: 12px;
-  color: var(--bp-color-text-tertiary);
-}
-
-.comment__name {
-  font-size: 14px;
-  cursor: pointer;
-  color: var(--bp-color-text-primary);
-}
-
-.comment__name:hover,
-.comment__name--target:hover {
-  color: var(--bp-color-primary);
-}
-
-.comment__name--target {
-  font-weight: 600;
-}
-
-.comment__time {
-  font-size: 12px;
-  color: var(--bp-color-text-tertiary);
-  flex-shrink: 0;
-}
-
-.comment__content {
-  margin-top: 6px;
-  font-size: 14px;
-  color: var(--bp-color-text-secondary);
-  line-height: 1.7;
-  white-space: pre-wrap;
-}
-
-.comment--panel .comment__content {
-  font-size: 13px;
-}
-
-.comment__actions {
-  margin-top: 8px;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px;
-}
-
-.comment__replies-toggle {
-  margin-top: 8px;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 10px;
-  border: none;
-  border-radius: 6px;
-  background: var(--bp-color-bg-soft);
-  color: var(--bp-color-text-secondary);
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background 0.2s ease, color 0.2s ease;
-}
-
-.comment__replies-toggle:hover {
-  background: var(--bp-color-bg-hover);
-  color: var(--bp-color-primary);
-}
-
-.comment__reply-box {
-  margin-top: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.comment__reply-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-}
-
-.comment__children {
-  display: flex;
-  flex-direction: column;
-}
-
-.action-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  background: transparent;
-  border: none;
-  color: var(--bp-color-text-tertiary);
-  cursor: pointer;
-  font-size: 13px;
-  padding: 4px 8px;
-  border-radius: 8px;
-  transition: background 0.2s ease, color 0.2s ease;
-}
-
-.action-btn:hover {
-  background: var(--bp-color-bg-hover);
-  color: var(--bp-color-primary);
-}
-
-.action-btn--like {
-  min-width: 52px;
-}
-
-.action-btn--like .action-btn__count {
-  min-width: 1.2em;
-  font-variant-numeric: tabular-nums;
-  font-weight: 600;
-  color: var(--bp-color-text-secondary);
-}
-
-.action-btn--liked {
-  color: var(--bp-color-warning);
-}
-
-.action-btn--liked .action-btn__count {
-  color: var(--bp-color-warning);
-}
-
-.action-btn--danger:hover {
-  background: rgba(239, 68, 68, 0.1);
-  color: var(--bp-color-danger);
-}
+.comment-item { display: flex; gap: 9px; padding: 12px 0; border-bottom: 1px solid var(--c-border); }
+.comment-avatar { width: 32px; height: 32px; flex: 0 0 auto; }
+.comment-main, .reply-main { min-width: 0; flex: 1; }
+.comment-author-line, .reply-heading { display: flex; min-width: 0; align-items: center; flex-wrap: wrap; gap: 6px; }
+.comment-author, .reply-author { overflow: hidden; color: var(--c-text-3); font-size: 13px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+.author-badge { display: inline-flex; height: 18px; align-items: center; padding: 0 5px; border-radius: 4px; background: var(--c-primary-soft); color: var(--c-primary); font-size: 9px; font-weight: 700; }
+.author-badge.compact { height: 16px; }
+.comment-content { margin: 3px 0 2px; color: var(--c-text); font-size: 15px; line-height: 1.55; white-space: pre-wrap; word-break: break-word; }
+.comment-footer { display: flex; min-height: 24px; align-items: center; gap: 10px; }
+.comment-footer time { color: var(--c-text-4); font-size: 12px; white-space: nowrap; }
+:deep(.comment-actions) { display: flex; min-width: 0; flex: 1; align-items: center; gap: 10px; }
+:deep(.comment-action) { display: inline-flex; min-height: 24px; align-items: center; gap: 4px; padding: 1px 0; border: 0; background: transparent; color: var(--c-text-3); font-size: 12px; line-height: 1.4; transition: color var(--transition); }
+:deep(.comment-action:hover) { color: var(--c-primary); }
+:deep(.like-action) { margin-left: auto; }
+:deep(.like-action.liked), :deep(.like-action:hover), :deep(.delete-action:hover) { color: var(--c-danger); }
+:deep(.heart-icon) { font-size: 16px; line-height: 1; }
+.reply-avatar { width: 24px; height: 24px; flex: 0 0 auto; }
+.reply-toggle { display: inline-flex; min-height: 24px; align-items: center; gap: 6px; margin-top: 3px; padding: 1px 0; border: 0; background: transparent; color: var(--c-text-3); font-size: 12px; font-weight: 650; }
+.reply-toggle i { width: 22px; height: 1px; background: var(--c-border-strong); }
+.reply-toggle svg, .reply-pagination svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2; }
+.reply-toggle:hover { color: var(--c-primary); }
+.reply-group { margin-top: 5px; padding: 0 0 0 8px; border-left: 2px solid var(--c-border); }
+.reply-item { display: flex; gap: 7px; padding: 6px 0; }
+.reply-item + .reply-item { border-top: 1px solid color-mix(in srgb, var(--c-border) 72%, transparent); }
+.reply-word { color: var(--c-text-4); font-size: 11px; }.reply-target { max-width: 150px; overflow: hidden; color: var(--c-primary); font-size: 11px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+.reply-content { margin: 2px 0 1px; color: var(--c-text-2); font-size: 13px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
+.compact-footer { gap: 10px; }.reply-loading { display: flex; align-items: center; gap: 7px; padding: 8px 0; color: var(--c-text-4); font-size: 12px; }
+.reply-pagination { display: flex; align-items: center; gap: 12px; padding: 2px 0 0 31px; }
+.reply-pagination button { display: inline-flex; min-height: 24px; align-items: center; gap: 4px; padding: 1px 0; border: 0; background: transparent; color: var(--c-primary); font-size: 12px; font-weight: 650; }
+.reply-pagination button.collapse { color: var(--c-text-4); }.reply-pagination button:disabled { cursor: wait; opacity: .6; }
+@media (max-width: 640px) { .comment-item { gap: 8px; padding: 10px 0; }.comment-avatar { width: 28px; height: 28px; }.reply-group { margin-left: -4px; padding-left: 7px; } }
 </style>

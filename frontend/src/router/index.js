@@ -1,23 +1,19 @@
 import { createRouter, createWebHistory } from "vue-router";
 import { ElMessage } from "element-plus";
-
 import { useTokenStore } from "../store/token.js";
 import { useUserInfoStore } from "../store/userInfo.js";
-
 import AppLayout from "../layouts/AppLayout.vue";
 import AuthLayout from "../layouts/AuthLayout.vue";
+import AdminLayout from "../layouts/AdminLayout.vue";
 
 const routes = [
+  { path: "/", redirect: "/home" },
   {
     path: "/",
-    redirect: "/home"
-  },
-  {
-    path: "/login",
     component: AuthLayout,
     children: [
       {
-        path: "",
+        path: "login",
         name: "Login",
         component: () => import("../views/Login.vue"),
         meta: { title: "登录", guest: true }
@@ -27,105 +23,110 @@ const routes = [
   {
     path: "/",
     component: AppLayout,
-    meta: { requireAuth: true },
     children: [
+      // Public routes
       {
         path: "home",
         name: "Home",
-        component: () => import("../views/Home.vue"),
-        meta: { title: "发现" }
-      },
-      {
-        path: "profile",
-        name: "Profile",
-        component: () => import("../views/Profile.vue"),
-        meta: { title: "个人主页" }
+        component: () => import("../views/Community.vue"),
+        meta: { title: "首页", headerMode: "discovery" }
       },
       {
         path: "community",
-        redirect: "/home"
+        name: "Community",
+        component: () => import("../views/Community.vue"),
+        meta: { title: "社区", headerMode: "discovery" }
+      },
+      {
+        path: "article/:id",
+        name: "ArticleDetail",
+        component: () => import("../views/article/Article.vue"),
+        meta: { title: "文章详情", headerMode: "discovery" }
       },
       {
         path: "announcement",
         name: "Announcement",
         component: () => import("../views/Announcement.vue"),
-        meta: { title: "系统公告" }
+        meta: { title: "系统公告", headerMode: "compact" }
+      },
+      {
+        path: "profile/:username?",
+        name: "Profile",
+        component: () => import("../views/Profile.vue"),
+        meta: { title: "个人主页", headerMode: "compact" }
       },
       {
         path: "ai/chat",
         name: "Chat",
         component: () => import("../views/ai/Chat.vue"),
-        meta: { title: "AI 助手" }
+        meta: { title: "AI 助手", requireAuth: true, headerMode: "compact" }
       },
+      // Auth-required routes
       {
         path: "article",
-        meta: { title: "我的博客" },
+        meta: { requireAuth: true, headerMode: "compact" },
         children: [
+          { path: "", redirect: { name: "MyArticles" } },
           {
-            path: "",
-            redirect: { name: "ArticleCategory" }
-          },
-          {
-            path: "category",
-            name: "ArticleCategory",
-            component: () => import("../views/article/ArticleCategory.vue"),
+            path: "my",
+            name: "MyArticles",
+            component: () => import("../views/article/ArticleList.vue"),
             meta: { title: "我的博客" }
           },
           {
-            path: "list",
-            name: "ArticleList",
-            component: () => import("../views/article/ArticleList.vue"),
-            meta: { title: "文章列表" }
+            path: "categories",
+            name: "ArticleCategories",
+            component: () => import("../views/article/ArticleCategory.vue"),
+            meta: { title: "文章分组" }
           },
           {
-            path: "detail",
-            name: "ArticleDetail",
-            component: () => import("../views/article/Article.vue"),
-            meta: { title: "文章详情", layout: "immersive" }
-          },
-          {
-            path: "add",
-            name: "ArticleAdd",
+            path: "write",
+            name: "ArticleWrite",
             component: () => import("../views/article/SaveArticle.vue"),
-            meta: { title: "新建文章" }
+            meta: { title: "写文章", headerMode: "hidden" }
           },
           {
-            path: "edit",
+            path: "edit/:id",
             name: "ArticleEdit",
             component: () => import("../views/article/SaveArticle.vue"),
-            meta: { title: "编辑文章" }
+            meta: { title: "编辑文章", headerMode: "hidden" }
           }
         ]
       },
+      // Admin routes
       {
         path: "admin",
-        meta: { title: "管理后台", requireAdmin: true },
+        component: AdminLayout,
+        meta: { requireAuth: true, requireAdmin: true },
         children: [
-          {
-            path: "",
-            redirect: { name: "AdminHome" }
-          },
+          { path: "", redirect: { name: "AdminHome" } },
           {
             path: "home",
             name: "AdminHome",
             component: () => import("../views/admin/AdminHome.vue"),
-            meta: { title: "控制台" }
+            meta: { title: "管理控制台" }
           },
           {
-            path: "list",
-            name: "ArticleListManager",
+            path: "articles",
+            name: "AdminArticles",
             component: () => import("../views/admin/ArticleListManager.vue"),
             meta: { title: "文章审核" }
           },
           {
-            path: "detail",
-            name: "ArticleDetailManager",
-            component: () => import("../views/admin/ArticleManager.vue"),
-            meta: { title: "文章审核详情" }
+            path: "tags",
+            name: "AdminTags",
+            component: () => import("../views/admin/TagManager.vue"),
+            meta: { title: "标签管理" }
           },
           {
-            path: "user",
-            name: "UserManager",
+            path: "announcements",
+            name: "AdminAnnouncements",
+            component: () => import("../views/admin/AnnouncementManager.vue"),
+            meta: { title: "公告管理" }
+          },
+          {
+            path: "users",
+            name: "AdminUsers",
             component: () => import("../views/admin/UseManager.vue"),
             meta: { title: "用户管理" }
           }
@@ -144,9 +145,7 @@ const routes = [
 const router = createRouter({
   history: createWebHistory(),
   routes,
-  scrollBehavior() {
-    return { top: 0 };
-  }
+  scrollBehavior() { return { top: 0 }; }
 });
 
 router.beforeEach((to, _from, next) => {
@@ -155,21 +154,19 @@ router.beforeEach((to, _from, next) => {
   const token = tokenStore.token;
 
   if (to.meta.title) {
-    document.title = `${to.meta.title} · Blog Platform`;
+    document.title = `${to.meta.title} · Blog-Platform`;
   }
 
-  if (to.meta.guest && token) {
-    next("/home");
-    return;
-  }
+  if (to.meta.guest && token) { next("/home"); return; }
 
-  if (to.matched.some((record) => record.meta.requireAuth) && !token) {
+  if (to.matched.some(r => r.meta.requireAuth) && !token) {
     next({ path: "/login", query: { redirect: to.fullPath } });
     return;
   }
 
-  if (to.matched.some((record) => record.meta.requireAdmin)) {
-    if (userInfoStore.userInfo?.username !== "admin") {
+  if (to.matched.some(r => r.meta.requireAdmin)) {
+    const u = userInfoStore.userInfo;
+    if (!u || (u.username !== 'admin' && u.role !== 'admin')) {
       ElMessage.warning("权限不足，仅管理员可访问");
       next("/home");
       return;

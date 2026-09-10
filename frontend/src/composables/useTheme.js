@@ -31,7 +31,7 @@ export function useTheme() {
     { immediate: true }
   );
 
-  return { theme, isDark, toggle };
+  return { theme, isDark, toggle, toggleTheme: toggle };
 }
 
 export function initTheme(initial = "light") {
