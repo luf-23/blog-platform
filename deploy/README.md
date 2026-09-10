@@ -12,7 +12,9 @@ deploy/
 │   └── application.properties     # 服务器实际配置，不提交到 Git
 └── mysql-init/
     ├── 01_table.sql                # 初始化表结构
-    └── 02_data.sql                 # 初始化基础数据
+    ├── 02_export_data.sql.raw      # 数据备份（不含 article 表数据）
+    ├── 02_import.sh                # 以 binary mode 导入数据备份
+    └── 03_data.sql.disabled        # 已禁用的开发种子数据
 ```
 
 Compose 使用以下镜像：
@@ -28,14 +30,14 @@ Compose 使用以下镜像：
 
 ## 上传部署目录
 
-在本地项目根目录执行（将用户名和地址替换为服务器实际值）。为避免误上传本地密钥，首次部署建议只上传部署目录中的受版本控制文件：
+在本地项目根目录执行（将用户名和地址替换为服务器实际值）。为避免误上传本地密钥，首次部署请上传以下部署文件；数据备份 `02_export_data.sql.raw` 不纳入版本控制，需要自行准备并上传：
 
 ```bash
 ssh user@SERVER_IP "mkdir -p /opt/blog-platform"
 ssh user@SERVER_IP "mkdir -p /opt/blog-platform/deploy/backend-conf /opt/blog-platform/deploy/mysql-init"
 scp deploy/docker-compose.yml user@SERVER_IP:/opt/blog-platform/deploy/
 scp deploy/backend-conf/application.template user@SERVER_IP:/opt/blog-platform/deploy/backend-conf/
-scp deploy/mysql-init/01_table.sql deploy/mysql-init/02_data.sql user@SERVER_IP:/opt/blog-platform/deploy/mysql-init/
+scp deploy/mysql-init/01_table.sql deploy/mysql-init/02_export_data.sql.raw deploy/mysql-init/02_import.sh deploy/mysql-init/03_data.sql.disabled user@SERVER_IP:/opt/blog-platform/deploy/mysql-init/
 ```
 
 如果本地不存在 `deploy/backend-conf/application.properties`，也可以直接执行 `scp -r deploy user@SERVER_IP:/opt/blog-platform/` 上传整个目录；不要把含有真实密钥的本地配置文件上传到公共位置。
@@ -126,7 +128,9 @@ docker compose down
 
 ## 数据卷和初始化脚本
 
-MySQL 数据保存在 Docker 管理的 `mysql_data` 卷中，Redis 数据保存在 `redis_data` 卷中。初始化 SQL 只会在 MySQL 数据卷第一次创建且为空时执行；已有数据库再次执行 `up` 不会重复导入。修改初始化 SQL 后，如果确实需要重新初始化，必须先备份数据，再按需删除数据卷：
+MySQL 数据保存在 Docker 管理的 `mysql_data` 卷中，Redis 数据保存在 `redis_data` 卷中。MySQL 数据卷第一次创建且为空时，`01_table.sql` 先创建表结构，随后 `02_import.sh` 使用 `--binary-mode` 导入 `02_export_data.sql.raw` 中的数据备份。该备份已排除原第 27 行的 `article` 表数据，但仍包含用户、标签和分类等数据；不要同时启用 `03_data.sql.disabled`，否则会产生重复数据。后缀为 `.disabled` 和 `.raw` 的文件不会作为普通初始化 SQL 自动执行。
+
+已有数据库再次执行 `up` 不会重复初始化。修改初始化文件后，如果确实需要重新初始化，必须先备份数据，再删除数据卷：
 
 ```bash
 docker compose down

@@ -4,3 +4,4 @@
 /backend-conf/
 /.env
 /deploy/backend-conf/application.properties
+deploy/mysql-init/02_export_data.sql.raw
