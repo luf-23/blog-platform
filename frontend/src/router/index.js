@@ -71,7 +71,7 @@ const routes = [
             path: "my",
             name: "MyArticles",
             component: () => import("../views/article/ArticleList.vue"),
-            meta: { title: "我的博客" }
+            meta: { title: "内容管理" }
           },
           {
             path: "categories",

@@ -231,7 +231,7 @@ onMounted(() => {
             <button :class="{ active: mode === 'hot' }" @click="setMode('hot')">热门</button>
             <button :class="{ active: mode === 'latest' }" @click="setMode('latest')">最新</button>
             <button :class="{ active: mode === 'following' }" @click="setMode('following')">关注</button>
-            <span class="feed-count"><i v-if="refreshing" class="feed-spinner" aria-label="正在加载"></i>{{ total }} 篇文章</span>
+            <span class="feed-count"><i v-if="refreshing" class="feed-spinner" aria-label="正在加载"></i>· {{ total }} 篇文章</span>
           </header>
 
           <div v-if="keyword || selectedTags.length" class="filter-strip">

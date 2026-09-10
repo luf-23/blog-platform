@@ -12,7 +12,7 @@ deploy/
 │   └── application.properties     # 服务器实际配置，不提交到 Git
 └── mysql-init/
     ├── 01_table.sql                # 初始化表结构
-    ├── 02_export_data.sql.raw      # 数据备份（不含 article 表数据）
+    ├── 02_export_data.sql.raw      # 完整数据备份，文章记录已拆分导入
     ├── 02_import.sh                # 以 binary mode 导入数据备份
     └── 03_data.sql.disabled        # 已禁用的开发种子数据
 ```
@@ -127,7 +127,7 @@ docker compose down
 
 ## 数据卷和初始化脚本
 
-MySQL 数据保存在 Docker 管理的 `mysql_data` 卷中，Redis 数据保存在 `redis_data` 卷中。MySQL 数据卷第一次创建且为空时，`01_table.sql` 先创建表结构，随后 `02_import.sh` 使用 `--binary-mode` 导入 `02_export_data.sql.raw` 中的数据备份。该备份已排除原第 27 行的 `article` 表数据，但仍包含用户、标签和分类等数据；不要同时启用 `03_data.sql.disabled`，否则会产生重复数据。后缀为 `.disabled` 和 `.raw` 的文件不会作为普通初始化 SQL 自动执行。
+MySQL 数据保存在 Docker 管理的 `mysql_data` 卷中，Redis 数据保存在 `redis_data` 卷中。MySQL 数据卷第一次创建且为空时，`01_table.sql` 先创建表结构，随后 `02_import.sh` 使用 `--binary-mode` 导入 `02_export_data.sql.raw` 中的完整数据备份。备份中的 9 条 `article` 记录已拆分为独立 `INSERT`，避免单条超长扩展插入解析失败；备份还包含用户、标签和分类等数据，因此不要同时启用 `03_data.sql.disabled`，否则会产生重复数据。后缀为 `.disabled` 和 `.raw` 的文件不会作为普通初始化 SQL 自动执行。
 
 已有数据库再次执行 `up` 不会重复初始化。修改初始化文件后，如果确实需要重新初始化，必须先备份数据，再删除数据卷：
 
