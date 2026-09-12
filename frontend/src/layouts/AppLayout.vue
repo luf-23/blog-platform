@@ -117,7 +117,7 @@ watch(
 </script>
 
 <template>
-  <div class="app-layout">
+  <div class="app-layout" :class="{ 'app-layout--content': ['MyArticles', 'ArticleCategories'].includes(route.name) }">
     <header v-if="showTopbar" class="topbar" :class="`topbar--${headerMode}`">
       <div class="topbar__inner page-container">
         <router-link to="/home" class="topbar__brand" aria-label="Blog-Platform 首页">
@@ -223,6 +223,8 @@ watch(
 
 <style scoped>
 .app-layout { display: flex; height: 100%; flex-direction: column; overflow: hidden; }
+.app-layout--content { background: var(--c-surface); }
+.app-layout--content .topbar__inner { width: min(1440px, calc(100% - 96px)); }
 .topbar { --topbar-height: var(--nav-height); position: relative; z-index: 100; flex: 0 0 var(--topbar-height); border-bottom: 1px solid var(--c-border-strong); background: color-mix(in srgb, var(--c-surface) 94%, transparent); backdrop-filter: blur(14px); }
 .topbar--compact { --topbar-height: 56px; border-bottom-color: var(--c-border); background: color-mix(in srgb, var(--c-surface) 97%, transparent); }
 .topbar__inner { display: flex; height: var(--topbar-height); align-items: center; gap: 28px; }
@@ -268,6 +270,7 @@ watch(
 .mobile-nav a.router-link-active { background: var(--c-primary-soft); color: var(--c-primary); }
 
 @media (max-width: 900px) {
+  .app-layout--content .topbar__inner { width: calc(100% - 48px); }
   .topbar__nav { display: none; }
   .mobile-toggle, .mobile-nav { display: flex; }
   .mobile-nav { flex-direction: column; }
@@ -275,6 +278,7 @@ watch(
 }
 
 @media (max-width: 620px) {
+  .app-layout--content .topbar__inner { width: calc(100% - 32px); }
   .topbar__inner { gap: 12px; }
   .topbar__context { max-width: 120px; padding-left: 12px; }
   .write-button { width: 40px; padding: 0; justify-content: center; }

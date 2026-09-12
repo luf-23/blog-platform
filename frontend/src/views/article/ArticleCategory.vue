@@ -3,86 +3,80 @@
     <header class="categories-head">
       <div class="categories-heading">
         <h1>文章分组</h1>
-        <p>创建和管理个人文章分组。</p>
+        <p>{{ loading ? '正在加载分组…' : loadFailed ? '管理你的个人文章分组' : `共 ${categories.length} 个分组 · 已归类 ${totalArticleCount} 篇文章` }}</p>
       </div>
       <div class="head-actions">
-        <router-link to="/article/my" class="secondary-action">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m15 18-6-6 6-6"/></svg>
-          返回内容管理
-        </router-link>
-        <button class="primary-action" @click="openCreate">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14M5 12h14"/></svg>
-          新建分组
-        </button>
+        <router-link to="/article/my" class="secondary-action"><el-icon><ArrowLeft /></el-icon>返回内容管理</router-link>
+        <button class="primary-action" @click="openCreate"><el-icon><Plus /></el-icon>新建分组</button>
       </div>
     </header>
 
-    <section class="category-overview" aria-label="分组概览">
-      <article class="overview-card">
-        <span>分组数量</span>
-        <strong>{{ categories.length }}</strong>
-        <p>个文章分组</p>
-        <i class="tone-blue"></i>
-      </article>
-      <article class="overview-card">
-        <span>已归类文章</span>
-        <strong>{{ totalArticleCount }}</strong>
-        <p>篇文章已有归属</p>
-        <i class="tone-green"></i>
-      </article>
-      <aside class="organize-note">
-        <div class="note-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H10l2 2h5.5A2.5 2.5 0 0 1 20 7.5v9a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 16.5Z"/><path d="M8 10h8M8 14h5"/></svg>
-        </div>
-        <div><strong>个人分组</strong><p>只用于整理自己的文章，不影响平台公共标签。</p></div>
-      </aside>
-    </section>
-
-    <section class="category-panel">
+    <section class="category-panel" aria-label="我的分组" :aria-busy="loading">
       <header class="panel-head">
-        <div><h2>我的分组</h2><span>{{ categories.length }} 个分组</span></div>
-        <p>用于文章筛选和归类</p>
+        <h2>全部分组<span>{{ loading || loadFailed ? '—' : categories.length }}</span></h2>
+        <p>个人分组，仅用于整理自己的文章</p>
       </header>
-
-      <div v-if="loading" class="panel-state">
-        <span class="category-spinner" aria-hidden="true"></span>
-        <span>正在加载分组…</span>
+      <div class="library-toolbar">
+        <label class="search-field">
+          <el-icon><Search /></el-icon>
+          <input v-model="keyword" aria-label="搜索分组名称或描述" placeholder="搜索分组名称或描述" />
+          <button v-if="keyword" aria-label="清空搜索" @click="keyword = ''">×</button>
+        </label>
+        <el-select v-model="sortOrder" aria-label="分组排序" class="sort-filter">
+          <el-option label="最近更新" value="updated" />
+          <el-option label="最新创建" value="created" />
+          <el-option label="文章最多" value="articles" />
+        </el-select>
+      </div>
+      <div v-if="keyword.trim() && !loading && !loadFailed" class="filter-feedback" role="status">
+        <span>找到 {{ visibleCategories.length }} 个分组</span><button @click="keyword = ''">清除筛选</button>
       </div>
 
-      <div v-else-if="categories.length === 0" class="panel-state empty-state">
-        <div class="empty-visual" aria-hidden="true"><i></i></div>
-        <div><strong>还没有文章分组</strong><p>创建分组后，写文章时可以选择它。</p><button @click="openCreate">新建分组</button></div>
+      <div v-if="loading" class="panel-state loading-state" role="status">
+        <span class="category-spinner" aria-hidden="true"></span><span>正在加载分组…</span>
+      </div>
+      <div v-else-if="loadFailed" class="panel-state" role="status">
+        <el-icon class="state-icon"><Folder /></el-icon><strong>分组暂时未能加载</strong><p>请稍后重试。</p><button @click="fetchCategories">重新加载</button>
       </div>
 
-      <div v-else class="category-list">
-        <article v-for="(cat, index) in categories" :key="cat.categoryId" class="category-row">
-          <div class="cat-cover" :class="{ fallback: !showCategoryCover(cat) }">
-            <img v-if="showCategoryCover(cat)" :src="cat.coverImage" :alt="`${cat.categoryName}封面`" @error="markCoverFailed(cat.categoryId)" />
-            <template v-else><strong>{{ cat.categoryName?.slice(0, 1) || '组' }}</strong><span>{{ String(index + 1).padStart(2, '0') }}</span></template>
-          </div>
-          <div class="cat-copy">
-            <h3>{{ cat.categoryName }}</h3>
-            <p>{{ cat.categoryDescription || '未填写描述' }}</p>
-            <small>更新于 {{ formatDate(cat.updateTime || cat.createTime) }}</small>
-          </div>
-          <div class="cat-count"><strong>{{ cat.articleCount || 0 }}</strong><span>篇文章</span></div>
-          <div class="cat-actions">
-            <router-link :to="{ path: '/article/my', query: { categoryId: cat.categoryId } }" class="view-action">
-              查看内容
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m9 18 6-6-6-6"/></svg>
-            </router-link>
-            <button class="edit-action" @click="startEdit(cat)">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg>
-              编辑
-            </button>
-            <button class="delete-action" :aria-label="`删除分组 ${cat.categoryName}`" @click="deleteCategory(cat)">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M9 7V4h6v3M6 7l1 14h10l1-14M10 11v6M14 11v6"/></svg>
-            </button>
-          </div>
-        </article>
+      <table v-else-if="visibleCategories.length" class="category-table" aria-label="文章分组列表">
+        <colgroup><col /><col class="count-col" /><col class="date-col" /><col class="actions-col" /></colgroup>
+        <thead><tr><th scope="col">分组</th><th scope="col">文章数量</th><th scope="col">更新时间</th><th scope="col">操作</th></tr></thead>
+        <tbody>
+          <tr v-for="cat in visibleCategories" :key="cat.categoryId" class="category-row">
+            <td class="category-main">
+              <div class="category-identity">
+                <router-link :to="categoryLink(cat)" class="cat-cover" :class="{ fallback: !showCategoryCover(cat) }" :aria-label="`查看分组：${cat.categoryName}`">
+                  <img v-if="showCategoryCover(cat)" :src="cat.coverImage" alt="" loading="lazy" @error="markCoverFailed(cat.categoryId)" />
+                  <span v-else aria-hidden="true">{{ cat.categoryName?.slice(0, 1) || '组' }}</span>
+                </router-link>
+                <div class="cat-copy">
+                  <router-link :to="categoryLink(cat)" class="cat-title" :title="cat.categoryName">{{ cat.categoryName }}</router-link>
+                  <p :title="cat.categoryDescription">{{ cat.categoryDescription || '暂无描述' }}</p>
+                </div>
+              </div>
+            </td>
+            <td class="cat-count"><span>{{ cat.articleCount || 0 }}</span><span class="mobile-count-label"> 篇文章</span></td>
+            <td class="cat-date"><span class="mobile-date-label">更新于 </span>{{ formatDate(cat.updateTime || cat.createTime) }}</td>
+            <td class="category-actions">
+              <div class="cat-actions">
+                <router-link :to="categoryLink(cat)">查看内容</router-link>
+                <button :aria-label="`编辑分组：${cat.categoryName}`" @click="startEdit(cat)">编辑</button>
+                <button class="delete-action" :aria-label="`删除分组：${cat.categoryName}`" title="删除分组" @click="deleteCategory(cat)"><el-icon><Delete /></el-icon></button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div v-else-if="keyword.trim()" class="panel-state" role="status">
+        <el-icon class="state-icon"><Search /></el-icon><strong>没有匹配的分组</strong><p>试试其他关键词，或清除筛选查看全部分组。</p><button @click="keyword = ''">清除筛选</button>
       </div>
+      <div v-else class="panel-state">
+        <el-icon class="state-icon"><Folder /></el-icon><strong>还没有文章分组</strong><p>创建分组后，写文章时可以选择它。</p><button @click="openCreate"><el-icon><Plus /></el-icon>新建分组</button>
+      </div>
+      <footer v-if="visibleCategories.length && !loading && !loadFailed" class="library-footer">共 {{ visibleCategories.length }} 个分组</footer>
     </section>
-
     <el-dialog v-model="showAddDialog" :title="editingCat ? '编辑分组' : '新建分组'" width="440px" :close-on-click-modal="false" @closed="resetForm">
       <el-form ref="formRef" :model="form" :rules="formRules" label-position="top">
         <el-form-item label="分组名称" prop="categoryName">
@@ -122,6 +116,7 @@
 <script setup>
 import { computed, ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { ArrowLeft, Delete, Folder, Plus, Search } from '@element-plus/icons-vue'
 import { getCategoryListService, addCategoryService, updateCategoryService, deleteCategoryService } from '../../api/category.js'
 import UploadImageDialog from '../../components/common/UploadImageDialog.vue'
 import { useUserInfoStore } from '../../store/userInfo.js'
@@ -129,6 +124,9 @@ import { OSSClient, uploadImageToOss } from '../../utils/oss/index.js'
 
 const categories = ref([])
 const loading = ref(false)
+const loadFailed = ref(false)
+const keyword = ref('')
+const sortOrder = ref('updated')
 const saving = ref(false)
 const uploadingCover = ref(false)
 const coverUploadVisible = ref(false)
@@ -138,6 +136,20 @@ const failedCategoryCovers = ref(new Set())
 const formRef = ref()
 const userInfoStore = useUserInfoStore()
 const totalArticleCount = computed(() => categories.value.reduce((total, category) => total + Number(category.articleCount || 0), 0))
+const visibleCategories = computed(() => {
+  const query = keyword.value.trim().toLocaleLowerCase()
+  return categories.value.filter(category => !query ||
+    `${category.categoryName || ''} ${category.categoryDescription || ''}`.toLocaleLowerCase().includes(query)
+  ).sort((a, b) => {
+    if (sortOrder.value === 'articles') return Number(b.articleCount || 0) - Number(a.articleCount || 0)
+    const dateValue = category => {
+      const value = sortOrder.value === 'created' ? category.createTime : category.updateTime || category.createTime
+      return new Date(value || 0).getTime() || 0
+    }
+    return dateValue(b) - dateValue(a)
+  })
+})
+const categoryLink = category => ({ path: '/article/my', query: { categoryId: category.categoryId } })
 
 const form = reactive({ categoryName: '', categoryDescription: '', coverImage: '' })
 const formRules = {
@@ -146,9 +158,13 @@ const formRules = {
 
 async function fetchCategories() {
   loading.value = true
+  loadFailed.value = false
   try {
     const res = await getCategoryListService()
     categories.value = res.data || []
+    failedCategoryCovers.value = new Set()
+  } catch {
+    loadFailed.value = true
   } finally { loading.value = false }
 }
 
@@ -244,107 +260,122 @@ function markCoverFailed(categoryId) {
 }
 
 function formatDate(value) {
-  if (!value) return '—'
-  return new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: 'short', day: 'numeric' }).format(new Date(value))
+  if (!value || Number.isNaN(new Date(value).getTime())) return '—'
+  return new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(value))
 }
 
 onMounted(fetchCategories)
 </script>
 
 <style scoped>
-.categories-page { padding-top: 20px; padding-bottom: 52px; }
-.categories-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 22px; }
-.categories-heading { transform: translateY(-6px); }
-.categories-heading > span { color: var(--c-primary); font-size: 10px; font-weight: 900; letter-spacing: .16em; }
-.categories-heading h1 { margin-top: 4px; color: var(--c-text); font-size: 24px; font-weight: 850; line-height: 1.35; letter-spacing: -.025em; }
-.categories-heading p { margin-top: 4px; color: var(--c-text-3); font-size: 13px; }
-.head-actions { display: flex; flex: 0 0 auto; gap: 8px; transform: translateY(-6px); }
-.head-actions a, .head-actions button { display: inline-flex; height: 40px; align-items: center; gap: 7px; padding: 0 15px; border: 1px solid var(--c-border-strong); border-radius: var(--radius-sm); background: var(--c-surface); color: var(--c-text-2); font-size: 12px; font-weight: 800; }
-.head-actions svg { width: 16px; height: 16px; }
-.head-actions .primary-action { border-color: var(--c-primary); background: var(--c-primary); color: #fff; box-shadow: 0 8px 18px rgba(var(--c-primary-rgb), .16); }
-.head-actions .primary-action:hover { background: var(--c-primary-hover); }
-.head-actions .secondary-action:hover { border-color: var(--c-primary); color: var(--c-primary); }
-
-.category-overview { display: grid; grid-template-columns: 190px 190px minmax(360px, 1fr); gap: 10px; margin-bottom: 14px; }
-.overview-card { position: relative; min-height: 112px; padding: 16px 17px; overflow: hidden; border: 1px solid var(--c-border); border-radius: var(--radius); background: var(--c-surface); box-shadow: var(--shadow-xs); }
-.overview-card > span { color: var(--c-text-3); font-size: 11px; font-weight: 700; }
-.overview-card strong { display: block; margin: 7px 0 2px; color: var(--c-text); font-size: 29px; line-height: 1; }
-.overview-card p { color: var(--c-text-4); font-size: 10px; }
-.overview-card i { position: absolute; top: 16px; right: 16px; width: 7px; height: 7px; border-radius: 50%; box-shadow: 0 0 0 5px var(--c-primary-soft); }
-.overview-card .tone-blue { background: var(--c-primary); }
-.overview-card .tone-green { background: var(--c-success); box-shadow: 0 0 0 5px var(--c-success-soft); }
-.organize-note { display: flex; min-width: 0; align-items: center; gap: 16px; padding: 17px 20px; border: 1px solid color-mix(in srgb, var(--c-primary) 18%, var(--c-border)); border-radius: var(--radius); background: linear-gradient(120deg, var(--c-surface), var(--c-primary-soft)); }
-.note-icon { display: grid; width: 50px; height: 50px; flex: 0 0 auto; place-items: center; border: 1px solid color-mix(in srgb, var(--c-primary) 25%, var(--c-border)); border-radius: var(--radius); background: var(--c-surface); color: var(--c-primary); }
-.note-icon svg { width: 24px; height: 24px; }
-.organize-note div:last-child { min-width: 0; }
-.organize-note span { color: var(--c-primary); font-size: 8px; font-weight: 900; letter-spacing: .14em; }
-.organize-note strong { display: block; margin: 3px 0 2px; overflow: hidden; color: var(--c-text); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
-.organize-note p { color: var(--c-text-3); font-size: 10px; }
-
-.category-panel { overflow: hidden; border: 1px solid var(--c-border); border-radius: var(--radius-lg); background: var(--c-surface); box-shadow: var(--shadow-xs); }
-.panel-head { display: flex; min-height: 66px; align-items: center; justify-content: space-between; gap: 18px; padding: 0 20px; border-bottom: 1px solid var(--c-border); }
-.panel-head > div { display: flex; align-items: baseline; gap: 9px; }
-.panel-head h2 { font-size: 16px; }
-.panel-head span, .panel-head p { color: var(--c-text-4); font-size: 10px; }
-.panel-state { display: flex; min-height: 300px; align-items: center; justify-content: center; flex-direction: column; gap: 9px; color: var(--c-text-4); font-size: 11px; }
-.category-spinner { width: 18px; height: 18px; border: 2px solid var(--c-border-strong); border-top-color: var(--c-primary); border-radius: 50%; animation: category-spin .7s linear infinite; }
-.category-list { display: flex; flex-direction: column; }
-.category-row { display: grid; min-height: 118px; grid-template-columns: 136px minmax(0, 1fr) 100px auto; align-items: center; gap: 18px; padding: 14px 20px; border-bottom: 1px solid var(--c-border-light); transition: background var(--transition); }
-.category-row:last-child { border-bottom: 0; }
+.categories-page { width: min(1440px, calc(100% - 96px)); padding: 44px 0 40px; }
+.categories-head { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-bottom: 28px; }
+.categories-heading h1 { color: var(--c-text); font-size: 30px; line-height: 1.4; font-weight: 700; letter-spacing: -.035em; }
+.categories-heading p { margin-top: 8px; color: var(--c-text-3); font-size: 13px; }
+.head-actions { display: flex; flex-shrink: 0; gap: 12px; }
+.head-actions a, .head-actions button { display: inline-flex; height: 40px; align-items: center; justify-content: center; gap: 8px; padding: 0 17px; border: 1px solid var(--c-border-strong); border-radius: 3px; background: transparent; color: var(--c-text-2); font-size: 13px; transition: border-color var(--transition), background var(--transition); }
+.head-actions a:hover { border-color: var(--c-text-3); background: var(--c-surface-2); }
+.head-actions .primary-action { border-color: var(--c-primary); background: var(--c-primary); color: #fff; }
+.head-actions .primary-action:hover { border-color: var(--c-primary-hover); background: var(--c-primary-hover); }
+.head-actions .el-icon { font-size: 16px; }
+.panel-head { display: flex; align-items: center; justify-content: space-between; gap: 20px; border-bottom: 1px solid var(--c-border); }
+.panel-head h2 { display: flex; align-items: center; gap: 8px; padding: 13px 4px 15px; margin-bottom: -1px; border-bottom: 2px solid var(--c-primary); color: var(--c-primary); font-size: 14px; font-weight: 400; white-space: nowrap; }
+.panel-head h2 span { font-size: 12px; font-variant-numeric: tabular-nums; }
+.panel-head p { color: var(--c-text-3); font-size: 12px; }
+.library-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 22px 0; }
+.search-field { display: flex; width: 360px; min-width: 0; height: 38px; align-items: center; gap: 10px; padding: 0 12px; border: 1px solid var(--c-border-strong); border-radius: 3px; color: var(--c-text-3); }
+.search-field:focus-within { border-color: var(--c-primary); outline: 1px solid var(--c-primary); }
+.search-field .el-icon { flex-shrink: 0; font-size: 16px; }
+.search-field input { width: 100%; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--c-text); font-size: 13px; }
+.search-field input::placeholder { color: var(--c-text-3); }
+.search-field button { flex-shrink: 0; padding: 0 3px; border: 0; background: transparent; color: var(--c-text-3); font-size: 20px; }
+.sort-filter { width: 144px; flex-shrink: 0; }
+.sort-filter :deep(.el-select__wrapper) { min-height: 38px; border-radius: 3px; background: var(--c-surface); font-size: 13px; box-shadow: 0 0 0 1px var(--c-border-strong) inset; }
+.sort-filter :deep(.el-select__selected-item) { color: var(--c-text-2); }
+.sort-filter :deep(.el-select__wrapper.is-focused) { box-shadow: 0 0 0 1px var(--c-primary) inset; }
+.filter-feedback { display: flex; align-items: center; gap: 14px; margin: -8px 0 16px; color: var(--c-text-3); font-size: 12px; }
+.filter-feedback button { padding: 0; border: 0; background: transparent; color: var(--c-primary); }
+.category-table { width: 100%; border-collapse: collapse; table-layout: fixed; text-align: left; }
+.count-col { width: 14%; }
+.date-col { width: 18%; }
+.actions-col { width: 180px; }
+.category-table th { padding: 12px 16px; border-block: 1px solid var(--c-border); color: var(--c-text-3); font-size: 13px; font-weight: 400; }
+.category-table td { height: 96px; padding: 14px 16px; border-bottom: 1px solid var(--c-border); color: var(--c-text-3); font-size: 13px; vertical-align: middle; }
+.category-table th:first-child, .category-table td:first-child { padding-left: 12px; }
+.category-table th:last-child, .category-table td:last-child { padding-right: 12px; }
+.category-row { transition: background var(--transition); }
 .category-row:hover { background: var(--c-surface-2); }
-.cat-cover { position: relative; width: 136px; aspect-ratio: 16 / 9; overflow: hidden; border: 1px solid var(--c-border); border-radius: 8px; background: var(--c-surface-3); }
-.cat-cover img { width: 100%; height: 100%; object-fit: cover; transition: transform var(--transition); }.category-row:hover .cat-cover img { transform: scale(1.035); }
-.cat-cover.fallback { display: grid; place-items: center; background: linear-gradient(135deg, var(--c-primary-soft), var(--c-surface-3)); color: var(--c-primary); }.cat-cover.fallback strong { font-size: 24px; }.cat-cover.fallback span { position: absolute; right: 7px; bottom: 5px; color: var(--c-text-4); font: 700 8px ui-monospace, Consolas, monospace; }
+.category-identity { display: flex; align-items: center; gap: 20px; min-width: 0; }
+.cat-cover { display: grid; width: 88px; height: 60px; flex: 0 0 88px; place-items: center; overflow: hidden; border-radius: 2px; background: var(--c-surface-3); }
+.cat-cover img { width: 100%; height: 100%; object-fit: cover; }
+.cat-cover.fallback { color: var(--c-text-3); font-size: 24px; font-weight: 500; }
 .cat-copy { min-width: 0; }
-.cat-copy h3 { overflow: hidden; color: var(--c-text); font-size: 14px; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
-.cat-copy p { display: -webkit-box; margin-top: 5px; overflow: hidden; color: var(--c-text-3); font-size: 11px; line-height: 1.6; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }.cat-copy small { display: block; margin-top: 6px; color: var(--c-text-4); font-size: 9px; }
-.cat-count { display: flex; flex-direction: column; }
-.cat-count strong { color: var(--c-text); font-size: 17px; line-height: 1.1; }
-.cat-count span { margin-top: 3px; color: var(--c-text-4); font-size: 9px; }
-.cat-actions { display: flex; align-items: center; gap: 6px; }
-.cat-actions a, .cat-actions button { display: inline-flex; height: 32px; align-items: center; justify-content: center; gap: 4px; padding: 0 10px; border: 1px solid var(--c-border); border-radius: var(--radius-sm); background: var(--c-surface); color: var(--c-text-2); font-size: 10px; font-weight: 700; transition: all var(--transition); }
-.cat-actions svg { width: 14px; height: 14px; }
-.cat-actions .view-action { border-color: color-mix(in srgb, var(--c-primary) 30%, var(--c-border)); color: var(--c-primary); }
-.cat-actions .view-action:hover { border-color: var(--c-primary); background: var(--c-primary); color: #fff; }
-.cat-actions .edit-action:hover { border-color: var(--c-primary); color: var(--c-primary); }
-.cat-actions .delete-action { width: 32px; padding: 0; color: var(--c-text-4); }
-.cat-actions .delete-action:hover { border-color: var(--c-danger); color: var(--c-danger); }
-
-.empty-state { display: grid; min-height: 340px; grid-template-columns: 150px minmax(0, 380px); gap: 38px; }
-.empty-visual { position: relative; display: grid; width: 150px; height: 150px; place-items: center; border: 1px solid var(--c-border); background: var(--c-surface-2); }
-.empty-visual::before { position: absolute; inset: 9px; border: 1px solid var(--c-border-light); content: ''; }
-.empty-visual span { position: absolute; top: 16px; left: 17px; color: var(--c-text-4); font-size: 9px; }
-.empty-visual i { width: 48px; height: 1px; background: var(--c-primary); transform: rotate(-35deg); }
-.empty-visual b { position: absolute; right: 15px; bottom: 14px; color: var(--c-text-2); font-size: 10px; letter-spacing: .14em; }
-.empty-state > div:last-child > span { color: var(--c-primary); font-size: 8px; font-weight: 900; letter-spacing: .14em; }
-.empty-state strong { display: block; margin: 7px 0; color: var(--c-text); font-size: 20px; }
-.empty-state p { color: var(--c-text-3); font-size: 11px; line-height: 1.75; }
-.empty-state button { padding: 0; border: 0; margin-top: 16px; background: transparent; color: var(--c-primary); font-size: 11px; font-weight: 800; }
-.cover-field { width: 100%; }.cover-field > small { display: block; margin-top: 7px; color: var(--c-text-4); font-size: 10px; }.cover-field-actions { display: flex; gap: 8px; }.cover-form-preview { width: 100%; aspect-ratio: 16 / 9; overflow: hidden; border: 1px solid var(--c-border); border-radius: 7px; margin-bottom: 8px; background: var(--c-surface-2); }.cover-form-preview img { width: 100%; height: 100%; object-fit: contain; }
+.cat-title { display: block; overflow: hidden; color: var(--c-text); font-size: 16px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.cat-title:hover { color: var(--c-primary); }
+.cat-copy p { overflow: hidden; margin-top: 4px; color: var(--c-text-3); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.cat-count, .cat-date { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.mobile-count-label, .mobile-date-label { display: none; }
+.cat-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.cat-actions a, .cat-actions button { display: inline-flex; min-height: 30px; align-items: center; justify-content: center; padding: 0; border: 0; background: transparent; color: var(--c-primary); font-size: 12px; white-space: nowrap; }
+.cat-actions a:hover, .cat-actions button:hover { text-decoration: underline; }
+.cat-actions .delete-action { width: 28px; flex-shrink: 0; color: var(--c-text-3); font-size: 16px; }
+.cat-actions .delete-action:hover { color: var(--c-danger); }
+.library-footer { padding-top: 22px; color: var(--c-text-3); font-size: 12px; }
+.panel-state { display: flex; min-height: 320px; align-items: center; justify-content: center; flex-direction: column; padding: 32px 20px; border-block: 1px solid var(--c-border); text-align: center; }
+.state-icon { margin-bottom: 16px; color: var(--c-text-3); font-size: 28px; }
+.panel-state strong { color: var(--c-text); font-size: 17px; font-weight: 600; }
+.panel-state p { margin: 8px 0 18px; color: var(--c-text-3); font-size: 13px; }
+.panel-state > button { display: inline-flex; align-items: center; gap: 7px; padding: 8px 15px; border: 1px solid var(--c-primary); border-radius: 3px; background: transparent; color: var(--c-primary); font-size: 13px; }
+.loading-state { gap: 12px; color: var(--c-text-3); font-size: 13px; }
+.category-spinner { width: 22px; height: 22px; border: 2px solid var(--c-border-strong); border-top-color: var(--c-primary); border-radius: 50%; animation: category-spin .7s linear infinite; }
+.categories-page button:focus-visible, .categories-page a:focus-visible { outline: 2px solid var(--c-primary); outline-offset: 3px; }
+.cover-field { width: 100%; }
+.cover-field > small { display: block; margin-top: 7px; color: var(--c-text-3); font-size: 12px; }
+.cover-field-actions { display: flex; gap: 8px; }
+.cover-form-preview { width: 100%; aspect-ratio: 16 / 9; overflow: hidden; border: 1px solid var(--c-border); border-radius: 3px; margin-bottom: 8px; background: var(--c-surface-2); }
+.cover-form-preview img { width: 100%; height: 100%; object-fit: cover; }
+.categories-page :deep(.el-dialog) { max-width: calc(100vw - 32px); }
 @keyframes category-spin { to { transform: rotate(360deg); } }
-
 @media (max-width: 900px) {
-  .category-overview { grid-template-columns: repeat(2, 1fr); }
-  .organize-note { grid-column: 1 / -1; }
-  .category-row { grid-template-columns: 112px minmax(0, 1fr) auto; }
-  .cat-cover { width: 112px; }
-  .cat-count { display: none; }
+  .categories-page { width: calc(100% - 48px); padding-top: 32px; }
+  .category-table, .category-table tbody { display: block; }
+  .category-table colgroup, .category-table thead { display: none; }
+  .category-table { border-top: 1px solid var(--c-border); }
+  .category-row { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 10px 18px; padding: 20px 0; border-bottom: 1px solid var(--c-border); }
+  .category-table td { display: block; min-width: 0; height: auto; padding: 0; border: 0; }
+  .category-main { grid-column: 1 / -1; }
+  .cat-count { grid-column: 1; }
+  .cat-date { grid-column: 1; font-size: 12px !important; }
+  .category-actions { grid-column: 2; grid-row: 2 / 4; align-self: end; }
+  .category-identity { gap: 14px; }
+  .mobile-count-label, .mobile-date-label { display: inline; }
+  .cat-actions { gap: 18px; }
+  .cat-actions a, .cat-actions button { min-height: 34px; }
 }
-
 @media (max-width: 620px) {
-  .categories-page { width: calc(100% - 24px); padding-top: 14px; }
-  .categories-heading { transform: none; }
-  .head-actions { transform: none; }
-  .categories-heading h1 { font-size: 22px; }
-  .categories-head { align-items: stretch; flex-direction: column; }
-  .head-actions a, .head-actions button { flex: 1; justify-content: center; }
-  .category-overview { grid-template-columns: repeat(2, 1fr); }
-  .organize-note { display: none; }
-  .panel-head p { display: none; }
-  .category-row { grid-template-columns: 86px minmax(0, 1fr); gap: 12px; padding: 14px; }
-  .cat-cover { width: 86px; }
-  .cat-actions { grid-column: 1 / -1; justify-content: flex-end; }
-  .empty-state { grid-template-columns: 1fr; padding: 34px 22px; text-align: center; }
-  .empty-visual { margin: 0 auto; }
+  .categories-page { width: calc(100% - 32px); padding-top: 24px; }
+  .categories-head { align-items: flex-start; flex-direction: column; gap: 20px; margin-bottom: 20px; }
+  .categories-heading h1 { font-size: 26px; }
+  .head-actions { width: 100%; }
+  .head-actions a, .head-actions button { flex: 1; padding-inline: 10px; }
+  .panel-head { align-items: flex-start; flex-direction: column; gap: 0; }
+  .panel-head h2 { order: 1; }
+  .panel-head p { padding-bottom: 4px; font-size: 11px; }
+  .library-toolbar { gap: 12px; padding: 18px 0; }
+  .search-field { flex: 1; padding-inline: 9px; gap: 6px; }
+  .sort-filter { width: 112px; }
+  .cat-cover { width: 72px; height: 54px; flex-basis: 72px; }
+  .cat-title { font-size: 15px; }
+  .cat-actions { gap: 12px; }
+}
+@media (max-width: 380px) {
+  .library-toolbar { align-items: stretch; flex-direction: column; }
+  .search-field, .sort-filter { width: 100%; flex: auto; }
+  .category-actions { grid-column: 1 / -1; grid-row: auto; }
+  .cat-actions { justify-content: flex-end; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .categories-page *, .categories-page *::before, .categories-page *::after { transition: none !important; }
+  .category-spinner { animation: none; }
 }
 </style>
