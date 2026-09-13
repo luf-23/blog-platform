@@ -127,11 +127,14 @@ onMounted(() => Promise.all([fetchArticles(), fetchCategories()]))
         <button v-for="item in statusOptions" :key="item.value" :class="{ active: filters.status === item.value }" :aria-pressed="filters.status === item.value" @click="selectStatus(item.value)">{{ item.label }}<span>{{ loading || loadFailed ? '?' : item.count }}</span></button>
       </nav>
       <div class="library-toolbar">
-        <label class="search-field">
-          <el-icon><Search /></el-icon>
-          <input v-model="filters.title" aria-label="搜索标题或摘要" placeholder="搜索标题或摘要" />
-          <button v-if="filters.title" aria-label="清空搜索" @click="filters.title = ''">×</button>
-        </label>
+        <div class="search-tools">
+          <label class="search-field">
+            <el-icon><Search /></el-icon>
+            <input v-model="filters.title" aria-label="搜索标题或摘要" placeholder="搜索标题或摘要" />
+            <button v-if="filters.title" aria-label="清空搜索" @click="filters.title = ''">×</button>
+          </label>
+          <div v-if="hasActiveFilters && !loading && !loadFailed" class="filter-feedback" role="status"><span>找到 {{ visibleArticles.length }} 篇文章</span><button @click="clearFilters">清除筛选</button></div>
+        </div>
         <div class="filter-row">
           <el-select v-model="filters.categoryId" placeholder="全部文章分组" aria-label="文章分组" clearable class="category-filter">
             <el-option v-for="category in categories" :key="category.categoryId" :label="category.categoryName" :value="category.categoryId" />
@@ -143,7 +146,6 @@ onMounted(() => Promise.all([fetchArticles(), fetchCategories()]))
           </el-select>
         </div>
       </div>
-      <div v-if="hasActiveFilters && !loading && !loadFailed" class="filter-feedback" role="status"><span>找到 {{ visibleArticles.length }} 篇文章</span><button @click="clearFilters">清除筛选</button></div>
 
       <div v-if="loading" class="panel-state loading-state" role="status"><span class="content-spinner" aria-hidden="true"></span><span>正在加载文章…</span></div>
       <div v-else-if="loadFailed" class="panel-state" role="status"><el-icon class="state-icon"><Document /></el-icon><strong>文章暂时未能加载</strong><p>请稍后重试。</p><button @click="fetchArticles">重新加载</button></div>
@@ -182,8 +184,8 @@ onMounted(() => Promise.all([fetchArticles(), fetchCategories()]))
             <td class="article-actions">
               <div class="row-actions">
                 <button class="edit-action" :aria-label="`编辑文章：${article.title || '无标题文章'}`" @click="editArticle(article)">编辑</button>
-                <button class="delete-action" :aria-label="`删除文章：${article.title || '无标题文章'}`" title="删除文章" @click="deleteArticle(article)"><el-icon><Delete /></el-icon></button>
                 <button v-if="article.status === 'draft'" class="submit-action" @click="submitForReview(article)">提交审核</button>
+                <button class="delete-action" :aria-label="`删除文章：${article.title || '无标题文章'}`" title="删除文章" @click="deleteArticle(article)"><el-icon><Delete /></el-icon></button>
               </div>
             </td>
           </tr>
@@ -202,10 +204,11 @@ onMounted(() => Promise.all([fetchArticles(), fetchCategories()]))
 </template>
 
 <style scoped>
-.content-page { width: min(1440px, calc(100% - 96px)); padding: 44px 0 40px; }
+.content-page { width: min(1440px, calc(100% - 96px)); padding: 20px 0 40px; }
 .content-head { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-bottom: 28px; }
+.content-heading { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 16px; min-width: 0; }
 .content-heading h1 { color: var(--c-text); font-size: 30px; line-height: 1.4; font-weight: 700; letter-spacing: -.035em; }
-.content-heading p { margin-top: 8px; color: var(--c-text-3); font-size: 13px; }
+.content-heading p { color: var(--c-text-3); font-size: 13px; }
 .head-actions { display: flex; flex-shrink: 0; gap: 12px; }
 .head-actions a { display: inline-flex; height: 40px; align-items: center; justify-content: center; gap: 8px; padding: 0 17px; border: 1px solid var(--c-border-strong); border-radius: 3px; background: transparent; color: var(--c-text-2); font-size: 13px; transition: border-color var(--transition), background var(--transition); }
 .head-actions a:hover { border-color: var(--c-text-3); background: var(--c-surface-2); }
@@ -217,28 +220,29 @@ onMounted(() => Promise.all([fetchArticles(), fetchCategories()]))
 .status-tabs > button span { color: var(--c-text-3); font-size: 12px; font-variant-numeric: tabular-nums; }
 .status-tabs > button:hover, .status-tabs > button.active, .status-tabs > button.active span { color: var(--c-primary); }
 .status-tabs > button.active { border-bottom-color: var(--c-primary); }
-.library-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 22px 0; }
+.library-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 16px 24px; padding: 22px 0; }
+.search-tools { display: flex; flex: 1 1 520px; min-width: 0; align-items: center; flex-wrap: wrap; gap: 12px 20px; }
 .search-field { display: flex; width: 360px; min-width: 0; height: 38px; align-items: center; gap: 10px; padding: 0 12px; border: 1px solid var(--c-border-strong); border-radius: 3px; color: var(--c-text-3); }
 .search-field:focus-within { border-color: var(--c-primary); outline: 1px solid var(--c-primary); }
 .search-field .el-icon { flex-shrink: 0; font-size: 16px; }
 .search-field input { width: 100%; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--c-text); font-size: 13px; }
 .search-field input::placeholder { color: var(--c-text-3); }
 .search-field button { flex-shrink: 0; padding: 0 3px; border: 0; background: transparent; color: var(--c-text-3); font-size: 20px; }
-.filter-row { display: flex; gap: 12px; }
+.filter-row { display: flex; flex-shrink: 0; gap: 12px; margin-left: auto; }
 .category-filter { width: 168px; }
 .sort-filter { width: 144px; }
 .filter-row :deep(.el-select__wrapper) { min-height: 38px; border-radius: 3px; background: var(--c-surface); font-size: 13px; box-shadow: 0 0 0 1px var(--c-border-strong) inset; }
 .filter-row :deep(.el-select__selected-item) { color: var(--c-text-2); }
 .filter-row :deep(.el-select__wrapper.is-focused) { box-shadow: 0 0 0 1px var(--c-primary) inset; }
 .filter-row :deep(.el-select__placeholder.is-transparent) { color: var(--c-text-3); }
-.filter-feedback { display: flex; align-items: center; gap: 14px; margin: -8px 0 16px; color: var(--c-text-3); font-size: 12px; }
+.filter-feedback { display: flex; align-items: center; flex-shrink: 0; gap: 14px; color: var(--c-text-3); font-size: 12px; white-space: nowrap; }
 .filter-feedback button { padding: 0; border: 0; background: transparent; color: var(--c-primary); }
 .article-table { width: 100%; border-collapse: collapse; table-layout: fixed; text-align: left; }
 .status-col { width: 8%; }
 .category-col { width: 10%; }
 .metrics-col { width: 16%; }
 .date-col { width: 12%; }
-.actions-col { width: 100px; }
+.actions-col { width: 184px; }
 .article-table th { padding: 12px 16px; border-block: 1px solid var(--c-border); color: var(--c-text-3); font-size: 13px; font-weight: 400; }
 .article-table td { height: 96px; padding: 14px 16px; border-bottom: 1px solid var(--c-border); color: var(--c-text-3); font-size: 13px; vertical-align: middle; }
 .article-table th:first-child, .article-table td:first-child { padding-left: 12px; }
@@ -265,12 +269,11 @@ onMounted(() => Promise.all([fetchArticles(), fetchCategories()]))
 .article-metrics .el-icon, .article-metrics svg { width: 15px; height: 15px; flex-shrink: 0; font-size: 15px; }
 .article-date { white-space: nowrap; font-variant-numeric: tabular-nums; }
 .mobile-date-label { display: none; }
-.row-actions { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px; }
-.row-actions button { display: inline-flex; min-height: 30px; align-items: center; justify-content: center; padding: 0; border: 0; background: transparent; color: var(--c-primary); font-size: 12px; white-space: nowrap; }
+.row-actions { display: flex; align-items: center; gap: 12px; }
+.row-actions button { display: inline-flex; flex-shrink: 0; min-height: 30px; align-items: center; justify-content: center; padding: 0; border: 0; background: transparent; color: var(--c-primary); font-size: 12px; white-space: nowrap; }
 .row-actions button:hover { text-decoration: underline; }
 .row-actions .delete-action { width: 28px; color: var(--c-text-3); font-size: 16px; }
 .row-actions .delete-action:hover { color: var(--c-danger); }
-.row-actions .submit-action { flex-basis: 100%; justify-content: flex-start; }
 .library-footer { padding-top: 22px; color: var(--c-text-3); font-size: 12px; }
 .panel-state { display: flex; min-height: 320px; align-items: center; justify-content: center; flex-direction: column; padding: 32px 20px; border-block: 1px solid var(--c-border); text-align: center; }
 .state-icon { margin-bottom: 16px; color: var(--c-text-3); font-size: 28px; }
@@ -286,14 +289,14 @@ onMounted(() => Promise.all([fetchArticles(), fetchCategories()]))
   .category-col { width: 94px; }
   .metrics-col { width: 140px; }
   .date-col { width: 108px; }
-  .actions-col { width: 86px; }
+  .actions-col { width: 172px; }
   .article-table th, .article-table td { padding-inline: 10px; }
   .article-identity { gap: 14px; }
   .article-cover { width: 72px; height: 52px; flex-basis: 72px; }
   .article-metrics { column-gap: 8px; }
 }
 @media (max-width: 900px) {
-  .content-page { width: calc(100% - 48px); padding-top: 32px; }
+  .content-page { width: calc(100% - 48px); }
   .library-toolbar { gap: 16px; }
   .search-field { flex: 1; }
   .category-filter { width: 144px; }
@@ -308,16 +311,15 @@ onMounted(() => Promise.all([fetchArticles(), fetchCategories()]))
   .article-table .article-category { grid-column: 2; }
   .article-table .article-data { grid-column: 1 / 3; grid-row: 4; }
   .article-table .article-date { grid-column: 1 / 3; grid-row: 3; }
-  .article-table .article-actions { grid-column: 3; grid-row: 2 / 5; align-self: end; }
+  .article-table .article-actions { grid-column: 1 / -1; grid-row: 5; }
   .article-cover { width: 88px; height: 60px; flex-basis: 88px; }
   .article-metrics { column-gap: 16px; }
   .mobile-date-label { display: inline; }
-  .row-actions { justify-content: flex-end; max-width: 120px; gap: 8px 18px; }
+  .row-actions { justify-content: flex-end; gap: 18px; }
   .row-actions button { min-height: 34px; }
-  .row-actions .submit-action { justify-content: flex-end; }
 }
 @media (max-width: 620px) {
-  .content-page { width: calc(100% - 32px); padding-top: 24px; }
+  .content-page { width: calc(100% - 32px); padding-top: 16px; }
   .content-head { align-items: flex-start; flex-direction: column; gap: 20px; margin-bottom: 20px; }
   .content-heading h1 { font-size: 26px; }
   .head-actions { width: 100%; }
@@ -325,8 +327,9 @@ onMounted(() => Promise.all([fetchArticles(), fetchCategories()]))
   .status-tabs { justify-content: space-between; gap: 10px; }
   .status-tabs > button { gap: 6px; padding-inline: 2px; font-size: 13px; }
   .library-toolbar { align-items: stretch; flex-direction: column; gap: 12px; padding: 18px 0; }
+  .search-tools { flex: auto; align-items: stretch; flex-direction: column; }
   .search-field { width: 100%; flex: auto; }
-  .filter-row { gap: 12px; }
+  .filter-row { gap: 12px; margin-left: 0; }
   .category-filter, .sort-filter { width: auto; flex: 1; min-width: 0; }
   .article-cover { width: 72px; height: 54px; flex-basis: 72px; }
   .article-title { font-size: 15px; }

@@ -17,19 +17,21 @@
         <p>个人分组，仅用于整理自己的文章</p>
       </header>
       <div class="library-toolbar">
-        <label class="search-field">
-          <el-icon><Search /></el-icon>
-          <input v-model="keyword" aria-label="搜索分组名称或描述" placeholder="搜索分组名称或描述" />
-          <button v-if="keyword" aria-label="清空搜索" @click="keyword = ''">×</button>
-        </label>
+        <div class="search-tools">
+          <label class="search-field">
+            <el-icon><Search /></el-icon>
+            <input v-model="keyword" aria-label="搜索分组名称或描述" placeholder="搜索分组名称或描述" />
+            <button v-if="keyword" aria-label="清空搜索" @click="keyword = ''">×</button>
+          </label>
+          <div v-if="keyword.trim() && !loading && !loadFailed" class="filter-feedback" role="status">
+            <span>找到 {{ visibleCategories.length }} 个分组</span><button @click="keyword = ''">清除筛选</button>
+          </div>
+        </div>
         <el-select v-model="sortOrder" aria-label="分组排序" class="sort-filter">
           <el-option label="最近更新" value="updated" />
           <el-option label="最新创建" value="created" />
           <el-option label="文章最多" value="articles" />
         </el-select>
-      </div>
-      <div v-if="keyword.trim() && !loading && !loadFailed" class="filter-feedback" role="status">
-        <span>找到 {{ visibleCategories.length }} 个分组</span><button @click="keyword = ''">清除筛选</button>
       </div>
 
       <div v-if="loading" class="panel-state loading-state" role="status">
@@ -268,10 +270,11 @@ onMounted(fetchCategories)
 </script>
 
 <style scoped>
-.categories-page { width: min(1440px, calc(100% - 96px)); padding: 44px 0 40px; }
+.categories-page { width: min(1440px, calc(100% - 96px)); padding: 20px 0 40px; }
 .categories-head { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-bottom: 28px; }
+.categories-heading { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 16px; min-width: 0; }
 .categories-heading h1 { color: var(--c-text); font-size: 30px; line-height: 1.4; font-weight: 700; letter-spacing: -.035em; }
-.categories-heading p { margin-top: 8px; color: var(--c-text-3); font-size: 13px; }
+.categories-heading p { color: var(--c-text-3); font-size: 13px; }
 .head-actions { display: flex; flex-shrink: 0; gap: 12px; }
 .head-actions a, .head-actions button { display: inline-flex; height: 40px; align-items: center; justify-content: center; gap: 8px; padding: 0 17px; border: 1px solid var(--c-border-strong); border-radius: 3px; background: transparent; color: var(--c-text-2); font-size: 13px; transition: border-color var(--transition), background var(--transition); }
 .head-actions a:hover { border-color: var(--c-text-3); background: var(--c-surface-2); }
@@ -282,18 +285,19 @@ onMounted(fetchCategories)
 .panel-head h2 { display: flex; align-items: center; gap: 8px; padding: 13px 4px 15px; margin-bottom: -1px; border-bottom: 2px solid var(--c-primary); color: var(--c-primary); font-size: 14px; font-weight: 400; white-space: nowrap; }
 .panel-head h2 span { font-size: 12px; font-variant-numeric: tabular-nums; }
 .panel-head p { color: var(--c-text-3); font-size: 12px; }
-.library-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 22px 0; }
+.library-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 16px 24px; padding: 22px 0; }
+.search-tools { display: flex; flex: 1 1 520px; min-width: 0; align-items: center; flex-wrap: wrap; gap: 12px 20px; }
 .search-field { display: flex; width: 360px; min-width: 0; height: 38px; align-items: center; gap: 10px; padding: 0 12px; border: 1px solid var(--c-border-strong); border-radius: 3px; color: var(--c-text-3); }
 .search-field:focus-within { border-color: var(--c-primary); outline: 1px solid var(--c-primary); }
 .search-field .el-icon { flex-shrink: 0; font-size: 16px; }
 .search-field input { width: 100%; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--c-text); font-size: 13px; }
 .search-field input::placeholder { color: var(--c-text-3); }
 .search-field button { flex-shrink: 0; padding: 0 3px; border: 0; background: transparent; color: var(--c-text-3); font-size: 20px; }
-.sort-filter { width: 144px; flex-shrink: 0; }
+.sort-filter { width: 144px; flex-shrink: 0; margin-left: auto; }
 .sort-filter :deep(.el-select__wrapper) { min-height: 38px; border-radius: 3px; background: var(--c-surface); font-size: 13px; box-shadow: 0 0 0 1px var(--c-border-strong) inset; }
 .sort-filter :deep(.el-select__selected-item) { color: var(--c-text-2); }
 .sort-filter :deep(.el-select__wrapper.is-focused) { box-shadow: 0 0 0 1px var(--c-primary) inset; }
-.filter-feedback { display: flex; align-items: center; gap: 14px; margin: -8px 0 16px; color: var(--c-text-3); font-size: 12px; }
+.filter-feedback { display: flex; align-items: center; flex-shrink: 0; gap: 14px; color: var(--c-text-3); font-size: 12px; white-space: nowrap; }
 .filter-feedback button { padding: 0; border: 0; background: transparent; color: var(--c-primary); }
 .category-table { width: 100%; border-collapse: collapse; table-layout: fixed; text-align: left; }
 .count-col { width: 14%; }
@@ -315,8 +319,8 @@ onMounted(fetchCategories)
 .cat-copy p { overflow: hidden; margin-top: 4px; color: var(--c-text-3); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
 .cat-count, .cat-date { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .mobile-count-label, .mobile-date-label { display: none; }
-.cat-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.cat-actions a, .cat-actions button { display: inline-flex; min-height: 30px; align-items: center; justify-content: center; padding: 0; border: 0; background: transparent; color: var(--c-primary); font-size: 12px; white-space: nowrap; }
+.cat-actions { display: flex; align-items: center; gap: 12px; }
+.cat-actions a, .cat-actions button { display: inline-flex; flex-shrink: 0; min-height: 30px; align-items: center; justify-content: center; padding: 0; border: 0; background: transparent; color: var(--c-primary); font-size: 12px; white-space: nowrap; }
 .cat-actions a:hover, .cat-actions button:hover { text-decoration: underline; }
 .cat-actions .delete-action { width: 28px; flex-shrink: 0; color: var(--c-text-3); font-size: 16px; }
 .cat-actions .delete-action:hover { color: var(--c-danger); }
@@ -337,7 +341,7 @@ onMounted(fetchCategories)
 .categories-page :deep(.el-dialog) { max-width: calc(100vw - 32px); }
 @keyframes category-spin { to { transform: rotate(360deg); } }
 @media (max-width: 900px) {
-  .categories-page { width: calc(100% - 48px); padding-top: 32px; }
+  .categories-page { width: calc(100% - 48px); }
   .category-table, .category-table tbody { display: block; }
   .category-table colgroup, .category-table thead { display: none; }
   .category-table { border-top: 1px solid var(--c-border); }
@@ -353,7 +357,7 @@ onMounted(fetchCategories)
   .cat-actions a, .cat-actions button { min-height: 34px; }
 }
 @media (max-width: 620px) {
-  .categories-page { width: calc(100% - 32px); padding-top: 24px; }
+  .categories-page { width: calc(100% - 32px); padding-top: 16px; }
   .categories-head { align-items: flex-start; flex-direction: column; gap: 20px; margin-bottom: 20px; }
   .categories-heading h1 { font-size: 26px; }
   .head-actions { width: 100%; }
@@ -361,16 +365,13 @@ onMounted(fetchCategories)
   .panel-head { align-items: flex-start; flex-direction: column; gap: 0; }
   .panel-head h2 { order: 1; }
   .panel-head p { padding-bottom: 4px; font-size: 11px; }
-  .library-toolbar { gap: 12px; padding: 18px 0; }
-  .search-field { flex: 1; padding-inline: 9px; gap: 6px; }
-  .sort-filter { width: 112px; }
+  .library-toolbar { align-items: stretch; flex-direction: column; gap: 12px; padding: 18px 0; }
+  .search-tools { flex: auto; align-items: stretch; flex-direction: column; }
+  .search-field { width: 100%; padding-inline: 9px; gap: 6px; }
+  .sort-filter { width: 100%; margin-left: 0; }
   .cat-cover { width: 72px; height: 54px; flex-basis: 72px; }
   .cat-title { font-size: 15px; }
   .cat-actions { gap: 12px; }
-}
-@media (max-width: 380px) {
-  .library-toolbar { align-items: stretch; flex-direction: column; }
-  .search-field, .sort-filter { width: 100%; flex: auto; }
   .category-actions { grid-column: 1 / -1; grid-row: auto; }
   .cat-actions { justify-content: flex-end; }
 }
