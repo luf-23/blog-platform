@@ -94,13 +94,13 @@ docker compose ps
 
 ## 更新服务
 
-GitHub Actions 将新镜像推送到 Docker Hub 后，会自动通过 SSH 在服务器执行：
+将本仓库 `dev` 分支的 PR 合并到主分支（`master` / `main`），且 GitHub Actions 将前后端镜像均推送到 Docker Hub 后，才会自动通过 SSH 在服务器执行：
 
 ```bash
 cd /home/ubuntu/blog-platform/deploy && docker compose pull && docker compose up -d
 ```
 
-SSH 公钥和 GitHub Actions Secrets 的配置方式见项目根目录 `README.md` 的“CI/CD”章节。
+`dev` 分支日常推送只发布开发镜像，不更新生产 `latest` 标签，也不触发部署。直接推送主分支、合并其他分支的 PR 或手动发布镜像均不会触发自动部署；这些操作仍可能更新主分支的 `latest` 标签。SSH 公钥和 GitHub Actions Secrets 的配置方式见项目根目录 `README.md` 的“CI/CD”章节。
 
 配置文件或配置值变更后，只需重启后端：
 

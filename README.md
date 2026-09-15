@@ -121,14 +121,32 @@ npm run preview
 
 ## CI/CD
 
-`.github/workflows/docker-publish.yml` 会在 `main` 或 `master` 分支提交后构建并推送镜像，也支持手动触发：
+日常开发在 `dev` 分支进行，通过 Pull Request 将 `dev` 合并到主分支（当前为 `master`，也兼容 `main`）发布上线。
+
+| 操作 | Docker 镜像发布 | 自动部署生产环境 |
+| --- | --- | --- |
+| 推送到 `dev` | 发布 `dev` 和 `sha-*` 标签，不更新 `latest` | 否 |
+| 将本仓库 `dev` 的 PR 合并到 `master` / `main` | 发布主分支、`latest` 和 `sha-*` 标签 | 前后端镜像均发布成功后部署 |
+| 直接推送主分支或合并其他分支的 PR | 发布主分支、`latest` 和 `sha-*` 标签 | 否 |
+| 手动运行镜像发布工作流 | 发布所选分支的镜像，仅主分支更新 `latest` | 否 |
+
+首次创建开发分支：
+
+```bash
+git switch -c dev
+git push -u origin dev
+```
+
+后续在 `dev` 提交、推送，准备发布时创建 `dev → master` 的 PR 并合并。自动部署通过 GitHub PR 记录识别发布；在本地执行 `git merge` 后直接推送不会触发 CD。CI 同时检查 `dev` 推送及 PR。
+
+`.github/workflows/docker-publish.yml` 负责构建并推送镜像。生产环境使用：
 
 ```text
 luf23/blog-platform-backend:latest
 luf23/blog-platform-frontend:latest
 ```
 
-镜像发布工作流使用 GitHub Actions Secret `DOCKERHUB_TOKEN` 登录 Docker Hub。独立的 `.github/workflows/cd.yml` 会在前后端镜像均发布成功后自动触发，也支持手动运行；它通过 SSH 登录生产服务器并执行：
+镜像发布工作流使用 GitHub Actions Secret `DOCKERHUB_TOKEN` 登录 Docker Hub。前后端镜像均发布成功后，工作流检查当前提交是否对应本仓库 `dev` 合并到目标主分支的 PR，匹配后调用 `.github/workflows/cd.yml`。CD 不再独立监听镜像发布完成事件，也不提供手动触发入口；部署任务显示在镜像发布工作流中，通过 SSH 登录生产服务器并执行：
 
 ```bash
 cd /home/ubuntu/blog-platform/deploy && docker compose pull && docker compose up -d
