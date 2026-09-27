@@ -10,10 +10,15 @@ import com.blogplatform.backend.entity.ArticleVO;
 import com.blogplatform.backend.entity.Result;
 import com.blogplatform.backend.entity.Tag;
 import com.blogplatform.backend.utils.ThreadLocalUtil;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.util.*;
 
 @Service
@@ -29,6 +34,15 @@ public class ArticleServiceImpl implements ArticleService {
     private ArticleLikeMapper articleLikeMapper;
     @Autowired
     private ArticleViewCountService articleViewCountService;
+    @Autowired
+    private StringRedisTemplate redisTemplate;
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    @Value("${article.detail-cache-ttl-seconds:600}")
+    private long articleDetailCacheTtlSeconds;
+
+    private static final String ARTICLE_DETAIL_CACHE_KEY = "article:detail:";
 
     // ── Public discovery ──────────────────────────────────────────────────────
 
@@ -58,7 +72,14 @@ public class ArticleServiceImpl implements ArticleService {
 
     @Override
     public Result getPublicDetail(Integer articleId) {
-        ArticleVO vo = articleMapper.selectVOById(articleId);
+        ArticleVO vo = getCachedArticleDetail(articleId);
+        if (vo == null) {
+            vo = articleMapper.selectVOById(articleId);
+            if (vo != null) {
+                vo.setTags(tagMapper.selectByArticleId(articleId));
+                cacheArticleDetail(vo);
+            }
+        }
         if (vo == null) return Result.error("文章不存在");
         if (!"published".equals(vo.getStatus())) {
             Integer currentUserId = resolveCurrentUserId();
@@ -66,7 +87,6 @@ public class ArticleServiceImpl implements ArticleService {
                 return Result.error("文章不存在或无权访问");
             }
         }
-        vo.setTags(tagMapper.selectByArticleId(articleId));
         vo.setIsLiked(isArticleLiked(articleId));
         articleViewCountService.recordView(articleId);
         vo.setViewCount((vo.getViewCount() == null ? 0 : vo.getViewCount()) + 1);
@@ -135,6 +155,7 @@ public class ArticleServiceImpl implements ArticleService {
         if (tagNames != null && !tagNames.isEmpty()) {
             saveArticleTags(article.getArticleId(), tagNames);
         }
+        evictDetailCache(article.getArticleId());
         tagMapper.refreshAllCounts();
         return Result.success();
     }
@@ -147,6 +168,7 @@ public class ArticleServiceImpl implements ArticleService {
         if (userId == null) return Result.error("请先登录");
         if (!article.getUserId().equals(userId)) return Result.error("权限不足");
         articleMapper.deleteById(articleId);
+        evictDetailCache(articleId);
         tagMapper.refreshAllCounts();
         return Result.success();
     }
@@ -159,6 +181,7 @@ public class ArticleServiceImpl implements ArticleService {
         if (userId == null) return Result.error("请先登录");
         if (!article.getUserId().equals(userId)) return Result.error("权限不足");
         articleMapper.submitForReview(articleId);
+        evictDetailCache(articleId);
         return Result.success();
     }
 
@@ -170,6 +193,7 @@ public class ArticleServiceImpl implements ArticleService {
         if (userId == null) return Result.error("请先登录");
         if (!article.getUserId().equals(userId)) return Result.error("权限不足");
         articleMapper.updateCoverImage(articleId, coverImage);
+        evictDetailCache(articleId);
         return Result.success();
     }
 
@@ -194,16 +218,56 @@ public class ArticleServiceImpl implements ArticleService {
     @Override
     public Result adminApprove(Integer articleId) {
         articleMapper.approveArticle(articleId);
+        evictDetailCache(articleId);
         return Result.success();
     }
 
     @Override
     public Result adminReject(Integer articleId) {
         articleMapper.rejectArticle(articleId);
+        evictDetailCache(articleId);
         return Result.success();
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
+
+    private ArticleVO getCachedArticleDetail(Integer articleId) {
+        try {
+            String cached = redisTemplate.opsForValue().get(articleDetailCacheKey(articleId));
+            return cached == null ? null : objectMapper.readValue(cached, ArticleVO.class);
+        } catch (RuntimeException | JsonProcessingException ex) {
+            return null;
+        }
+    }
+
+    private void cacheArticleDetail(ArticleVO article) {
+        try {
+            // 点赞状态随当前用户变化，只缓存文章公共详情。
+            article.setIsLiked(false);
+            String value = objectMapper.writeValueAsString(article);
+            redisTemplate.opsForValue().set(
+                    articleDetailCacheKey(article.getArticleId()),
+                    value,
+                    Duration.ofSeconds(Math.max(1, articleDetailCacheTtlSeconds))
+            );
+        } catch (RuntimeException | JsonProcessingException ignored) {
+            // 缓存故障不影响 MySQL 回源结果。
+        }
+    }
+
+    @Override
+    public void evictDetailCache(Integer articleId) {
+        if (articleId == null) return;
+        try {
+            redisTemplate.delete(articleDetailCacheKey(articleId));
+        } catch (RuntimeException ignored) {
+            // 删除失败时由 TTL 兜底，避免影响主流程。
+        }
+    }
+
+    private String articleDetailCacheKey(Integer articleId) {
+        return ARTICLE_DETAIL_CACHE_KEY + articleId;
+    }
 
     private Result validateManagedTags(List<String> tagNames) {
         if (tagNames == null || tagNames.isEmpty()) return null;

@@ -5,6 +5,7 @@ import com.blogplatform.backend.mapper.CommentLikeMapper;
 import com.blogplatform.backend.mapper.CommentMapper;
 import com.blogplatform.backend.mapper.UserMapper;
 import com.blogplatform.backend.service.CommentService;
+import com.blogplatform.backend.service.ArticleService;
 import com.blogplatform.backend.entity.Comment;
 import com.blogplatform.backend.entity.CommentLikeCount;
 import com.blogplatform.backend.entity.CommentReplyCount;
@@ -30,6 +31,8 @@ public class CommentServiceImpl implements CommentService {
     private CommentLikeMapper commentLikeMapper;
     @Autowired
     private ArticleMapper articleMapper;
+    @Autowired
+    private ArticleService articleService;
 
     @Override
     public Result<Map<String, Object>> list(Integer articleId, Integer page, Integer pageSize) {
@@ -133,6 +136,7 @@ public class CommentServiceImpl implements CommentService {
             commentMapper.insert(comment);
         }
         articleMapper.incrementCommentCount(articleId);
+        if (articleService != null) articleService.evictDetailCache(articleId);
         return Result.success();
     }
 

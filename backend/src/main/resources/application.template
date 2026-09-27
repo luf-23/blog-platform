@@ -51,3 +51,4 @@ spring.data.redis.database=0
 article.view.flush-interval-ms=30000
 article.view.flush-threshold=100
 article.view.check-interval-ms=1000
+article.detail-cache-ttl-seconds=600

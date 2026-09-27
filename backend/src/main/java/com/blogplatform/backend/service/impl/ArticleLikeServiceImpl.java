@@ -2,6 +2,7 @@ package com.blogplatform.backend.service.impl;
 
 import com.blogplatform.backend.mapper.ArticleLikeMapper;
 import com.blogplatform.backend.mapper.ArticleMapper;
+import com.blogplatform.backend.service.ArticleService;
 import com.blogplatform.backend.service.ArticleLikeService;
 import com.blogplatform.backend.entity.Result;
 import com.blogplatform.backend.utils.ThreadLocalUtil;
@@ -19,6 +20,8 @@ public class ArticleLikeServiceImpl implements ArticleLikeService {
 
     @Autowired
     private ArticleMapper articleMapper;
+    @Autowired
+    private ArticleService articleService;
 
     @Override
     public Result<Integer> count(Integer articleId) {
@@ -31,7 +34,10 @@ public class ArticleLikeServiceImpl implements ArticleLikeService {
         Map<String, Object> claims = ThreadLocalUtil.get();
         Integer userId = (Integer) claims.get("id");
         int inserted = articleLikeMapper.add(articleId, userId);
-        if (inserted > 0) articleMapper.incrementLikeCount(articleId);
+        if (inserted > 0) {
+            articleMapper.incrementLikeCount(articleId);
+            articleService.evictDetailCache(articleId);
+        }
         return Result.success(Map.of(
                 "isLiked", true,
                 "likeCount", articleLikeMapper.count(articleId)
@@ -44,7 +50,10 @@ public class ArticleLikeServiceImpl implements ArticleLikeService {
         Map<String, Object> claims = ThreadLocalUtil.get();
         Integer userId = (Integer) claims.get("id");
         int deleted = articleLikeMapper.delete(articleId, userId);
-        if (deleted > 0) articleMapper.decrementLikeCount(articleId);
+        if (deleted > 0) {
+            articleMapper.decrementLikeCount(articleId);
+            articleService.evictDetailCache(articleId);
+        }
         return Result.success(Map.of(
                 "isLiked", false,
                 "likeCount", articleLikeMapper.count(articleId)

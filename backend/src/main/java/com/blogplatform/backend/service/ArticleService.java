@@ -13,6 +13,8 @@ public interface ArticleService {
 
     Result getPublicDetail(Integer articleId);
 
+    void evictDetailCache(Integer articleId);
+
     // My blog
     Result getMyArticles(String title, String status, Integer categoryId);
 
