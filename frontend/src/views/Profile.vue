@@ -41,18 +41,21 @@
         </div>
       </div>
 
-      <section class="profile-stats surface-card">
-        <button type="button" :class="{ active: activeSection === 'articles' }" @click="selectSection('articles')"><i>▤</i><span>文章<strong>{{ profileStats.articleCount }}</strong></span></button>
-        <p><i>◉</i><span>总阅读<strong>{{ formatCount(profileStats.views) }}</strong></span></p>
-        <p><i>♡</i><span>获赞<strong>{{ formatCount(profileStats.likes) }}</strong></span></p>
-        <p><i>▢</i><span>评论<strong>{{ formatCount(profileStats.comments) }}</strong></span></p>
-        <button type="button" :class="{ active: activeSection === 'followers' }" @click="selectSection('followers')"><i>◎</i><span>关注者<strong>{{ formatCount(profileStats.followerCount) }}</strong></span></button>
-        <button type="button" :class="{ active: activeSection === 'following' }" @click="selectSection('following')"><i>→</i><span>正在关注<strong>{{ formatCount(profileStats.followingCount) }}</strong></span></button>
+      <section class="profile-overview">
+        <div class="profile-overview-heading">
+          <span class="eyebrow">PROFILE INDEX</span>
+          <p>记录、连接，以及一些值得留下来的想法。</p>
+        </div>
+        <div class="profile-metrics" aria-label="主页数据">
+          <p><span>总阅读</span><strong>{{ formatCount(profileStats.views) }}</strong></p>
+          <p><span>获赞</span><strong>{{ formatCount(profileStats.likes) }}</strong></p>
+          <p><span>评论</span><strong>{{ formatCount(profileStats.comments) }}</strong></p>
+        </div>
       </section>
 
-      <nav class="profile-tabs" aria-label="主页内容">
+      <nav class="profile-tabs" aria-label="主页内容导航">
         <button v-for="tab in profileTabs" :key="tab.value" type="button" :class="{ active: activeSection === tab.value }" @click="selectSection(tab.value)">
-          {{ tab.label }}<span>{{ tab.count }}</span>
+          {{ tab.label }}<span class="tab-count">{{ tab.count }}</span>
         </button>
       </nav>
 
@@ -476,13 +479,15 @@ watch(() => route.params.username, () => {
 
 .profile-card {
   margin-top: -50px;
-  padding: 24px;
+  padding: 26px 30px 24px;
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 14px;
+  margin-bottom: 22px;
   position: relative;
+  border: 1px solid rgba(148,163,184,.22);
+  box-shadow: 0 14px 34px rgba(15,23,42,.08);
 }
 
 .profile-card-left {
@@ -525,7 +530,8 @@ watch(() => route.params.username, () => {
 }
 
 .profile-name {
-  font-size: 22px;
+  font-size: 25px;
+  letter-spacing: -.03em;
   font-weight: 800;
   color: var(--c-text);
   margin-bottom: 2px;
@@ -560,22 +566,30 @@ watch(() => route.params.username, () => {
 }
 
 /* Content */
-.profile-stats { display: grid; grid-template-columns: repeat(6, 1fr); margin-bottom: 18px; padding: 16px 18px; }
-.profile-stats p, .profile-stats button { display: flex; min-width: 0; align-items: center; justify-content: center; gap: 12px; padding: 5px 8px; border: 0; border-right: 1px solid var(--c-border); border-radius: 0; background: transparent; text-align: left; }
-.profile-stats > :last-child { border-right: 0; }
-.profile-stats button { cursor: pointer; transition: color var(--transition), background var(--transition); }
-.profile-stats button:hover, .profile-stats button.active { border-radius: 7px; background: var(--c-primary-soft); }
-.profile-stats button:hover i, .profile-stats button.active i, .profile-stats button.active strong { color: var(--c-primary); }
-.profile-stats i { color: var(--c-primary); font-size: 23px; font-style: normal; }
-.profile-stats span { display: flex; flex-direction: column; color: var(--c-text-3); font-size: 11px; }
-.profile-stats strong { color: var(--c-text); font-size: 21px; }
+.profile-overview {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 30px;
+  margin-bottom: 16px;
+  padding: 18px 4px 19px;
+  border-block: 1px solid var(--c-border);
+}
+.profile-overview-heading { min-width: 220px; }
+.eyebrow { display: block; margin-bottom: 7px; color: var(--c-primary); font-size: 10px; font-weight: 800; letter-spacing: .08em; }
+.profile-overview-heading p { color: var(--c-text-3); font-size: 12px; }
+.profile-metrics { display: flex; align-items: center; gap: 0; }
+.profile-metrics p { min-width: 105px; padding: 0 24px; border-left: 1px solid var(--c-border); }
+.profile-metrics span { display: block; margin-bottom: 5px; color: var(--c-text-4); font-size: 11px; }
+.profile-metrics strong { color: var(--c-text); font-size: 23px; font-weight: 700; }
 .profile-card-right .following { border-color: var(--c-border-strong); background: var(--c-surface-2); color: var(--c-text-3); box-shadow: none; }
-.profile-tabs { display: flex; gap: 8px; margin-bottom: 18px; border-bottom: 1px solid var(--c-border); }
-.profile-tabs button { position: relative; display: inline-flex; align-items: center; gap: 7px; padding: 11px 12px 13px; border: 0; background: transparent; color: var(--c-text-3); font-weight: 600; }
-.profile-tabs button span { display: grid; min-width: 20px; height: 20px; padding: 0 5px; place-items: center; border-radius: 10px; background: var(--c-surface-2); color: var(--c-text-4); font-size: 10px; }
+.profile-tabs { display: flex; gap: 28px; margin-bottom: 25px; border-bottom: 1px solid var(--c-border); }
+.profile-tabs button { position: relative; display: inline-flex; align-items: baseline; gap: 7px; padding: 0 0 13px; border: 0; background: transparent; color: var(--c-text-3); font-size: 14px; font-weight: 700; white-space: nowrap; transition: color var(--transition); }
+.profile-tabs button:hover { color: var(--c-text); }
+.profile-tabs .tab-count { color: var(--c-text-4); font-size: 12px; font-weight: 500; }
 .profile-tabs button.active { color: var(--c-primary); }
-.profile-tabs button.active span { background: var(--c-primary-soft); color: var(--c-primary); }
-.profile-tabs button.active::after { position: absolute; right: 8px; bottom: -1px; left: 8px; height: 3px; border-radius: 3px 3px 0 0; background: var(--c-primary); content: ''; }
+.profile-tabs button.active .tab-count { color: var(--c-primary); }
+.profile-tabs button.active::after { position: absolute; right: 0; bottom: -1px; left: 0; height: 2px; background: var(--c-primary); content: ''; }
 .profile-layout { display: grid; grid-template-columns: minmax(0, 1fr) 310px; gap: 18px; align-items: start; }
 .profile-layout--wide { grid-template-columns: minmax(0, 1fr); }
 .profile-content { min-width: 0; }
@@ -653,8 +667,6 @@ watch(() => route.params.username, () => {
   .profile-aside { position: static; display: grid; grid-template-columns: repeat(2, 1fr); }
   .quick-card { grid-column: 1 / -1; }
   .profile-banner { height: 180px; }
-  .profile-stats { grid-template-columns: repeat(3, 1fr); }
-  .profile-stats p:nth-child(3) { border-right: 0; }
   .person-card { grid-template-columns: minmax(0, 1fr) auto; gap: 12px; }
   .person-meta { grid-column: 1; padding-left: 64px; }
   .person-follow { grid-column: 2; grid-row: 1 / span 2; }
@@ -662,9 +674,12 @@ watch(() => route.params.username, () => {
 @media (max-width: 680px) {
   .profile-card, .profile-card-left { align-items: flex-start; flex-direction: column; }
   .profile-card-right { width: 100%; }
-  .profile-stats { grid-template-columns: repeat(2, 1fr); gap: 12px; }
-  .profile-stats > :nth-child(2n) { border-right: 0; }
+  .profile-overview { align-items: flex-start; flex-direction: column; gap: 16px; }
+  .profile-metrics { width: 100%; justify-content: space-between; }
+  .profile-metrics p { flex: 1; min-width: 0; padding: 0 12px; }
+  .profile-metrics p:first-child { padding-left: 0; border-left: 0; }
   .profile-tabs { overflow-x: auto; }
+  .profile-tabs { gap: 22px; }
   .section-header { align-items: flex-start; flex-direction: column; }
   .section-header :deep(.el-input) { width: 100% !important; }
   .profile-aside { grid-template-columns: 1fr; }
