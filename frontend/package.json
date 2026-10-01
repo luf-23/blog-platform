@@ -11,25 +11,25 @@
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.1",
-    "@vueuse/core": "^14.4.0",
+    "@vueuse/core": "^15.0.0",
     "ali-oss": "^6.23.0",
-    "axios": "^1.16.1",
+    "axios": "^1.20.0",
     "dompurify": "^3.4.15",
-    "element-plus": "^2.14.0",
+    "element-plus": "^2.14.5",
     "github-markdown-css": "^5.9.0",
     "highlight.js": "^11.12.0",
     "markdown-it": "^14.1.1",
     "markdown-it-anchor": "^10.0.0",
     "markdown-it-katex": "^2.0.3",
     "markdown-it-task-lists": "^2.1.1",
-    "md-editor-v3": "^6.5.6",
+    "md-editor-v3": "^7.0.0",
     "pinia": "^4.0.3",
     "pinia-plugin-persistedstate": "^4.1.3",
     "vue": "^3.5.32",
     "vue-router": "^4.5.0"
   },
   "devDependencies": {
-    "@vitejs/plugin-vue": "^6.0.8",
+    "@vitejs/plugin-vue": "^6.0.9",
     "vite": "^8.2.2"
   }
 }
