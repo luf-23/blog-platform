@@ -24,6 +24,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
+          ref: dev
           fetch-depth: 0
 
       - name: Setup Node.js
@@ -58,6 +59,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: 'chore: update frontend dependencies'
           branch: chore/dependency-update
+          base: dev
           delete-branch: true
           title: 'chore: update frontend dependencies'
           body: |
